@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
@@ -73,6 +74,72 @@ class ProductOut(BaseModel):
     barcode: str | None
     qr_payload: str | None
     is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CustomerBase(BaseModel):
+    code: str = Field(..., min_length=1, max_length=32)
+    name_en: str = Field(..., min_length=1)
+    name_bn: str = Field(..., min_length=1)
+    phone: str | None = None
+    email: str | None = None
+    billing_address_en: str | None = None
+    billing_address_bn: str | None = None
+
+
+class CustomerCreate(CustomerBase):
+    pass
+
+
+class CustomerUpdate(BaseModel):
+    name_en: str | None = None
+    name_bn: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    billing_address_en: str | None = None
+    billing_address_bn: str | None = None
+
+
+class CustomerOut(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    code: str
+    name_en: str
+    name_bn: str
+    phone: str | None
+    email: str | None
+    billing_address_en: str | None
+    billing_address_bn: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PaymentGateway(str, Enum):
+    sslcommerz = "sslcommerz"
+    bkash = "bkash"
+    nagad = "nagad"
+    rocket = "rocket"
+
+
+class PaymentCreate(BaseModel):
+    gateway: PaymentGateway
+    amount: Decimal
+    currency: str = "BDT"
+    description: str | None = None
+    order_id: str | None = None  # tenant-scoped order reference
+
+
+class PaymentOut(BaseModel):
+    id: UUID
+    gateway: PaymentGateway
+    amount: Decimal
+    currency: str
+    status: str  # pending, completed, failed
+    gateway_transaction_id: str | None
     created_at: datetime
     updated_at: datetime
 

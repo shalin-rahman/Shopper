@@ -42,3 +42,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose -f docker-compose.yml config --quiet
+
+  docker-build-push:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: docker/build-push-action@v5
+        with:
+          context: apps/api
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_REGISTRY }}/shopper-api:${{ github.sha }},${{ secrets.DOCKER_REGISTRY }}/shopper-api:latest
+      - uses: docker/build-push-action@v5
+        with:
+          context: apps/shopper-web
+          file: apps/shopper-web/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_REGISTRY }}/shopper-web:${{ github.sha }},${{ secrets.DOCKER_REGISTRY }}/shopper-web:latest
+      - uses: docker/build-push-action@v5
+        with:
+          context: infra/openresty
+          file: infra/openresty/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_REGISTRY }}/shopper-openresty:${{ github.sha }},${{ secrets.DOCKER_REGISTRY }}/shopper-openresty:latest

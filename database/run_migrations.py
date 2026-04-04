@@ -13,11 +13,12 @@ Or mount ./database/migrations and re-run 002 manually if idempotent.
 
 from __future__ import annotations
 
-import os
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _SAFE_VER = re.compile(r"^[\w][\w.-]*\.sql$")
 
@@ -25,8 +26,21 @@ ROOT = Path(__file__).resolve().parent
 MIGRATIONS = ROOT / "migrations"
 
 
+class MigrationSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=str(ROOT.parent / ".env"),
+        env_file_encoding="utf-8",
+        extra="ignore",
+        case_sensitive=False,
+    )
+
+    migrate_database_url: str | None = None
+    database_url: str | None = None
+
+
 def _dsn() -> str:
-    dsn = (os.getenv("MIGRATE_DATABASE_URL") or os.getenv("DATABASE_URL") or "").strip()
+    settings = MigrationSettings()
+    dsn = (settings.migrate_database_url or settings.database_url or "").strip()
     if not dsn:
         print("Set MIGRATE_DATABASE_URL or DATABASE_URL (migrate-capable role).", file=sys.stderr)
         sys.exit(1)

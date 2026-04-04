@@ -16,12 +16,17 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    testing: bool = False
+    integration_test: bool = False
     database_url: str = "postgresql://shopper_app:shopper_app_change_me@localhost:5432/shopper"
     migrate_database_url: str | None = None
     platform_root_domain: str | None = None
     storefront_public_base_url: str | None = None
     cors_allow_origins: str = "*"
     shopper_admin_api_key: str | None = None
+    redis_url: str = "redis://redis:6379/0"
+    sslcommerz_store_id: str | None = None
+    sslcommerz_store_password: str | None = None
 
     @field_validator("migrate_database_url", "storefront_public_base_url", "shopper_admin_api_key", mode="before")
     @classmethod

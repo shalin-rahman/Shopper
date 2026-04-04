@@ -33,5 +33,21 @@
     "loadFailed": "Could not load products. Is the API running?",
     "formRequired": "SKU and both names are required.",
     "saveFailed": "Could not save product (duplicate SKU or server error)."
+  },
+  "customers": {
+    "title": "Customers",
+    "addTitle": "Add customer",
+    "code": "Code",
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "save": "Save"
+  },
+  "payments": {
+    "title": "Payments",
+    "gateway": "Gateway",
+    "amount": "Amount",
+    "status": "Status"
   }
 }

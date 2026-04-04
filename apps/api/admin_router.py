@@ -15,8 +15,49 @@ from deps import SettingsDep
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
 
 
-class TenantStatusBody(BaseModel):
-    status: Literal["pending", "active", "suspended", "deleted"]
+class ProvisionDedicatedDBBody(BaseModel):
+    tenant_id: UUID
+    database_name: str  # e.g., tenant_{subdomain}
+
+
+@router.post("/tenants/provision-db")
+async def provision_dedicated_db(
+    request: Request,
+    body: ProvisionDedicatedDBBody,
+    settings: SettingsDep,
+    x_shopper_admin_key: str | None = Header(default=None, alias="X-Shopper-Admin-Key"),
+):
+    _require_admin(x_shopper_admin_key, settings)
+    pool = _migrate_pool(request)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Migrate database pool not configured")
+
+    # Placeholder: create DB, run schema init, update tenant record
+    # In production, use a separate admin connection or script
+    async with pool.acquire() as conn:
+        # Check if tenant exists
+        tenant = await conn.fetchrow(
+            "SELECT id, subdomain FROM platform.tenants WHERE id = $1",
+            body.tenant_id,
+        )
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+
+        # Create DB (requires superuser; placeholder)
+        db_name = body.database_name
+        try:
+            await conn.execute(f"CREATE DATABASE {db_name}")
+        except asyncpg.exceptions.DuplicateDatabaseError:
+            pass  # Already exists
+
+        # Update tenant
+        await conn.execute(
+            "UPDATE platform.tenants SET dedicated_database_name = $1 WHERE id = $2",
+            db_name,
+            body.tenant_id,
+        )
+
+    return {"status": "provisioned", "database": db_name}
 
 
 def _migrate_pool(request: Request) -> asyncpg.Pool | None:

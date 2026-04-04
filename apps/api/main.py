@@ -1,5 +1,6 @@
-import os
 from contextlib import asynccontextmanager
+import logging
+import json
 
 import asyncpg
 from fastapi import FastAPI, Request
@@ -7,9 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from admin_router import router as admin_router
 from config import get_settings
+from customers_router import router as customers_router
 from host_tenant import subdomain_from_host as host_subdomain
+from payments_router import router as payments_router
 from products_router import router as products_router
+from reports_router import router as reports_router
 from settings_router import router as settings_router
+from storefront_router import router as storefront_router
 
 POOL: asyncpg.Pool | None = None
 MIGRATE_POOL: asyncpg.Pool | None = None
@@ -19,14 +24,27 @@ MIGRATE_POOL: asyncpg.Pool | None = None
 async def lifespan(app: FastAPI):
     global POOL, MIGRATE_POOL
 
-    if os.getenv("TESTING") == "1":
+    # Configure structured JSON logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format=json.dumps({
+            "timestamp": "%(asctime)s",
+            "level": "%(levelname)s",
+            "message": "%(message)s",
+            "tenant_id": "%(tenant_id)s",
+            "trace_id": "%(trace_id)s"
+        }),
+        datefmt="%Y-%m-%dT%H:%M:%SZ"
+    )
+
+    settings = get_settings()
+    app.state.settings = settings
+
+    if settings.testing:
         app.state.db_pool = None
         app.state.migrate_pool = None
         yield
         return
-
-    settings = get_settings()
-    app.state.settings = settings
 
     dsn = settings.normalize_dsn(settings.database_url)
     POOL = await asyncpg.create_pool(dsn, min_size=1, max_size=10)
@@ -73,6 +91,18 @@ app.add_middleware(
 
 @app.middleware("http")
 async def tenant_context(request: Request, call_next):
+    import uuid
+    trace_id = str(uuid.uuid4())
+    logging.getLogger().handlers[0].setFormatter(
+        logging.Formatter(json.dumps({
+            "timestamp": "%(asctime)s",
+            "level": "%(levelname)s",
+            "message": "%(message)s",
+            "tenant_id": getattr(request.state, 'tenant_subdomain', 'unknown'),
+            "trace_id": trace_id
+        }), datefmt="%Y-%m-%dT%H:%M:%SZ")
+    )
+    request.state.trace_id = trace_id
     settings = getattr(request.app.state, "settings", None) or get_settings()
     sub = host_subdomain(
         request.headers.get("host", ""),
@@ -91,3 +121,7 @@ async def health():
 app.include_router(products_router)
 app.include_router(settings_router)
 app.include_router(admin_router)
+app.include_router(payments_router)
+app.include_router(reports_router)
+app.include_router(customers_router)
+app.include_router(storefront_router)
