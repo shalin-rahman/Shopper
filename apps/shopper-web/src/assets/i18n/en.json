@@ -1,0 +1,37 @@
+{
+  "app": {
+    "title": "Shopper ERP",
+    "language": "Language",
+    "english": "English",
+    "bangla": "Bangla"
+  },
+  "nav": {
+    "home": "Home",
+    "products": "Products"
+  },
+  "home": {
+    "sampleCurrency": "Sample currency",
+    "sampleGrouping": "Lakh/crore-style grouping (en-IN) when UI is English:"
+  },
+  "products": {
+    "title": "Products",
+    "refresh": "Refresh",
+    "addTitle": "Add product",
+    "sku": "SKU",
+    "nameEn": "Name (English)",
+    "nameBn": "Name (Bangla)",
+    "name": "Name",
+    "sellPrice": "Sell price",
+    "vatPct": "VAT %",
+    "save": "Save",
+    "barcode": "Barcode",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "deactivate": "Deactivate",
+    "empty": "No products yet.",
+    "loadFailed": "Could not load products. Is the API running?",
+    "formRequired": "SKU and both names are required.",
+    "saveFailed": "Could not save product (duplicate SKU or server error)."
+  }
+}

@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${SHOPPER_POSTGRES_USER:-shopper}
+      POSTGRES_PASSWORD: ${SHOPPER_POSTGRES_PASSWORD:-shopper_dev_change_me}
+      POSTGRES_DB: ${SHOPPER_POSTGRES_DB:-shopper}
+      SHOPPER_APP_PASSWORD: ${SHOPPER_APP_PASSWORD:-shopper_app_change_me}
+      SHOPPER_MIGRATE_PASSWORD: ${SHOPPER_MIGRATE_PASSWORD:-shopper_migrate_change_me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - ./database/migrations:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopper -d shopper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      DATABASE_URL: ${SHOPPER_DATABASE_URL:-postgresql+asyncpg://shopper_app:shopper_app_change_me@postgres:5432/shopper}
+      PLATFORM_ROOT_DOMAIN: ${PLATFORM_ROOT_DOMAIN:-}
+      STOREFRONT_PUBLIC_BASE_URL: ${STOREFRONT_PUBLIC_BASE_URL:-}
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-*}"
+      MIGRATE_DATABASE_URL: ${SHOPPER_MIGRATE_DATABASE_URL:-}
+      SHOPPER_ADMIN_API_KEY: ${SHOPPER_ADMIN_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/shopper-web
+    expose:
+      - "80"
+    depends_on:
+      - api
+
+  openresty:
+    build:
+      context: ./infra/openresty
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:-}
+      LETSENCRYPT_STAGING: ${LETSENCRYPT_STAGING:-0}
+      PLATFORM_ROOT_DOMAIN: ${PLATFORM_ROOT_DOMAIN:-}
+      ALLOW_ACME_EXTRA_DOMAINS: ${ALLOW_ACME_EXTRA_DOMAINS:-}
+      AUTO_SSL_STORAGE_DIR: /var/openresty-auto-ssl
+    volumes:
+      - openresty_acme:/var/openresty-auto-ssl
+    depends_on:
+      - api
+      - web
+
+volumes:
+  postgres_data:
+  openresty_acme:

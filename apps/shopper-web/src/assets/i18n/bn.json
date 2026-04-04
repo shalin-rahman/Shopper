@@ -1,0 +1,37 @@
+{
+  "app": {
+    "title": "শপার ইআরপি",
+    "language": "ভাষা",
+    "english": "ইংরেজি",
+    "bangla": "বাংলা"
+  },
+  "nav": {
+    "home": "হোম",
+    "products": "পণ্য"
+  },
+  "home": {
+    "sampleCurrency": "নমুনা মুদ্রা",
+    "sampleGrouping": "ইংরেজি UI-এ লাখ/কোটি গ্রুপিং (en-IN):"
+  },
+  "products": {
+    "title": "পণ্যসমূহ",
+    "refresh": "রিফ্রেশ",
+    "addTitle": "পণ্য যোগ করুন",
+    "sku": "SKU",
+    "nameEn": "নাম (ইংরেজি)",
+    "nameBn": "নাম (বাংলা)",
+    "name": "নাম",
+    "sellPrice": "বিক্রয় মূল্য",
+    "vatPct": "ভ্যাট %",
+    "save": "সংরক্ষণ",
+    "barcode": "বারকোড",
+    "status": "অবস্থা",
+    "active": "সক্রিয়",
+    "inactive": "নিষ্ক্রিয়",
+    "deactivate": "নিষ্ক্রিয় করুন",
+    "empty": "এখনও কোনো পণ্য নেই।",
+    "loadFailed": "পণ্য লোড করা যায়নি। API চালু আছে কিনা দেখুন।",
+    "formRequired": "SKU এবং উভয় নাম আবশ্যক।",
+    "saveFailed": "সংরক্ষণ ব্যর্থ (সদৃশ SKU বা সার্ভার ত্রুটি)।"
+  }
+}

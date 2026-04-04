@@ -1,0 +1,64 @@
+# Process (for humans & AI): Before a long session ends or context fills up, sync this file — move finished work to DONE, add findings as new TODOs, and keep “Remainings” accurate.
+
+# Remainings (summary): TODO 33–47 (core product + CI/tests). TODO 48–56 (audit backlog). See docs/ARCHITECTURE_AND_SECURITY_REVIEW.md.
+
+DONE 1. PostgreSQL: platform.tenants registry with bilingual display names and subdomain routing key.
+DONE 2. PostgreSQL: tenant_data.products, product_categories, customers with name_en / name_bn (and related bilingual fields).
+DONE 3. PostgreSQL: Row-Level Security policies on tenant_data tables using app.tenant_id session GUC and shopper_app role.
+DONE 4. PostgreSQL: shopper_migrate role with BYPASSRLS for schema migrations.
+DONE 5. PostgreSQL: Stub vat_sales_register_lines for Mushak-oriented reporting (6.1, 6.2, 6.3, 6.6).
+DONE 6. PostgreSQL: Seed demo tenant and sample product for local verification.
+DONE 7. Docker Compose: postgres, api, web (Angular), openresty services and named volumes.
+DONE 8. OpenResty: Dockerfile with lua-resty-auto-ssl (opm) and fallback TLS certificate.
+DONE 9. OpenResty: Lua allow_domain whitelist (PLATFORM_ROOT_DOMAIN, ALLOW_ACME_EXTRA_DOMAINS).
+DONE 10. OpenResty: Nginx — ACME HTTP-01 on :80; HTTPS — /api/* → FastAPI (prefix stripped), /* → Angular SPA (web container).
+DONE 11. FastAPI: Health endpoint and tenant resolution from Host header.
+DONE 12. FastAPI: Example /v1/tenant/products with set_config(app.tenant_id) inside a transaction (RLS demo).
+DONE 13. Angular 17 app scaffold (shopper-web) with routing.
+DONE 14. Angular: Transloco + HTTP loader + en.json / bn.json assets.
+DONE 15. Angular: LocaleService (language switch, html lang/dir, BDT formatting, en-IN decimal grouping, dates).
+DONE 16. Angular: Tailwind CSS + PostCSS wired to global styles.
+DONE 17. Angular: APP_INITIALIZER to restore language from localStorage.
+DONE 18. Flutter: Minimal pubspec shell (localizations, intl, mobile_scanner dependency).
+DONE 19. Angular: production Docker image (multi-stage Node build + nginx) serving SPA; .dockerignore for lean context.
+
+DONE 20. Secrets via `.env` / `.env.example` (documented vars); Compose uses `${SHOPPER_*}`; Postgres app roles created without password then `99_set_role_passwords.sh` sets passwords from env; root `.gitignore` ignores `.env`.
+DONE 21. ERP (phase 1): Products list/create/patch/soft-deactivate via FastAPI + RLS; Angular Products page (bn/en); `barcode` + `qr_payload` from SKU / `STOREFRONT_PUBLIC_BASE_URL`; label printing pipeline still TODO.
+DONE 22. OpenResty: Baseline security headers on HTTPS (X-Frame-Options, X-Content-Type-Options, Referrer-Policy).
+DONE 23. Angular: `/api` base URL (environments + production fileReplacements), dev `proxy.conf.json`, `X-Shopper-Tenant` interceptor for local ng serve; expanded bn/en strings for nav/products/home.
+
+DONE 24. Automated tests: pytest for `codes`, `host_tenant`, FastAPI `TestClient` (health, products 503 without DB, admin auth); `INTEGRATION_TEST` RLS suite placeholder; `httpx` for Starlette TestClient.
+DONE 25. CI: GitHub Actions — API `pytest`, Angular `ng build`, `docker compose config` validation.
+DONE 26. Super Admin API (phase 1): `GET /v1/admin/tenants`, `PATCH /v1/admin/tenants/{id}/status` using `MIGRATE_DATABASE_URL` (RLS bypass); guard with `SHOPPER_ADMIN_API_KEY` header `X-Shopper-Admin-Key`. Angular admin UI + billing engine still TODO.
+DONE 27. OpenResty: `limit_req` on `/api/` (30 r/s, burst 60) — tune per VPS.
+DONE 28. Deploy runbook: `docs/DEPLOY.md` (DNS wildcard, TLS, backups, updates).
+DONE 29. Flutter: runnable `lib/main.dart` shell with `en`/`bn` locales (POS scan + API wiring still TODO).
+DONE 30. API config: Pydantic `BaseSettings` in `config.py` (`get_settings()`); replaces scattered `os.getenv` for DB URLs, CORS, storefront URL, admin key.
+DONE 31. `platform.tenant_settings` + RLS (read/update own row); seed for `demo`; `GET /v1/tenant/settings` for console/storefront bootstrap (theme, language, BIN, legal titles, `module_access` JSONB).
+DONE 32. DB migrations: canonical idempotent SQL in `database/migrations/`; `init/02_apply_migrations.sh` + compose volume `/migrations`; `database/run_migrations.py` + `platform.schema_migrations` for existing DBs; FastAPI `SettingsDep` (`deps.py`); Angular loads tenant settings (theme + default language when no saved user lang).
+
+TODO 33. Add .NET 8 Web API alternative (or stay on FastAPI only) with Npgsql + same RLS / set_config pattern.
+TODO 34. Dedicated database-per-tenant provisioning using `dedicated_database_name` (automation + connection routing).
+TODO 35. Super Admin: Angular (or separate) console UI; subscription / transaction billing engine.
+TODO 36. ERP: Stock in/out, purchases, sales, reservations, inventory valuation.
+TODO 37. ERP: General ledger, AR/AP, installment payments per invoice (Bo = I − Σ Pi).
+TODO 38. ERP: Inline bilingual customer/supplier modals on sale/purchase.
+TODO 39. NBR VAT: Mushak 6.3, 6.1, 6.2, 6.6 bilingual PDF/HTML for audit.
+TODO 40. Reporting: date-wise analytics, inventory aging, Excel/PDF export, white-label.
+TODO 41. Public aggregator + per-tenant storefront paths + theme engine (10+ themes).
+TODO 42. Checkout: SSLCommerz, bKash, Nagad, Rocket + IPN and order state machine.
+TODO 43. OpenResty: allow_domain tightening, WAF, tuning rate limits; cert expiry monitoring/alerts.
+TODO 44. Angular: broader i18n, lazy scopes, a11y; CDN / compose production overlays.
+TODO 45. Flutter: POS scan workflows, offline queue, dynamic QR bill + IPN handoff.
+TODO 46. Tests: full RLS integration cases; Angular e2e; migration pipeline tests in CI.
+TODO 47. CI: Docker image build/push; optional Flutter analyze job when SDK pinned in CI.
+
+TODO 48. .NET parity: `IOptions<T>` / centralized config where second stack exists; remove remaining stray `os.getenv` outside `config` + `TESTING` bootstrap.
+TODO 49. Architecture decision record: **RLS + `tenant_data` + `set_config`** vs **`SET search_path` schema-per-tenant** — pick one for production; document migration if switching.
+TODO 50. If schema-per-tenant: `SET search_path` middleware + fail-closed (unknown subdomain → 403); pool tiers + statement timeouts vs noisy neighbors.
+TODO 51. Redis in Compose: tenant-scoped cache keys, rate limits, IPN idempotency, optional job queue.
+TODO 52. Payments: `PaymentGateway` interface + factory; IPN signature verify + idempotency table + amount/order binding.
+TODO 53. Observability: structured JSON logs with `tenant_id`, trace id; redact secrets; platform aggregate errors only.
+TODO 54. Audit trail: append-only `tenant_data.audit_log` for financial/stock/price changes.
+TODO 55. Angular: zero literals in templates/TS — Transloco + CSS-variable themes (lazy storefront chunks).
+TODO 56. OpenResty/Let’s Encrypt: backoff + issuance queue when many tenants register; ACME failure alerts.

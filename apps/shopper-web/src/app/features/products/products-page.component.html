@@ -1,0 +1,128 @@
+<div class="space-y-6">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 class="text-lg font-semibold text-slate-900">{{ 'products.title' | transloco }}</h2>
+    <button
+      type="button"
+      class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
+      (click)="reload()"
+    >
+      {{ 'products.refresh' | transloco }}
+    </button>
+  </div>
+
+  @if (loadError(); as err) {
+    <p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+      {{ err | transloco }}
+    </p>
+  }
+
+  <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+    <h3 class="mb-3 text-sm font-medium text-slate-800">{{ 'products.addTitle' | transloco }}</h3>
+    @if (formError(); as fe) {
+      <p class="mb-2 text-sm text-red-600">{{ fe | transloco }}</p>
+    }
+    <div class="grid gap-3 sm:grid-cols-2">
+      <label class="block text-sm">
+        <span class="text-slate-600">{{ 'products.sku' | transloco }}</span>
+        <input
+          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
+          [(ngModel)]="sku"
+          name="sku"
+        />
+      </label>
+      <label class="block text-sm">
+        <span class="text-slate-600">{{ 'products.sellPrice' | transloco }}</span>
+        <input
+          type="number"
+          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
+          [(ngModel)]="sellPrice"
+          name="sellPrice"
+        />
+      </label>
+      <label class="block text-sm sm:col-span-2">
+        <span class="text-slate-600">{{ 'products.nameEn' | transloco }}</span>
+        <input
+          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
+          [(ngModel)]="nameEn"
+          name="nameEn"
+        />
+      </label>
+      <label class="block text-sm sm:col-span-2">
+        <span class="text-slate-600">{{ 'products.nameBn' | transloco }}</span>
+        <input
+          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
+          [(ngModel)]="nameBn"
+          name="nameBn"
+        />
+      </label>
+      <label class="block text-sm">
+        <span class="text-slate-600">{{ 'products.vatPct' | transloco }}</span>
+        <input
+          type="number"
+          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
+          [(ngModel)]="vatRate"
+          name="vatRate"
+        />
+      </label>
+    </div>
+    <button
+      type="button"
+      class="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+      [disabled]="saving()"
+      (click)="submit()"
+    >
+      {{ 'products.save' | transloco }}
+    </button>
+  </section>
+
+  <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.sku' | transloco }}</th>
+          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.name' | transloco }}</th>
+          <th class="px-3 py-2 text-end font-medium text-slate-700">{{ 'products.sellPrice' | transloco }}</th>
+          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.barcode' | transloco }}</th>
+          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.status' | transloco }}</th>
+          <th class="px-3 py-2 text-end font-medium text-slate-700"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        @for (p of items(); track p.id) {
+          <tr [class.opacity-50]="!p.is_active">
+            <td class="px-3 py-2 font-mono text-xs">{{ p.sku }}</td>
+            <td class="px-3 py-2">{{ labelName(p) }}</td>
+            <td class="px-3 py-2 text-end font-mono">
+              @if (p.sell_price != null) {
+                {{ locale.formatCurrency(+p.sell_price) }}
+              } @else {
+                —
+              }
+            </td>
+            <td class="px-3 py-2 font-mono text-xs">{{ p.barcode || '—' }}</td>
+            <td class="px-3 py-2">
+              {{ p.is_active ? ('products.active' | transloco) : ('products.inactive' | transloco) }}
+            </td>
+            <td class="px-3 py-2 text-end">
+              @if (p.is_active) {
+                <button
+                  type="button"
+                  class="text-xs text-red-600 hover:underline"
+                  (click)="deactivate(p)"
+                >
+                  {{ 'products.deactivate' | transloco }}
+                </button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="px-3 py-6 text-center text-slate-500">
+              {{ 'products.empty' | transloco }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
