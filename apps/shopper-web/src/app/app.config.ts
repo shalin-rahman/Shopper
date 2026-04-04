@@ -3,6 +3,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { provideTransloco } from '@ngneat/transloco';
 
+import { shopperAdminInterceptor } from './core/http/shopper-admin.interceptor';
 import { shopperTenantInterceptor } from './core/http/shopper-tenant.interceptor';
 import { ShopperTranslocoHttpLoader } from './core/i18n/transloco-loader';
 import { LocaleService } from './core/i18n/locale.service';
@@ -18,7 +19,7 @@ function initLocaleFactory(locale: LocaleService) {
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideHttpClient(withInterceptors([shopperTenantInterceptor])),
+    provideHttpClient(withInterceptors([shopperTenantInterceptor, shopperAdminInterceptor])),
     provideRouter(routes),
     provideTransloco({
       config: {

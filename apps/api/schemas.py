@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -144,3 +144,46 @@ class PaymentOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class StorefrontProductOut(BaseModel):
+    """Public catalog fields (no cost / buy_price)."""
+
+    id: UUID
+    sku: str
+    name_en: str
+    name_bn: str
+    description_en: str | None = None
+    description_bn: str | None = None
+    unit: str
+    sell_price: Decimal | None = None
+    mrp: Decimal | None = None
+    vat_rate_pct: Decimal
+    barcode: str | None = None
+    qr_payload: str | None = None
+
+
+class StorefrontProductListResponse(BaseModel):
+    tenant: str
+    products: list[StorefrontProductOut]
+    total: int
+
+
+InventoryAgingBucket = Literal["0_30", "31_60", "61_90", "90_plus"]
+
+
+class InventoryAgingItem(BaseModel):
+    sku: str
+    name_en: str
+    name_bn: str
+    unit: str
+    sell_price: Decimal | None = None
+    reference_date: date
+    days_idle: int
+    bucket: InventoryAgingBucket
+
+
+class InventoryAgingReportOut(BaseModel):
+    as_of: date
+    items: list[InventoryAgingItem]
+    summary: dict[str, int]

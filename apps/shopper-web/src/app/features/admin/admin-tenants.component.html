@@ -1,0 +1,87 @@
+<section class="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+  <h2 class="text-lg font-semibold text-slate-900">{{ 'admin.title' | transloco }}</h2>
+  <p class="text-sm text-slate-600">{{ 'admin.keyHint' | transloco }}</p>
+
+  <div class="flex flex-wrap items-end gap-2">
+    <label class="flex min-w-[16rem] flex-1 flex-col gap-1 text-sm">
+      <span class="font-medium text-slate-700">{{ 'admin.apiKey' | transloco }}</span>
+      <input
+        type="password"
+        autocomplete="off"
+        class="rounded-md border border-slate-300 px-3 py-2 text-slate-900"
+        [(ngModel)]="adminKeyInput"
+        name="adminKey"
+      />
+    </label>
+    <button
+      type="button"
+      class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+      (click)="saveKey()"
+    >
+      {{ 'admin.saveKey' | transloco }}
+    </button>
+    <button
+      type="button"
+      class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+      (click)="clearKey()"
+    >
+      {{ 'admin.clearKey' | transloco }}
+    </button>
+  </div>
+
+  @if (loadError()) {
+    <p class="text-sm text-red-600">{{ loadError()! | transloco }}</p>
+  }
+
+  @if (keySaved()) {
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="text-sm font-medium text-indigo-600 hover:text-indigo-500"
+        (click)="reload()"
+      >
+        {{ 'admin.refresh' | transloco }}
+      </button>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full border-collapse text-left text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-slate-600">
+            <th class="py-2 pe-4 font-medium">{{ 'admin.subdomain' | transloco }}</th>
+            <th class="py-2 pe-4 font-medium">{{ 'admin.displayName' | transloco }}</th>
+            <th class="py-2 pe-4 font-medium">{{ 'admin.status' | transloco }}</th>
+            <th class="py-2 font-medium">{{ 'admin.dedicatedDb' | transloco }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of items(); track row.id) {
+            <tr class="border-b border-slate-100">
+              <td class="py-2 pe-4 font-mono text-slate-900">{{ row.subdomain }}</td>
+              <td class="py-2 pe-4 text-slate-800">{{ row.display_name_en }}</td>
+              <td class="py-2 pe-4">
+                <select
+                  class="rounded border border-slate-300 bg-white px-2 py-1 text-slate-900"
+                  [value]="row.status"
+                  [disabled]="savingId() === row.id"
+                  (change)="onStatusSelectChange(row, $event)"
+                >
+                  @for (s of statuses(); track s) {
+                    <option [value]="s">{{ statusLabelKey(s) | transloco }}</option>
+                  }
+                </select>
+              </td>
+              <td class="py-2 font-mono text-xs text-slate-600">
+                {{ row.dedicated_database_name || '—' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (items().length === 0 && !loadError()) {
+      <p class="text-sm text-slate-500">{{ 'admin.empty' | transloco }}</p>
+    }
+  }
+</section>

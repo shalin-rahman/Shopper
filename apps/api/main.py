@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from admin_router import router as admin_router
 from config import get_settings
+from redis_client import close_redis, connect_redis
 from customers_router import router as customers_router
 from host_tenant import subdomain_from_host as host_subdomain
 from payments_router import router as payments_router
@@ -18,11 +19,12 @@ from storefront_router import router as storefront_router
 
 POOL: asyncpg.Pool | None = None
 MIGRATE_POOL: asyncpg.Pool | None = None
+REDIS = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global POOL, MIGRATE_POOL
+    global POOL, MIGRATE_POOL, REDIS
 
     # Configure structured JSON logging
     logging.basicConfig(
@@ -43,6 +45,7 @@ async def lifespan(app: FastAPI):
     if settings.testing:
         app.state.db_pool = None
         app.state.migrate_pool = None
+        app.state.redis = None
         yield
         return
 
@@ -58,7 +61,14 @@ async def lifespan(app: FastAPI):
         MIGRATE_POOL = None
         app.state.migrate_pool = None
 
+    REDIS = await connect_redis(settings.redis_url)
+    app.state.redis = REDIS
+
     yield
+
+    await close_redis(app.state.redis)
+    REDIS = None
+    app.state.redis = None
 
     if MIGRATE_POOL:
         await MIGRATE_POOL.close()

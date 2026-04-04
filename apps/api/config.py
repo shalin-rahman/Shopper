@@ -24,11 +24,18 @@ class Settings(BaseSettings):
     storefront_public_base_url: str | None = None
     cors_allow_origins: str = "*"
     shopper_admin_api_key: str | None = None
-    redis_url: str = "redis://redis:6379/0"
+    redis_url: str | None = "redis://redis:6379/0"
+    redis_ipn_ttl_seconds: int = 86_400  # IPN replay suppression key TTL (seconds); <= 0 falls back to 86400
     sslcommerz_store_id: str | None = None
     sslcommerz_store_password: str | None = None
 
-    @field_validator("migrate_database_url", "storefront_public_base_url", "shopper_admin_api_key", mode="before")
+    @field_validator(
+        "migrate_database_url",
+        "storefront_public_base_url",
+        "shopper_admin_api_key",
+        "redis_url",
+        mode="before",
+    )
     @classmethod
     def empty_str_to_none(cls, v: object) -> object:
         if v == "":

@@ -7,7 +7,27 @@
   },
   "nav": {
     "home": "Home",
-    "products": "Products"
+    "products": "Products",
+    "admin": "Admin"
+  },
+  "admin": {
+    "title": "Platform admin",
+    "keyHint": "Paste the SHOPPER_ADMIN_API_KEY value for this session only. It is stored in session storage, not in the app bundle.",
+    "apiKey": "Admin API key",
+    "saveKey": "Use key",
+    "clearKey": "Clear key",
+    "refresh": "Refresh list",
+    "subdomain": "Subdomain",
+    "displayName": "Display name (EN)",
+    "status": "Status",
+    "dedicatedDb": "Dedicated DB",
+    "empty": "No tenants returned.",
+    "loadFailed": "Could not load tenants. Check the admin key and that MIGRATE_DATABASE_URL is set on the API.",
+    "saveFailed": "Could not update tenant status.",
+    "statusPending": "Pending",
+    "statusActive": "Active",
+    "statusSuspended": "Suspended",
+    "statusDeleted": "Deleted"
   },
   "home": {
     "sampleCurrency": "Sample currency",

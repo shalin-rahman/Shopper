@@ -7,7 +7,27 @@
   },
   "nav": {
     "home": "হোম",
-    "products": "পণ্য"
+    "products": "পণ্য",
+    "admin": "অ্যাডমিন"
+  },
+  "admin": {
+    "title": "প্ল্যাটফর্ম অ্যাডমিন",
+    "keyHint": "এই সেশনের জন্য শুধু SHOPPER_ADMIN_API_KEY মান লিখুন। এটি সেশন স্টোরেজে থাকে, অ্যাপ বান্ডেলে নয়।",
+    "apiKey": "অ্যাডমিন API কী",
+    "saveKey": "কী ব্যবহার করুন",
+    "clearKey": "কী মুছুন",
+    "refresh": "তালিকা রিফ্রেশ",
+    "subdomain": "সাবডোমেইন",
+    "displayName": "প্রদর্শন নাম (ইংরেজি)",
+    "status": "অবস্থা",
+    "dedicatedDb": "ডেডিকেটেড DB",
+    "empty": "কোনো টেন্যান্ট পাওয়া যায়নি।",
+    "loadFailed": "টেন্যান্ট লোড করা যায়নি। অ্যাডমিন কী এবং API-তে MIGRATE_DATABASE_URL সেট আছে কিনা দেখুন।",
+    "saveFailed": "টেন্যান্টের অবস্থা আপডেট করা যায়নি।",
+    "statusPending": "অপেক্ষমাণ",
+    "statusActive": "সক্রিয়",
+    "statusSuspended": "স্থগিত",
+    "statusDeleted": "মুছে ফেলা"
   },
   "home": {
     "sampleCurrency": "নমুনা মুদ্রা",

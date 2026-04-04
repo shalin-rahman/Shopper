@@ -12,16 +12,16 @@
 | **Tenant model** | Spec mentions schema-per-tenant; code uses **RLS + `tenant_id`**. Mixing both without an ADR invites wrong queries and operational confusion. | **Critical** |
 | **Fail-closed** | Missing/invalid `app.tenant_id` → **no rows** (good). Unknown subdomain on API still resolves in some dev paths (`localhost` → `demo`). Production must **403** inactive/unknown tenants **before** DB work. | **High** |
 | **Mushak / VAT** | Only stub `vat_sales_register_lines`; no **invoices**, **line VAT**, **VDS**, **exemptions**, **BIN** on tenant, **6.3 layout** rules. VAT on products is a single `vat_rate_pct` — no multi-rate basket logic. | **Critical** (regulatory) |
-| **Commercial** | No **invoices**, **payments**, **installments**, **outstanding balance** query. | **Critical** |
-| **Inventory** | No stock ledger, WAC/FIFO, reservations, in-transit, multi-warehouse. | **High** |
-| **Payments** | No gateways, no **IPN signature verify**, no **idempotency**, no replay protection. | **Critical** (financial) |
+| **Commercial** | **Payments** table + gateways stub exist; **storefront** product list + **inventory aging** report live; **invoices**/installment engine and **outstanding balance** still thin. | **High** |
+| **Inventory** | **`stock_transactions`** exists (basic ledger); **WAC/FIFO**, reservations, in-transit, multi-warehouse still open. | **High** |
+| **Payments** | **IPN route** + SSLCommerz `store_id`/`status` + amount binding + DB idempotent **completed** + **Redis** replay keys. **Remote `val_id` validation** still TODO. Other gateways **501**. | **High** (financial) |
 | **Admin key** | `X-Shopper-Admin-Key` is a shared secret; no rotation, no audit of admin actions, TLS must be mandatory. | **High** |
 | **ORM / SQL** | Raw SQL is fine if **100% parameterized**; dynamic `UPDATE` in products builds column list from pydantic — safe only if keys are **allow-listed** (currently yes; must stay enforced). | **Medium** |
 | **Observability** | No tenant-tagged structured logs, no separate “platform ops” vs “tenant PII” streams. | **High** |
 | **POS offline** | No sync protocol, conflict resolution, or “last unit” arbitration. | **High** |
 | **i18n in UI** | Product UI still has some literals (e.g. confirm dialog); policy should be **all** strings from `assets/i18n`. | **Medium** |
-| **Redis** | Not in Compose; caching, IPN idempotency, and rate limits harder to scale safely. | **Medium** |
-| **CI** | No Docker image publish; no Flutter analyze in pipeline. | **Low** |
+| **Redis** | **Compose** + **async client** on API; **IPN idempotency** keys with TTL. **Tenant cache** + **rate-limit middleware** + **job queue** still TODO. | **Medium** |
+| **CI** | **pytest**, **ng build**, **compose config** run on PR; **Docker push** optional on `main` when registry secrets exist; Flutter analyze optional. | **Low** |
 
 ---
 
@@ -100,7 +100,7 @@
 
 - **App logs:** JSON lines with `tenant_id`, `trace_id`, `user_id`, **no** raw card/OTP.
 - **Platform:** Aggregate error rates per tenant **without** storing line-item payloads in shared indices (or encrypt).
-- **Audit:** Append-only table + **hash chain** optional for tamper-evidence on high-value tenants.
+- **Audit:** Append-only **`tenant_data.audit_log`**; **triggers** on `products`, `stock_transactions`, `payments`, `ledger_entries` (`database/migrations/008_audit_triggers.sql`). Optional **hash chain** for tamper-evidence on high-value tenants still TODO. Set `app.changed_by` in the API when user identity exists.
 
 ---
 
@@ -227,6 +227,14 @@ Enable **RLS** + policies mirroring `products` on all new `tenant_data` tables.
 
 - Implemented RLS: `database/init/01_schema_rls.sql`
 - Tenant settings: `database/migrations/002_tenant_settings.sql` (applied via `init/02_apply_migrations.sh` or `database/run_migrations.py`); API `GET /v1/tenant/settings`
+- Payments + IPN: `apps/api/payments_router.py` — webhook `POST /v1/tenant/payments/ipn/{gateway}?tenant=<subdomain>`
+- Redis: `apps/api/redis_client.py` — optional `app.state.redis`, IPN dedupe keys
+- Storefront: `apps/api/storefront_router.py` — `GET /v1/storefront/products`
+- Reports: `apps/api/reports_router.py` — `GET /v1/tenant/reports/inventory-aging`
+- Audit triggers: `database/migrations/008_audit_triggers.sql`
+- VAT stub (migrations path): `database/migrations/009_vat_sales_register_lines.sql` (also in init for fresh DBs)
 - App settings: `apps/api/config.py` (Pydantic `BaseSettings`)
+- Angular admin console: `apps/shopper-web` route `/admin/tenants`, interceptor `shopper-admin.interceptor.ts`
+- Agent convention: `.cursor/rules/post-change-workflow.mdc` (update docs/tests/services after substantive changes)
 - Tasks / backlog: `tasks.txt`
 - Deploy: `docs/DEPLOY.md`

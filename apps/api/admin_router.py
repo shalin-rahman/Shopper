@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 from uuid import UUID
 
@@ -13,6 +14,12 @@ from config import Settings
 from deps import SettingsDep
 
 router = APIRouter(prefix="/v1/admin", tags=["admin"])
+
+_DB_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
+
+
+class TenantStatusBody(BaseModel):
+    status: Literal["pending", "active", "suspended", "deleted"]
 
 
 class ProvisionDedicatedDBBody(BaseModel):
@@ -43,10 +50,14 @@ async def provision_dedicated_db(
         if not tenant:
             raise HTTPException(status_code=404, detail="Tenant not found")
 
-        # Create DB (requires superuser; placeholder)
-        db_name = body.database_name
+        db_name = body.database_name.strip().lower()
+        if not _DB_NAME_RE.fullmatch(db_name):
+            raise HTTPException(
+                status_code=400,
+                detail="database_name must match ^[a-z][a-z0-9_]{0,62}$",
+            )
         try:
-            await conn.execute(f"CREATE DATABASE {db_name}")
+            await conn.execute(f'CREATE DATABASE "{db_name}"')
         except asyncpg.exceptions.DuplicateDatabaseError:
             pass  # Already exists
 

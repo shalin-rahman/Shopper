@@ -1,3 +1,6 @@
+# Stack layout: Postgres (init + /migrations), API, Angular (web), OpenResty, Redis.
+# After schema or webhook changes: run migrations (see docs/DEPLOY.md) and update docs/tests.
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -29,11 +32,14 @@ services:
       CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-*}"
       MIGRATE_DATABASE_URL: ${SHOPPER_MIGRATE_DATABASE_URL:-}
       SHOPPER_ADMIN_API_KEY: ${SHOPPER_ADMIN_API_KEY:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
 
   web:
     build:

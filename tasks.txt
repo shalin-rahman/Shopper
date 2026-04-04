@@ -4,9 +4,9 @@
 # Process: Tasks are grouped by functional/technical areas for efficient development.
 # When working on a specific area, focus on tasks within that section to minimize context switching.
 
-# AUDIT SUMMARY (April 4, 2026): Technical audit of DONE tasks 1-56 completed. Production-ready: RLS model (1-4), DB migrations (32), FastAPI core (11-12, 30), config (30), testing (24-25), i18n (14-17). PARTIAL/SKELETON: Payments (42, 52 — stubs only), Reporting (40), Storefront (41), Admin API (26), Provisioning (34), Audit trail (54 — schema exists, no triggers), Redis (51 — service up, not integrated). ACTION: Implement real payment gateways (64-66), audit triggers, storefront queries, admin endpoints before production.
+# AUDIT SUMMARY (April 2026): RLS + migrations + FastAPI + Angular core are in place. Implemented: admin API + UI (26/57c), SSLCommerz IPN path (42/52/57g) + Redis IPN replay keys (78/174/57h partial), audit triggers (54/57e), storefront (41/57j), inventory aging (40/57i), CI (25), demo seed (6/57b). Still thin: payment initiate/val_id API (57f/66), Redis cache/rate-limit middleware, dedicated-DB routing (57d), commercial invoicing, Flutter/compliance backlog.
 
-# IMPLEMENTATION STATUS: Core platform complete (Tasks 1-57 core infrastructure; 30/56 fully implemented, 16/56 partial, 1/56 skeleton). Advanced features and compliance enhancements pending (Tasks 58-170). CRITICAL: Tasks 42, 40, 41, 26, 34 need real implementations before production launch.
+# IMPLEMENTATION STATUS: Core + storefront/reports queries + payments IPN baseline done; large backlog remains (58–170, gateways, RBAC, Mushak automation).
 
 # ========================================================================================
 # 🏗️ PLATFORM INFRASTRUCTURE — Database, Docker, CI/CD, Security, Deployment
@@ -16,14 +16,14 @@ DONE 1. PostgreSQL: platform.tenants registry with bilingual display names and s
 DONE 2. PostgreSQL: tenant_data.products, product_categories, customers with name_en / name_bn (and related bilingual fields).
 DONE 3. PostgreSQL: Row-Level Security policies on tenant_data tables using app.tenant_id session GUC and shopper_app role.
 DONE 4. PostgreSQL: shopper_migrate role with BYPASSRLS for schema migrations.
-DONE 5. PostgreSQL: Stub vat_sales_register_lines for Mushak-oriented reporting (6.1, 6.2, 6.3, 6.6). [AUDIT: Table DDL not found in migrations; schema concept exists but implementation missing]
-DONE 6. PostgreSQL: Seed demo tenant and sample product for local verification. [AUDIT: Schema exists; no explicit seed data INSERT in migrations — integration test harness creates fixtures dynamically]
+DONE 5. PostgreSQL: Stub vat_sales_register_lines for Mushak-oriented reporting (6.1, 6.2, 6.3, 6.6). [See init `01_schema_rls.sql` + migration `009_vat_sales_register_lines.sql`.]
+DONE 6. PostgreSQL: Seed demo tenant + sample product in `database/init/01_schema_rls.sql` (`demo` + `SKU-1`); integration tests also seed dynamic tenants.
 DONE 7. Docker Compose: postgres, api, web (Angular), openresty services and named volumes.
 DONE 8. OpenResty: Dockerfile with lua-resty-auto-ssl (opm) and fallback TLS certificate.
 DONE 9. OpenResty: Lua allow_domain whitelist (PLATFORM_ROOT_DOMAIN, ALLOW_ACME_EXTRA_DOMAINS).
-DONE 10. OpenResty: Nginx — ACME HTTP-01 on :80; HTTPS — /api/* → FastAPI (prefix stripped), /* → Angular SPA (web container). [AUDIT: Core SSL/TLS wired; complete routing config not fully verified]
+DONE 10. OpenResty: Nginx — ACME HTTP-01 on :80; HTTPS — /api/* → FastAPI (prefix stripped), /* → Angular SPA (see DONE 57l).
 DONE 20. Secrets via `.env` / `.env.example` (documented vars); Compose uses `${SHOPPER_*}`; Postgres app roles created without password then `99_set_role_passwords.sh` sets passwords from env; root `.gitignore` ignores `.env`.
-DONE 22. OpenResty: Baseline security headers on HTTPS (X-Frame-Options, X-Content-Type-Options, Referrer-Policy). [AUDIT: Infrastructure in place; headers not confirmed in nginx.conf routing block]
+DONE 22. OpenResty: Baseline security headers on HTTPS (X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin) on the 443 server in `infra/openresty/nginx.conf`.
 DONE 27. OpenResty: `limit_req` on `/api/` (30 r/s, burst 60) — tune per VPS.
 DONE 28. Deploy runbook: `docs/DEPLOY.md` (DNS wildcard, TLS, backups, updates).
 DONE 30. API config: Pydantic `BaseSettings` in `config.py` (`get_settings()`); replaces scattered `os.getenv` for DB URLs, CORS, storefront URL, admin key.
@@ -32,19 +32,21 @@ DONE 43. OpenResty: allow_domain tightening, WAF, tuning rate limits; cert expir
 DONE 47. CI: Docker image build/push; optional Flutter analyze job when SDK pinned in CI.
 DONE 48. .NET parity: `IOptions<T>` / centralized config where second stack exists; remove remaining stray `os.getenv` outside `config` + `TESTING` bootstrap.
 DONE 49. Architecture decision record: **RLS + `tenant_data` + `set_config`** vs **`SET search_path` schema-per-tenant** — pick one for production; document migration if switching.
-DONE 51. Redis in Compose: tenant-scoped cache keys, rate limits, IPN idempotency, optional job queue. [AUDIT: Service deployed with AOF ✓; redis_url configured ✓; no client integration (caching, rate limiting, job queue) found]
+DONE 51. Redis in Compose: service + API async client (`redis_client.py`); IPN idempotency keys live. Tenant cache key convention + rate limits + job queue still open.
 DONE 56. OpenResty/Let's Encrypt: backoff + issuance queue when many tenants register; ACME failure alerts.
+DONE 172. Maintainer workflow: `.cursor/rules/post-change-workflow.mdc` (always update tests, docs, tasks, compose/OpenResty after substantive changes); root `README` verification + dev table; `docs/DEPLOY.md` migration index + IPN + checklist; `docs/ARCHITECTURE_AND_SECURITY_REVIEW.md` gap table refresh; `docker-compose` API `depends_on` redis + `REDIS_URL`; `python-multipart` in `apps/api/requirements.txt` for IPN form posts; IPN handler parses body before DB pool.
+DONE 173. Storefront catalog + inventory aging: `GET /v1/storefront/products` (pagination, `q` filter); `GET /v1/tenant/reports/inventory-aging` (`as_of`, buckets); schemas in `schemas.py`; pytest coverage for no-tenant / no-DB.
+DONE 174. Redis wiring: `redis>=5` dependency; `app.state.redis`; payment IPN `shopper:ipn:v1:{tenant}:{gateway}:{ref}` replay suppression; `config.redis_ipn_ttl_seconds`.
 
-TODO 25. CI: GitHub Actions — API `pytest`, Angular `ng build`, `docker compose config` validation.
-TODO 46. Tests: full RLS integration cases (seeded tenant/product harness added); Angular e2e; migration pipeline tests in CI. [AUDIT: RLS harness ✓; Angular e2e missing; migration tests in CI missing]
+DONE 25. CI: GitHub Actions — API `pytest`, Angular `ng build`, `docker compose config` validation; optional Docker image push on main when registry secrets are set.
 TODO 50. If schema-per-tenant: `SET search_path` middleware + fail-closed (unknown subdomain → 403); pool tiers + statement timeouts vs noisy neighbors.
-TODO 57a. Create vat_sales_register_lines table schema in new migration (currently missing DDL; referenced in task 5).
-TODO 57b. Add demo tenant + sample product seed INSERT statements to database/init/ for local dev ergonomics (currently uses dynamic fixtures only).
-TODO 57k. Add OpenResty security headers to nginx.conf server block: X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin (task 22 not confirmed).
-TODO 57l. Complete OpenResty nginx.conf routing: verify HTTP->HTTPS redirect, /api/* proxy to FastAPI with path stripping, /* fallback to Angular SPA (task 10 not fully verified).
+DONE 57a. Migration `009_vat_sales_register_lines.sql` adds idempotent `tenant_data.vat_sales_register_lines` + RLS for migration-only DBs (init `01_schema_rls.sql` already defines it for fresh volumes).
+DONE 57b. Demo tenant + sample product seed in `database/init/01_schema_rls.sql` (ON CONFLICT safe).
+DONE 57k. OpenResty HTTPS server block: X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin (`infra/openresty/nginx.conf`).
+DONE 57l. OpenResty routing verified: :80 ACME + 301 to HTTPS; :443 `/api/` rewrite strip + proxy to API; `/` proxy to Angular (`infra/openresty/nginx.conf`).
 TODO 68. Implement schema-per-tenant middleware: SET search_path based on subdomain with schema validation and fail-closed logic (unknown subdomain → 403).
 TODO 73. Add tenant-scoped structured logging: JSON logs with tenant_id, separate platform ops vs tenant PII streams.
-TODO 78. Add Redis integration: Client setup for caching, IPN idempotency (24h TTL), rate limiting, and optional job queue.
+DONE 78. Redis: async client in `redis_client.py`, `connect_redis` on app lifespan (`REDIS_URL` empty = disabled; connection failure = log + continue). IPN idempotency keys (`REDIS_IPN_TTL_SECONDS`, default 24h). Remaining: tenant-scoped cache helpers, HTTP rate limiting via Redis, job queue.
 TODO 82. Add operational monitoring: Cert expiry alerts, rate limit tuning, connection pool monitoring, performance metrics.
 TODO 84. Add CI enhancements: Docker image publish, Flutter analyze job, migration pipeline tests, Angular e2e tests.
 TODO 97. Implement monitoring and SLO tracking: processing success % (target > 98.5%), end-to-end latency (target < 90s), queue drain rate (< 5min), error concentration.
@@ -59,16 +61,16 @@ TODO 170. Implement consistent performance optimization: lazy loading, code spli
 DONE 11. FastAPI: Health endpoint and tenant resolution from Host header.
 DONE 12. FastAPI: Example /v1/tenant/products with set_config(app.tenant_id) inside a transaction (RLS demo).
 DONE 21. ERP (phase 1): Products list/create/patch/soft-deactivate via FastAPI + RLS; Angular Products page (bn/en); `barcode` + `qr_payload` from SKU / `STOREFRONT_PUBLIC_BASE_URL`; label printing pipeline still TODO.
-DONE 26. Super Admin API (phase 1): `GET /v1/admin/tenants`, `PATCH /v1/admin/tenants/{id}/status` using `MIGRATE_DATABASE_URL` (RLS bypass); guard with `SHOPPER_ADMIN_API_KEY` header `X-Shopper-Admin-Key`. Angular admin UI + billing engine still TODO. [AUDIT: Only provision-db endpoint skeleton exists; GET/PATCH tenants endpoints not found]
+DONE 26. Super Admin API (phase 1): `GET /v1/admin/tenants`, `PATCH /v1/admin/tenants/{id}/status` using `MIGRATE_DATABASE_URL` (RLS bypass); guard with `SHOPPER_ADMIN_API_KEY` header `X-Shopper-Admin-Key`. Angular admin tenants UI added (57c); billing engine in migrations 007.
 DONE 31. `platform.tenant_settings` + RLS (read/update own row); seed for `demo`; `GET /v1/tenant/settings` for console/storefront bootstrap (theme, language, BIN, legal titles, `module_access` JSONB).
 DONE 34. Dedicated database-per-tenant provisioning using `dedicated_database_name` (automation + connection routing) (admin API endpoint added for provisioning). [AUDIT: POST /tenants/provision-db endpoint skeleton only; CREATE DATABASE, schema init, connection routing not implemented]
 DONE 35. Super Admin: Angular (or separate) console UI; subscription / transaction billing engine (billing tables added).
 DONE 53. Observability: structured JSON logs with `tenant_id`, trace id; redact secrets; platform aggregate errors only.
 
 TODO 57. Review updated ShopperRequirments.txt for any new requirements or modifications not yet implemented.
-TODO 57c. Implement Admin API GET /v1/admin/tenants (list tenants with status/subdomain) and PATCH /v1/admin/tenants/{id}/status endpoints (currently skeleton only).
+DONE 57c. Admin API GET /v1/admin/tenants + PATCH /v1/admin/tenants/{id}/status (TenantStatusBody + migrate pool); Angular `/admin/tenants` with session-stored admin key and HTTP interceptor; provision-db validates DB name (no SQL injection).
 TODO 57d. Implement database provisioning logic: CREATE DATABASE, run schema init, update platform.tenants.dedicated_database_name, and connection pool routing (task 34 scaffold exists but not functional).
-TODO 57h. Implement Redis client integration: tenant-scoped cache keys, rate limit checking, IPN idempotency checking (task 51 service running but not integrated).
+DONE 57h. Redis client + IPN idempotency keys (see DONE 78/174). Tenant cache key helpers + rate-limit middleware still TODO.
 TODO 79. Implement subscription lifecycle: Billing engine with installment tracking, outstanding balance queries, payment reconciliation.
 TODO 85. Implement Subscription Lifecycle State Machine (Trialing, Active, Past Due, Suspended, Reinstated, Canceled) with database schema.
 TODO 86. Implement Dunning Management workflow with intelligent retry schedule (Day 0, 1, 3, 7, 14) for failed payments.
@@ -171,9 +173,9 @@ TODO 150. Implement AI-powered insights: sales forecasting, customer behavior an
 DONE 36. ERP: Stock in/out, purchases, sales, reservations, inventory valuation (basic stock_transactions table added).
 DONE 37. ERP: General ledger, AR/AP, installment payments per invoice (Bo = I − Σ Pi) (basic ledger_entries table added).
 DONE 38. ERP: Inline bilingual customer/supplier modals on sale/purchase (customers router added).
-DONE 54. Audit trail: append-only `tenant_data.audit_log` for financial/stock/price changes. [AUDIT: Table schema ✓; RLS policies ✓; trigger/application inserts NOT wired — table is unused]
+DONE 54. Audit trail: append-only `tenant_data.audit_log` for financial/stock/price changes; triggers on products, stock_transactions, payments, ledger_entries (`008_audit_triggers.sql`).
 
-TODO 57e. Wire audit_log database triggers on products, stock_transactions, payments, ledger_entries tables to automatically INSERT audit records on DML operations (task 54 table exists but unused).
+DONE 57e. Migration `008_audit_triggers.sql`: `tenant_data.audit_row_change_fn` + AFTER INSERT/UPDATE/DELETE triggers on products, stock_transactions, payments, ledger_entries (uses `app.changed_by` when set, else `system`).
 TODO 71. Add inventory valuation methods: WAC/FIFO cost layers, in-transit stock tracking, multi-warehouse support with warehouse_id fields.
 TODO 74. Implement audit trail triggers: Automatic INSERT into audit_log on financial/stock/price changes with hash chaining for tamper-evidence.
 TODO 75. Add cross-tenant isolation testing: Two seeded tenants, verify set_config prevents data leakage, fail-closed behavior.
@@ -192,11 +194,11 @@ TODO 100. Implement label printing pipeline for products with barcode generation
 # 💰 FINANCIAL & PAYMENT SYSTEMS — Invoices, Payments, Gateways, Reconciliation
 # ========================================================================================
 
-DONE 42. Checkout: SSLCommerz, bKash, Nagad, Rocket + IPN and order state machine (payment gateway interface + IPN handling added). [AUDIT: Interface & factory pattern ✓; SSLCommerz initiate_payment() returns placeholder; verify_ipn() hardc​oded true; bKash/Nagad/Rocket 501 not implemented; IPN webhook route missing]
-DONE 52. Payments: `PaymentGateway` interface + factory; IPN signature verify + idempotency table + amount/order binding. [AUDIT: Interface & factory ✓; idempotency constraint ✓; verify_ipn() stub only; IPN webhook receiver route missing; order table not found]
+DONE 42. Checkout: SSLCommerz, bKash, Nagad, Rocket + IPN and order state machine (payment gateway interface + tenant-scoped IPN reconciliation for SSLCommerz). [AUDIT: initiate still placeholder; bKash/Nagad/Rocket 501; full SSLCommerz validation API still TODO 57f]
+DONE 52. Payments: `PaymentGateway` interface + factory; UNIQUE(tenant_id, gateway_transaction_id); IPN route with store_id check, amount binding, idempotent completed handling. [AUDIT: Remote SSLCommerz val_id validation API still TODO 66/57f]
 
 TODO 57f. Implement real SSLCommerz payment initiation: API call, signature generation, request formatting (task 42 returns placeholder only).
-TODO 57g. Implement IPN webhook receiver route POST /v1/tenant/payments/ipn/{gateway} with signature verification and transaction reconciliation (task 52 missing).
+DONE 57g. POST `/v1/tenant/payments/ipn/{gateway}?tenant=<subdomain>`: JSON or form body, SSLCommerz `store_id` check when configured, `status`→completed/failed, match by `order_id`/`tran_id` or `gateway_transaction_id`/`val_id`, amount check, idempotent completed, noop if payment missing; `.env.example` IPN URL note.
 TODO 57m. Implement bKash payment integration: Grant Token endpoint, createPayment, executePayment, queryPayment with full token lifecycle (task 42/64).
 TODO 57n. Implement Nagad payment integration: RSA encryption, SHA1withRSA digital signatures, payment verification (task 42/65).
 TODO 64. Implement bKash Tokenized Checkout API integration with token lifecycle management (Grant Token, createPayment, executePayment, queryPayment).
@@ -211,11 +213,11 @@ TODO 90. Implement Dynamic QR Code generation for bills containing amount and Me
 # 📊 REPORTING & ANALYTICS — Dashboards, Exports, Business Intelligence
 # ========================================================================================
 
-DONE 40. Reporting: date-wise analytics, inventory aging, Excel/PDF export, white-label (reports router with inventory aging placeholder added). [AUDIT: Endpoint is placeholder; returns basic product list without aging buckets, date filtering, or export formats]
-DONE 41. Public aggregator + per-tenant storefront paths + theme engine (10+ themes) (storefront router added). [AUDIT: GET /v1/storefront/products returns empty array; no product query, filtering, or theme application logic]
+DONE 40. Reporting: `GET /v1/tenant/reports/inventory-aging` with `as_of` date, buckets 0–30 / 31–60 / 61–90 / 90+ days idle (last `stock_transactions` date, else product `created_at`). Excel/PDF export + white-label still TODO.
+DONE 41. Storefront: `GET /v1/storefront/products` lists active products (public fields, optional `q` filter, pagination); tenant via `X-Shopper-Tenant` or Host. Theme engine (10+ themes) still TODO.
 
-TODO 57i. Implement reporting endpoints real queries: inventory aging buckets (0-30, 31-60, 61-90, 90+ days), cost calculations, date filtering (task 40 placeholder only).
-TODO 57j. Implement storefront products endpoint actual query and filtering: return active products with pricing, descriptions (en/bn), images (task 41 returns empty array).
+DONE 57i. Inventory aging buckets + `as_of` on `/v1/tenant/reports/inventory-aging` (WAC/cost layers still TODO 71).
+DONE 57j. Storefront `/v1/storefront/products` query + `q`/limit/offset; product `image_url` column not in schema yet — images TODO when schema exists.
 TODO 92. Implement Inventory Turnover Ratio (ITR) and Economic Order Quantity (EOQ) calculations in reports.
 TODO 93. Implement white-label invoices and reports with business logo, legal title (en/bn), and BIN/address injection.
 TODO 95. Implement data export functionality (CSV/SQL) for tenant offboarding and data portability compliance.
@@ -251,8 +253,7 @@ TODO 169. Create unified documentation system: component documentation, usage ex
 
 DONE 24. Automated tests: pytest for `codes`, `host_tenant`, FastAPI `TestClient` (health, products 503 without DB, admin auth); `INTEGRATION_TEST` RLS suite placeholder; `httpx` for Starlette TestClient.
 
-TODO 24. CI: GitHub Actions — API `pytest`, Angular `ng build`, `docker compose config` validation. [DUPLICATE - merged with 25]
-TODO 46. Tests: full RLS integration cases (seeded tenant/product harness added); Angular e2e; migration pipeline tests in CI. [AUDIT: RLS harness ✓; Angular e2e missing; migration tests in CI missing]
+TODO 46. Tests: Angular e2e; migration pipeline tests in CI. [RLS integration harness in `test_integration_rls.py` ✓]
 
 # ========================================================================================
 # ⚙️ DEVOPS & OPERATIONS — Monitoring, Performance, Maintenance, Security
