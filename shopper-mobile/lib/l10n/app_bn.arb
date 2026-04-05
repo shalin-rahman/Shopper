@@ -1,0 +1,22 @@
+{
+  "appTitle": "শপার মোবাইল",
+  "welcomeMessage": "শপার মোবাইল POS-এ স্বাগতম",
+  "scanProduct": "পণ্য স্ক্যান করুন",
+  "search": "অনুসন্ধান",
+  "cart": "কার্ট",
+  "checkout": "চেকআউট",
+  "products": "পণ্যসমূহ",
+  "reports": "রিপোর্ট",
+  "settings": "সেটিংস",
+  "logout": "লগআউট",
+  "online": "অনলাইন",
+  "offline": "অফলাইন",
+  "syncing": "সিঙ্ক হচ্ছে...",
+  "syncComplete": "সিঙ্ক সম্পন্ন",
+  "error": "ত্রুটি",
+  "retry": "পুনরায় চেষ্টা করুন",
+  "loading": "লোড হচ্ছে...",
+  "noData": "কোনো ডেটা নেই",
+  "confirm": "নিশ্চিত করুন",
+  "cancel": "বাতিল করুন"
+}

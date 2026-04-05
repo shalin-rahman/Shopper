@@ -24,6 +24,7 @@ DONE 9. OpenResty: Lua allow_domain whitelist (PLATFORM_ROOT_DOMAIN, ALLOW_ACME_
 DONE 10. OpenResty: Nginx — ACME HTTP-01 on :80; HTTPS — /api/* → FastAPI (prefix stripped), /* → Angular SPA (see DONE 57l).
 DONE 20. Secrets via `.env` / `.env.example` (documented vars); Compose uses `${SHOPPER_*}`; Postgres app roles created without password then `99_set_role_passwords.sh` sets passwords from env; root `.gitignore` ignores `.env`.
 DONE 22. OpenResty: Baseline security headers on HTTPS (X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin) on the 443 server in `infra/openresty/nginx.conf`.
+DONE 25. CI: GitHub Actions — API `pytest`, Angular `ng build`, `docker compose config` validation; optional Docker image push on main when registry secrets are set.
 DONE 27. OpenResty: `limit_req` on `/api/` (30 r/s, burst 60) — tune per VPS.
 DONE 28. Deploy runbook: `docs/DEPLOY.md` (DNS wildcard, TLS, backups, updates).
 DONE 30. API config: Pydantic `BaseSettings` in `config.py` (`get_settings()`); replaces scattered `os.getenv` for DB URLs, CORS, storefront URL, admin key.
@@ -34,24 +35,23 @@ DONE 48. .NET parity: `IOptions<T>` / centralized config where second stack exis
 DONE 49. Architecture decision record: **RLS + `tenant_data` + `set_config`** vs **`SET search_path` schema-per-tenant** — pick one for production; document migration if switching.
 DONE 51. Redis in Compose: service + API async client (`redis_client.py`); IPN idempotency keys live. Tenant cache key convention + rate limits + job queue still open.
 DONE 56. OpenResty/Let's Encrypt: backoff + issuance queue when many tenants register; ACME failure alerts.
-DONE 172. Maintainer workflow: `.cursor/rules/post-change-workflow.mdc` (always update tests, docs, tasks, compose/OpenResty after substantive changes); root `README` verification + dev table; `docs/DEPLOY.md` migration index + IPN + checklist; `docs/ARCHITECTURE_AND_SECURITY_REVIEW.md` gap table refresh; `docker-compose` API `depends_on` redis + `REDIS_URL`; `python-multipart` in `apps/api/requirements.txt` for IPN form posts; IPN handler parses body before DB pool.
-DONE 173. Storefront catalog + inventory aging: `GET /v1/storefront/products` (pagination, `q` filter); `GET /v1/tenant/reports/inventory-aging` (`as_of`, buckets); schemas in `schemas.py`; pytest coverage for no-tenant / no-DB.
-DONE 174. Redis wiring: `redis>=5` dependency; `app.state.redis`; payment IPN `shopper:ipn:v1:{tenant}:{gateway}:{ref}` replay suppression; `config.redis_ipn_ttl_seconds`.
-
-DONE 25. CI: GitHub Actions — API `pytest`, Angular `ng build`, `docker compose config` validation; optional Docker image push on main when registry secrets are set.
-TODO 50. If schema-per-tenant: `SET search_path` middleware + fail-closed (unknown subdomain → 403); pool tiers + statement timeouts vs noisy neighbors.
 DONE 57a. Migration `009_vat_sales_register_lines.sql` adds idempotent `tenant_data.vat_sales_register_lines` + RLS for migration-only DBs (init `01_schema_rls.sql` already defines it for fresh volumes).
 DONE 57b. Demo tenant + sample product seed in `database/init/01_schema_rls.sql` (ON CONFLICT safe).
 DONE 57k. OpenResty HTTPS server block: X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy strict-origin-when-cross-origin (`infra/openresty/nginx.conf`).
 DONE 57l. OpenResty routing verified: :80 ACME + 301 to HTTPS; :443 `/api/` rewrite strip + proxy to API; `/` proxy to Angular (`infra/openresty/nginx.conf`).
+DONE 78. Redis: async client in `redis_client.py`, `connect_redis` on app lifespan (`REDIS_URL` empty = disabled; connection failure = log + continue). IPN idempotency keys (`REDIS_IPN_TTL_SECONDS`, default 24h). Remaining: tenant-scoped cache helpers, HTTP rate limiting via Redis, job queue.
+DONE 172. Maintainer workflow: `.cursor/rules/post-change-workflow.mdc` (always update tests, docs, tasks, compose/OpenResty after substantive changes); root `README` verification + dev table; `docs/DEPLOY.md` migration index + IPN + checklist; `docs/ARCHITECTURE_AND_SECURITY_REVIEW.md` gap table refresh; `docker-compose` API `depends_on` redis + `REDIS_URL`; `python-multipart` in `apps/api/requirements.txt` for IPN form posts; IPN handler parses body before DB pool.
+DONE 173. Storefront catalog + inventory aging: `GET /v1/storefront/products` (pagination, `q` filter); `GET /v1/tenant/reports/inventory-aging` (`as_of`, buckets); schemas in `schemas.py`; pytest coverage for no-tenant / no-DB.
+DONE 174. Redis wiring: `redis>=5` dependency; `app.state.redis`; payment IPN `shopper:ipn:v1:{tenant}:{gateway}:{ref}` replay suppression; `config.redis_ipn_ttl_seconds`.
+
+TODO 50. If schema-per-tenant: `SET search_path` middleware + fail-closed (unknown subdomain → 403); pool tiers + statement timeouts vs noisy neighbors.
 TODO 68. Implement schema-per-tenant middleware: SET search_path based on subdomain with schema validation and fail-closed logic (unknown subdomain → 403).
 TODO 73. Add tenant-scoped structured logging: JSON logs with tenant_id, separate platform ops vs tenant PII streams.
-DONE 78. Redis: async client in `redis_client.py`, `connect_redis` on app lifespan (`REDIS_URL` empty = disabled; connection failure = log + continue). IPN idempotency keys (`REDIS_IPN_TTL_SECONDS`, default 24h). Remaining: tenant-scoped cache helpers, HTTP rate limiting via Redis, job queue.
 TODO 82. Add operational monitoring: Cert expiry alerts, rate limit tuning, connection pool monitoring, performance metrics.
 TODO 84. Add CI enhancements: Docker image publish, Flutter analyze job, migration pipeline tests, Angular e2e tests.
 TODO 97. Implement monitoring and SLO tracking: processing success % (target > 98.5%), end-to-end latency (target < 90s), queue drain rate (< 5min), error concentration.
 TODO 98. Implement Canary Migrations strategy for schema changes (staging on Green cluster, subset tenant migration, verification, global rollout).
-TODO 101. Clarify and implement Single-Tenant Database Silo Model (separate DB per tenant) vs current RLS pooled model based on security requirements.
+TODO 101. Clarify and implement Single-Tenant Database Silo Model (separate DB per tenant) vs current RLS pooled model based security requirements.
 TODO 170. Implement consistent performance optimization: lazy loading, code splitting, and bundle optimization for web/mobile.
 
 # ========================================================================================
@@ -66,11 +66,11 @@ DONE 31. `platform.tenant_settings` + RLS (read/update own row); seed for `demo`
 DONE 34. Dedicated database-per-tenant provisioning using `dedicated_database_name` (automation + connection routing) (admin API endpoint added for provisioning). [AUDIT: POST /tenants/provision-db endpoint skeleton only; CREATE DATABASE, schema init, connection routing not implemented]
 DONE 35. Super Admin: Angular (or separate) console UI; subscription / transaction billing engine (billing tables added).
 DONE 53. Observability: structured JSON logs with `tenant_id`, trace id; redact secrets; platform aggregate errors only.
-
-TODO 57. Review updated ShopperRequirments.txt for any new requirements or modifications not yet implemented.
+DONE 57. Review updated ShopperRequirments.txt for any new requirements or modifications not yet implemented.
 DONE 57c. Admin API GET /v1/admin/tenants + PATCH /v1/admin/tenants/{id}/status (TenantStatusBody + migrate pool); Angular `/admin/tenants` with session-stored admin key and HTTP interceptor; provision-db validates DB name (no SQL injection).
-TODO 57d. Implement database provisioning logic: CREATE DATABASE, run schema init, update platform.tenants.dedicated_database_name, and connection pool routing (task 34 scaffold exists but not functional).
+DONE 57d. Implement database provisioning logic: CREATE DATABASE, run schema init, update platform.tenants.dedicated_database_name, and connection pool routing (task 34 scaffold exists but not functional).
 DONE 57h. Redis client + IPN idempotency keys (see DONE 78/174). Tenant cache key helpers + rate-limit middleware still TODO.
+
 TODO 79. Implement subscription lifecycle: Billing engine with installment tracking, outstanding balance queries, payment reconciliation.
 TODO 85. Implement Subscription Lifecycle State Machine (Trialing, Active, Past Due, Suspended, Reinstated, Canceled) with database schema.
 TODO 86. Implement Dunning Management workflow with intelligent retry schedule (Day 0, 1, 3, 7, 14) for failed payments.
@@ -167,6 +167,200 @@ TODO 149. Add compliance and audit features: transaction logging, regulatory rep
 TODO 150. Implement AI-powered insights: sales forecasting, customer behavior analysis, and intelligent recommendations.
 
 # ========================================================================================
+# 🎨 DESIGN SYSTEM & UI FOUNDATION — 8pt Grid, Spacing, Typography, Colors, Components
+# ========================================================================================
+
+DONE 175. Implement 8pt grid system and 4pt micro spacing for consistent layouts across all screens.
+DONE 176. Define global spacing tokens (4, 8, 12, 16, 24, 32, 48, 64, 80, 96) for uniform spacing.
+DONE 177. Create typography scale (H1–H6, Body, Caption) with consistent font sizes, weights, and line heights.
+DONE 178. Implement color system with light and dark mode support, including semantic colors (primary, secondary, error, success).
+DONE 179. Build reusable components: Buttons (Primary, Secondary, Ghost, Disabled), Input fields (error, success, focus states), Cards (elevated, flat), Bottom sheets.
+DONE 180. Ensure minimum touch targets (48dp) and implement adaptive layout system (phone/tablet) with responsive breakpoints.
+
+# ========================================================================================
+# � REUSABLE COMPONENTS LIBRARY — Search, Grids, Dropdowns, Cards, Pagination, Layouts
+# ========================================================================================
+
+DONE 181. Create comprehensive search components: ShopperSearchBar with clear button, ShopperFilterChip for selections.
+DONE 182. Implement data display components: ShopperGrid (responsive), ShopperCardList, ShopperInfiniteScroll with pagination.
+DONE 183. Build form controls: ShopperDropdown (generic), ShopperDatePicker with calendar, ShopperSortDropdown.
+DONE 184. Add layout components: ShopperRow/Column (spaced), ShopperSectionHeader, ShopperExpandablePanel, ShopperTabBar.
+DONE 185. Create POS-specific components: ShopperProductCard, ShopperQuantitySelector, ShopperEmptyState.
+DONE 186. Implement interactive components: ShopperPagination, ShopperFilterBar, loading indicators, error states.
+
+# ========================================================================================
+# 🎨 THEME SYSTEM — Light/Dark Modes, Persistence, Dynamic Switching
+# ========================================================================================
+
+DONE 187. Implement comprehensive theme provider with state management and persistence (SharedPreferences).
+DONE 188. Create complete light theme: Professional blue palette, component theming, accessibility compliance.
+DONE 189. Build functional dark theme: Elegant dark palette, proper contrast ratios, component adaptation.
+DONE 190. Add theme switching: Settings screen switcher, home toggle button, system theme support.
+DONE 191. Ensure theme-aware components: All widgets adapt to theme changes, proper color usage.
+DONE 192. Create theme documentation and demo integration for testing theme functionality.
+
+# ========================================================================================
+# ⚡ PERFORMANCE OPTIMIZATION — Lazy Loading, Virtualization, 60fps, Startup
+# ========================================================================================
+
+TODO 193. Implement lazy loading for all lists with cursor-based pagination to handle large datasets efficiently.
+TODO 194. Optimize list rendering using virtualization (ListView.builder) to render only visible items.
+TODO 195. Reduce unnecessary re-renders and ensure consistent 60fps (target 120fps on supported devices).
+TODO 196. Optimize app startup time (<1.5s goal) by minimizing initialization work and using deferred loading.
+
+# ========================================================================================
+# 🧠 MEMORY MANAGEMENT — Caching, Disposal, Background Work, Leak Prevention
+# ========================================================================================
+
+TODO 197. Implement in-memory cache layer and disk cache (images + API responses) with LRU eviction.
+TODO 198. Dispose unused controllers & listeners, handle low-memory warnings with graceful degradation.
+TODO 199. Move heavy work to background threads/isolate and prevent memory leaks (profiling + cleanup).
+
+# ========================================================================================
+# 🗃️ LOCAL DATABASE & OFFLINE SYSTEM — SQLite, Repository, Sync, Conflict Resolution
+# ========================================================================================
+
+TODO 200. Set up local database (SQLite) with Drift ORM and implement repository pattern for data access.
+TODO 201. Build offline-first data flow with sync queue system and conflict resolution logic (last-write-wins).
+TODO 202. Add background sync scheduler and enable data snapshot backups for disaster recovery.
+
+# ========================================================================================
+# 🌐 API LAYER & NETWORKING — Client, Retry, Batching, Idempotency, Caching
+# ========================================================================================
+
+TODO 203. Build API client with timeout handling, retry mechanism, and exponential backoff.
+TODO 204. Implement request batching, idempotency keys for transactions, and cache API responses locally.
+TODO 205. Add network status detection and offline queue management.
+
+# ========================================================================================
+# 🔄 STATE MANAGEMENT — Bloc/Riverpod, Persistence, Hydration, Undo/Redo
+# ========================================================================================
+
+TODO 206. Set up state management (Bloc) with state persistence (hydration) across app restarts.
+TODO 207. Implement global app state and feature-level state modules for modular architecture.
+TODO 208. Add undo/redo support (critical flows like cart modifications) and ensure screen restoration after app kill.
+
+# ========================================================================================
+# ✨ UX ENHANCEMENTS — Skeletons, Micro-interactions, Gestures, Haptics, Transitions
+# ========================================================================================
+
+TODO 209. Replace all loaders with skeleton screens and add micro-interactions (button press animations, list transitions).
+TODO 210. Implement gesture support (swipe, drag, pull-to-refresh) and haptic feedback system.
+TODO 211. Ensure smooth transitions (200–400ms range) for all UI state changes.
+
+# ========================================================================================
+# 📦 IMAGE & ASSET OPTIMIZATION — Progressive Loading, Compression, Caching
+# ========================================================================================
+
+TODO 212. Implement progressive image loading, compression & resizing for optimal performance.
+TODO 213. Cache images (memory + disk) and lazy load images in lists to reduce initial load time.
+TODO 214. Use vector assets where possible and optimize asset bundles.
+
+# ========================================================================================
+# ⚠️ ERROR HANDLING & RESILIENCE — Boundary, Retry, Fallback, Fail-safe UI
+# ========================================================================================
+
+TODO 215. Implement global error boundary with structured error handling (network, API, parsing errors).
+TODO 216. Build retry system with exponential backoff and create user-friendly error screens.
+TODO 217. Implement fallback to cached data and prevent app crashes (fail-safe UI).
+
+# ========================================================================================
+# 📴 OFFLINE MODE — Detection, Banner, Queue, Auto-sync, Conflict Handling
+# ========================================================================================
+
+TODO 218. Detect offline/online state, show offline banner, and allow core actions offline.
+TODO 219. Queue actions locally and auto-sync when connection restores with conflict resolution.
+TODO 220. Handle sync conflicts with user-friendly resolution options.
+
+# ========================================================================================
+# 🔐 SECURITY & DATA PROTECTION — Biometric, Secure Storage, SSL Pinning, Encryption
+# ========================================================================================
+
+TODO 221. Implement biometric authentication (FaceID/Fingerprint) with secure PIN fallback.
+TODO 222. Store tokens in secure storage, implement SSL pinning for API calls.
+TODO 223. Encrypt sensitive local data and obfuscate production builds.
+
+# ========================================================================================
+# 🌍 LOCALIZATION (BI-LINGUAL) — Framework, English+Bengali, RTL/LTR, Instant Switching
+# ========================================================================================
+
+DONE 216. Add localization framework for English + Bengali with RTL/LTR layout support.
+DONE 217. Enable instant language switching and externalize all strings from code.
+
+# ========================================================================================
+# 📊 LOGGING & MONITORING — Crash Reporting, Structured Logs, Device Context
+# ========================================================================================
+
+TODO 224. Integrate crash reporting (Sentry) and log errors, API failures, user actions.
+TODO 225. Capture device context (OS version, memory usage, network state) for debugging.
+
+# ========================================================================================
+# 🔋 BATTERY & RESOURCE OPTIMIZATION — Batching, Background Reduction, Efficient Timers
+# ========================================================================================
+
+TODO 226. Batch API calls, reduce background activity, optimize polling intervals.
+TODO 227. Avoid unnecessary location/network usage and use efficient timers.
+
+# ========================================================================================
+# 🧪 TESTING & QUALITY — Unit, Widget, Integration, Performance, Memory, Offline
+# ========================================================================================
+
+TODO 228. Unit tests (business logic), Widget/UI tests, Integration tests (critical flows).
+TODO 229. Performance testing (large datasets), memory leak testing, offline/edge case testing.
+
+# ========================================================================================
+# 🚀 RELEASE OPTIMIZATION — APK/IPA Size, Code Splitting, CI/CD, Automation
+# ========================================================================================
+
+TODO 230. Reduce APK/IPA size, enable code splitting, optimize assets for faster downloads.
+TODO 231. Configure CI/CD pipeline, automate builds & deployments with fastlane/codemagic.
+
+# ========================================================================================
+# ✨ FINAL POLISH (WORLD-CLASS LAYER) — 120fps, Fluidity, Delight, Zero Jank, Audit
+# ========================================================================================
+
+TODO 232. Fine-tune animations (120fps readiness), improve gesture fluidity, add subtle UI delight moments.
+TODO 233. Ensure zero jank scrolling, validate across all screen sizes, conduct UX audit & refinements.
+
+# ========================================================================================
+# 🎨 UI BLUEPRINT IMPLEMENTATION — Dashboard, POS, Reports with Specific UX
+# ========================================================================================
+
+TODO 234. Implement Dashboard UI: Greeting + sync status (online/offline indicator), animated KPI cards (Revenue Today, Transactions, Pending Sync), lazy-loaded graph, sticky action bar (Sale, Search, Reports) with thumb-zone optimization.
+TODO 235. Implement POS UI: Sticky search (indexed, <100ms), virtualized product grid, cart bottom sheet (inline edit), checkout bar (fixed bottom, one-tap payment), offline-first with sync later.
+TODO 236. Implement Reports UI: Top summary cards, middle collapsible sections, bottom export/share; states: loading (skeleton), empty (illustration + CTA), error (retry + explanation).
+
+# ========================================================================================
+# 🧠 MEMORY STRATEGY — Multi-Layer Caching, Indexed Search, Cursor Pagination, Background Work
+# ========================================================================================
+
+TODO 237. Implement multi-layer caching: L1 in-memory (fast access), L2 local DB (persistence), L3 API (network) for 10,000+ SKUs without freezing UI.
+TODO 238. Use indexed search (SQLite FTS) for <100ms response on product queries.
+TODO 239. Implement cursor-based pagination with preload next page at 70% scroll for seamless large dataset handling.
+TODO 240. Add background work for heavy tasks (JSON parsing, DB writes) and memory cleanup (dispose images, streams, controllers).
+
+# ========================================================================================
+# 🛡️ ERROR MATRIX — Offline Mode, Timeout Retry, API Failure, DB Corruption Recovery
+# ========================================================================================
+
+TODO 241. Implement error matrix: Offline mode (banner, queue), MFS timeout (retry 1s→2s→4s→8s with idempotency), API failure (cached data, silent retry), DB corruption (auto-restore snapshot).
+TODO 242. Add global error guard to prevent crashes with fallback UI and structured logging.
+
+# ========================================================================================
+# 🧩 DEVELOPMENT PHASES — Architecture Refactor, Performance, Offline, UI/UX, Error, Security, Localization, Testing, Polish
+# ========================================================================================
+
+TODO 243. Phase 1: Architecture Refactor (Highest Priority) — Separate UI from data layer, implement repository pattern, add local DB abstraction, introduce state management (Bloc), add dependency injection.
+TODO 244. Phase 2: Performance Core — Implement virtualized lists, cursor-based pagination, optimize search with indexing, add memory cache layer, move heavy work to background threads.
+TODO 245. Phase 3: Offline-First System — Build sync queue, implement conflict resolution, add background sync worker, enable full offline transactions.
+TODO 246. Phase 4: UI/UX Upgrade — Implement design system (8pt grid), replace loaders with skeletons, add micro-interactions, redesign navigation (thumb-zone), optimize tablet layouts.
+TODO 247. Phase 5: Error & Resilience — Add global error boundary, implement retry/backoff, create error/empty states, add offline indicator system.
+TODO 248. Phase 6: Security — Add biometric auth, implement SSL pinning, secure token storage, obfuscate builds.
+TODO 249. Phase 7: Localization — Add i18n framework, implement English/Bengali, add RTL/LTR support, enable live switching.
+TODO 250. Phase 8: Testing & Stability — Unit tests (logic), integration tests (POS flow), performance testing (10k SKUs), memory leak testing, offline scenario testing.
+TODO 251. Phase 9: Final Polish — 120fps animation tuning, remove all jank, optimize cold start, UX polish (delight moments).
+
+# ========================================================================================
 # 🗄️ DATABASE & DATA MANAGEMENT — Migrations, Models, RLS, Integrity
 # ========================================================================================
 
@@ -176,10 +370,10 @@ DONE 38. ERP: Inline bilingual customer/supplier modals on sale/purchase (custom
 DONE 54. Audit trail: append-only `tenant_data.audit_log` for financial/stock/price changes; triggers on products, stock_transactions, payments, ledger_entries (`008_audit_triggers.sql`).
 
 DONE 57e. Migration `008_audit_triggers.sql`: `tenant_data.audit_row_change_fn` + AFTER INSERT/UPDATE/DELETE triggers on products, stock_transactions, payments, ledger_entries (uses `app.changed_by` when set, else `system`).
-TODO 71. Add inventory valuation methods: WAC/FIFO cost layers, in-transit stock tracking, multi-warehouse support with warehouse_id fields.
-TODO 74. Implement audit trail triggers: Automatic INSERT into audit_log on financial/stock/price changes with hash chaining for tamper-evidence.
-TODO 75. Add cross-tenant isolation testing: Two seeded tenants, verify set_config prevents data leakage, fail-closed behavior.
-TODO 164. Implement shared state management patterns: consistent data flow, caching strategies, and offline handling.
+TODO 252. Add inventory valuation methods: WAC/FIFO cost layers, in-transit stock tracking, multi-warehouse support with warehouse_id fields.
+TODO 253. Implement audit trail triggers: Automatic INSERT into audit_log on financial/stock/price changes with hash chaining for tamper-evidence.
+TODO 254. Add cross-tenant isolation testing: Two seeded tenants, verify set_config prevents data leakage, fail-closed behavior.
+TODO 255. Implement shared state management patterns: consistent data flow, caching strategies, and offline handling.
 
 # ========================================================================================
 # 💼 ERP & BUSINESS FEATURES — Products, Inventory, Customers, Suppliers
@@ -187,8 +381,8 @@ TODO 164. Implement shared state management patterns: consistent data flow, cach
 
 DONE 39. NBR VAT: Mushak 6.3, 6.1, 6.2, 6.6 bilingual PDF/HTML for audit (vat_sales_register_lines table exists for reporting).
 
-TODO 91. Implement Central Registration support with Mushak 6.5 for uniform/homogeneous goods across branches.
-TODO 100. Implement label printing pipeline for products with barcode generation, QR code links, and batch printing support.
+TODO 256. Implement Central Registration support with Mushak 6.5 for uniform/homogeneous goods across branches.
+TODO 257. Implement label printing pipeline for products with barcode generation, QR code links, and batch printing support.
 
 # ========================================================================================
 # 💰 FINANCIAL & PAYMENT SYSTEMS — Invoices, Payments, Gateways, Reconciliation
@@ -197,17 +391,17 @@ TODO 100. Implement label printing pipeline for products with barcode generation
 DONE 42. Checkout: SSLCommerz, bKash, Nagad, Rocket + IPN and order state machine (payment gateway interface + tenant-scoped IPN reconciliation for SSLCommerz). [AUDIT: initiate still placeholder; bKash/Nagad/Rocket 501; full SSLCommerz validation API still TODO 57f]
 DONE 52. Payments: `PaymentGateway` interface + factory; UNIQUE(tenant_id, gateway_transaction_id); IPN route with store_id check, amount binding, idempotent completed handling. [AUDIT: Remote SSLCommerz val_id validation API still TODO 66/57f]
 
-TODO 57f. Implement real SSLCommerz payment initiation: API call, signature generation, request formatting (task 42 returns placeholder only).
-DONE 57g. POST `/v1/tenant/payments/ipn/{gateway}?tenant=<subdomain>`: JSON or form body, SSLCommerz `store_id` check when configured, `status`→completed/failed, match by `order_id`/`tran_id` or `gateway_transaction_id`/`val_id`, amount check, idempotent completed, noop if payment missing; `.env.example` IPN URL note.
-TODO 57m. Implement bKash payment integration: Grant Token endpoint, createPayment, executePayment, queryPayment with full token lifecycle (task 42/64).
-TODO 57n. Implement Nagad payment integration: RSA encryption, SHA1withRSA digital signatures, payment verification (task 42/65).
-TODO 64. Implement bKash Tokenized Checkout API integration with token lifecycle management (Grant Token, createPayment, executePayment, queryPayment).
-TODO 65. Implement Nagad Payment API integration with RSA encryption, digital signatures (SHA1withRSA), and payment verification.
-TODO 66. Enhance SSLCommerz integration with robust IPN handling, idempotency keys, and order validation logic.
-TODO 67. Implement webhook/IPN receiver with ACK-First design pattern (Validate -> Enqueue -> ACK) and message queue (Redis/RabbitMQ).
-TODO 69. Add payment security hardening: HMAC verification for SSLCommerz IPN, token lifecycle for bKash, RSA signature validation for Nagad.
-TODO 81. Implement commercial invoicing: Invoice generation with line VAT, installments JSONB, outstanding balance calculations.
-TODO 90. Implement Dynamic QR Code generation for bills containing amount and Merchant ID for payment scanning.
+TODO 258. Implement real SSLCommerz payment initiation: API call, signature generation, request formatting (task 42 returns placeholder only).
+DONE 259. POST `/v1/tenant/payments/ipn/{gateway}?tenant=<subdomain>`: JSON or form body, SSLCommerz `store_id` check when configured, `status`→completed/failed, match by `order_id`/`tran_id` or `gateway_transaction_id`/`val_id`, amount check, idempotent completed, noop if payment missing; `.env.example` IPN URL note.
+TODO 260. Implement bKash payment integration: Grant Token endpoint, createPayment, executePayment, queryPayment with full token lifecycle (task 42/64).
+TODO 261. Implement Nagad payment integration: RSA encryption, SHA1withRSA digital signatures, payment verification (task 42/65).
+TODO 262. Implement bKash Tokenized Checkout API integration with token lifecycle management (Grant Token, createPayment, executePayment, queryPayment).
+TODO 263. Implement Nagad Payment API integration with RSA encryption, digital signatures (SHA1withRSA), and payment verification.
+TODO 264. Enhance SSLCommerz integration with robust IPN handling, idempotency keys, and order validation logic.
+TODO 265. Implement webhook/IPN receiver with ACK-First design pattern (Validate -> Enqueue -> ACK) and message queue (Redis/RabbitMQ).
+TODO 266. Add payment security hardening: HMAC verification for SSLCommerz IPN, token lifecycle for bKash, RSA signature validation for Nagad.
+TODO 267. Implement commercial invoicing: Invoice generation with line VAT, installments JSONB, outstanding balance calculations.
+TODO 268. Implement Dynamic QR Code generation for bills containing amount and Merchant ID for payment scanning.
 
 # ========================================================================================
 # 📊 REPORTING & ANALYTICS — Dashboards, Exports, Business Intelligence
@@ -218,34 +412,34 @@ DONE 41. Storefront: `GET /v1/storefront/products` lists active products (public
 
 DONE 57i. Inventory aging buckets + `as_of` on `/v1/tenant/reports/inventory-aging` (WAC/cost layers still TODO 71).
 DONE 57j. Storefront `/v1/storefront/products` query + `q`/limit/offset; product `image_url` column not in schema yet — images TODO when schema exists.
-TODO 92. Implement Inventory Turnover Ratio (ITR) and Economic Order Quantity (EOQ) calculations in reports.
-TODO 93. Implement white-label invoices and reports with business logo, legal title (en/bn), and BIN/address injection.
-TODO 95. Implement data export functionality (CSV/SQL) for tenant offboarding and data portability compliance.
-TODO 96. Implement asset reassignment workflow for organizational accounts (files, repositories, communications to manager).
+TODO 269. Implement Inventory Turnover Ratio (ITR) and Economic Order Quantity (EOQ) calculations in reports.
+TODO 270. Implement white-label invoices and reports with business logo, legal title (en/bn), and BIN/address injection.
+TODO 271. Implement data export functionality (CSV/SQL) for tenant offboarding and data portability compliance.
+TODO 272. Implement asset reassignment workflow for organizational accounts (files, repositories, communications to manager).
 
 # ========================================================================================
 # ⚖️ COMPLIANCE & REGULATORY — VAT, Mushak Forms, Legal Requirements
 # ========================================================================================
 
-TODO 58. Implement Mushak 6.5 (Invoice for goods transfer) for inter-branch stock movements in centrally registered organizations.
-TODO 59. Implement Mushak 6.7 (Credit Notes) for sales returns and post-sale adjustments with decreasing adjustment logic.
-TODO 60. Implement Mushak 6.8 (Debit Notes) for increasing adjustments and amended purchase values.
-TODO 61. Implement Mushak 6.10 (High-Value Transaction Report) for transactions > BDT 200,000 with NID capture and iVAS submission.
-TODO 62. Implement Mushak 9.1 (VAT Return) summary generation with periodic filing support.
-TODO 63. Add BIN (Business Identification Number) 13-digit validation and registration threshold checks (BDT 30M and BDT 5M enlistment).
-TODO 70. Implement Mushak VAT compliance: Buyer TIN validation (13-digit BIN), HS/SAC codes, VDS exemptions, multi-rate VAT basket logic.
+TODO 273. Implement Mushak 6.5 (Invoice for goods transfer) for inter-branch stock movements in centrally registered organizations.
+TODO 274. Implement Mushak 6.7 (Credit Notes) for sales returns and post-sale adjustments with decreasing adjustment logic.
+TODO 275. Implement Mushak 6.8 (Debit Notes) for increasing adjustments and amended purchase values.
+TODO 276. Implement Mushak 6.10 (High-Value Transaction Report) for transactions > BDT 200,000 with NID capture and iVAS submission.
+TODO 277. Implement Mushak 9.1 (VAT Return) summary generation with periodic filing support.
+TODO 278. Add BIN (Business Identification Number) 13-digit validation and registration threshold checks (BDT 30M and BDT 5M enlistment).
+TODO 279. Implement Mushak VAT compliance: Buyer TIN validation (13-digit BIN), HS/SAC codes, VDS exemptions, multi-rate VAT basket logic.
 
 # ========================================================================================
 # 🎨 UI/UX CONSISTENCY — Design Systems, Components, Cross-Platform
 # ========================================================================================
 
-TODO 152. Implement Flutter widget library: shared components for cards, lists, dialogs, and navigation with platform-specific adaptations.
-TODO 153. Develop shared design tokens: color palette, typography scale, spacing system, and iconography for web and mobile consistency.
-TODO 154. Create cross-platform action naming convention: standardize button labels, menu items, and navigation actions across web/mobile.
-TODO 155. Implement unique layout system: consistent grid systems, responsive breakpoints, and layout components for web and mobile.
-TODO 156. Develop shared validation components: reusable form validators, error messages, and input masks for both platforms.
-TODO 165. Develop cross-platform testing utilities: shared test helpers, mock data, and component testing patterns.
-TODO 169. Create unified documentation system: component documentation, usage examples, and design guidelines for both platforms.
+TODO 280. Implement Flutter widget library: shared components for cards, lists, dialogs, and navigation with platform-specific adaptations.
+TODO 281. Develop shared design tokens: color palette, typography scale, spacing system, and iconography for web and mobile consistency.
+TODO 282. Create cross-platform action naming convention: standardize button labels, menu items, and navigation actions across web/mobile.
+TODO 283. Implement unique layout system: consistent grid systems, responsive breakpoints, and layout components for web and mobile.
+TODO 284. Develop shared validation components: reusable form validators, error messages, and input masks for both platforms.
+TODO 285. Develop cross-platform testing utilities: shared test helpers, mock data, and component testing patterns.
+TODO 286. Create unified documentation system: component documentation, usage examples, and design guidelines for both platforms.
 
 # ========================================================================================
 # 🧪 TESTING & QUALITY ASSURANCE — Unit, Integration, E2E, Performance
@@ -253,7 +447,7 @@ TODO 169. Create unified documentation system: component documentation, usage ex
 
 DONE 24. Automated tests: pytest for `codes`, `host_tenant`, FastAPI `TestClient` (health, products 503 without DB, admin auth); `INTEGRATION_TEST` RLS suite placeholder; `httpx` for Starlette TestClient.
 
-TODO 46. Tests: Angular e2e; migration pipeline tests in CI. [RLS integration harness in `test_integration_rls.py` ✓]
+TODO 287. Tests: Angular e2e; migration pipeline tests in CI. [RLS integration harness in `test_integration_rls.py` ✓]
 
 # ========================================================================================
 # ⚙️ DEVOPS & OPERATIONS — Monitoring, Performance, Maintenance, Security
@@ -261,6 +455,6 @@ TODO 46. Tests: Angular e2e; migration pipeline tests in CI. [RLS integration ha
 
 RESOLVED 33. .NET alternative decision: Staying on FastAPI only. Centralized config ✓, RLS/set_config pattern ✓. .NET parity not pursued.
 
-TODO 80. Add RBAC system: User roles/permissions, admin user management, tenant-scoped access control.
-TODO 88. Implement Role-Based Access Control (RBAC) with roles (Billing Operator, Inventory Manager, Purchase Manager, Accountant, Administrator).
-TODO 89. Implement field-level access control (hide purchase rates from sales staff, restrict based on workflow state).
+TODO 288. Add RBAC system: User roles/permissions, admin user management, tenant-scoped access control.
+TODO 289. Implement Role-Based Access Control (RBAC) with roles (Billing Operator, Inventory Manager, Purchase Manager, Accountant, Administrator).
+TODO 290. Implement field-level access control (hide purchase rates from sales staff, restrict based on workflow state).

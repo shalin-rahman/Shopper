@@ -1,0 +1,22 @@
+{
+  "appTitle": "Shopper Mobile",
+  "welcomeMessage": "Welcome to Shopper Mobile POS",
+  "scanProduct": "Scan Product",
+  "search": "Search",
+  "cart": "Cart",
+  "checkout": "Checkout",
+  "products": "Products",
+  "reports": "Reports",
+  "settings": "Settings",
+  "logout": "Logout",
+  "online": "Online",
+  "offline": "Offline",
+  "syncing": "Syncing...",
+  "syncComplete": "Sync Complete",
+  "error": "Error",
+  "retry": "Retry",
+  "loading": "Loading...",
+  "noData": "No data available",
+  "confirm": "Confirm",
+  "cancel": "Cancel"
+}
