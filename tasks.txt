@@ -44,14 +44,15 @@ DONE 172. Maintainer workflow: `.cursor/rules/post-change-workflow.mdc` (always 
 DONE 173. Storefront catalog + inventory aging: `GET /v1/storefront/products` (pagination, `q` filter); `GET /v1/tenant/reports/inventory-aging` (`as_of`, buckets); schemas in `schemas.py`; pytest coverage for no-tenant / no-DB.
 DONE 174. Redis wiring: `redis>=5` dependency; `app.state.redis`; payment IPN `shopper:ipn:v1:{tenant}:{gateway}:{ref}` replay suppression; `config.redis_ipn_ttl_seconds`.
 
+# DEPENDENCY NOTE: TODO 50 and TODO 68 are optional schema-per-tenant extensions; current implementation remains RLS pooled model.
 TODO 50. If schema-per-tenant: `SET search_path` middleware + fail-closed (unknown subdomain → 403); pool tiers + statement timeouts vs noisy neighbors.
 TODO 68. Implement schema-per-tenant middleware: SET search_path based on subdomain with schema validation and fail-closed logic (unknown subdomain → 403).
-TODO 73. Add tenant-scoped structured logging: JSON logs with tenant_id, separate platform ops vs tenant PII streams.
+DONE 73. Add tenant-scoped structured logging: JSON logs with tenant_id, separate platform ops vs tenant PII streams.
 TODO 82. Add operational monitoring: Cert expiry alerts, rate limit tuning, connection pool monitoring, performance metrics.
 TODO 84. Add CI enhancements: Docker image publish, Flutter analyze job, migration pipeline tests, Angular e2e tests.
 TODO 97. Implement monitoring and SLO tracking: processing success % (target > 98.5%), end-to-end latency (target < 90s), queue drain rate (< 5min), error concentration.
 TODO 98. Implement Canary Migrations strategy for schema changes (staging on Green cluster, subset tenant migration, verification, global rollout).
-TODO 101. Clarify and implement Single-Tenant Database Silo Model (separate DB per tenant) vs current RLS pooled model based security requirements.
+DONE 101. Clarified tenant model: current production implementation remains RLS pooled model with `tenant_data` schema and `SET config('app.tenant_id', ...)`. Schema-per-tenant remains a future architectural alternative, not current delivery.
 TODO 170. Implement consistent performance optimization: lazy loading, code splitting, and bundle optimization for web/mobile.
 
 # ========================================================================================
@@ -113,6 +114,12 @@ TODO 167. Implement consistent accessibility patterns: ARIA labels, keyboard nav
 DONE 18. Flutter: Minimal pubspec shell (localizations, intl, mobile_scanner dependency).
 DONE 29. Flutter: runnable `lib/main.dart` shell with `en`/`bn` locales (POS scan + API wiring still TODO).
 DONE 45. Flutter: POS scan workflows, offline queue, dynamic QR bill + IPN handoff (Flutter shell with localization ready).
+DONE 291. Implement comprehensive validation system: Domain entity validation, use case parameter validation, BLoC error handling, UI validation components, API response validation, and comprehensive test coverage.
+
+TODO 292. Add validation toggle parameter to API methods for optional validation control.
+TODO 293. Implement local data source validation for cached data integrity.
+TODO 294. Add validation performance monitoring and optimization.
+TODO 295. Create integration tests for end-to-end validation flow.
 
 TODO 76. Implement offline POS sync protocol: Conflict resolution with vector clocks, last-write-wins business rules, server-side validation.
 TODO 83. Implement Flutter POS features: Dynamic QR bill generation, offline queue with sync, mobile_scanner integration.
