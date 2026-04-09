@@ -1,16 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
+import 'core/di/injection.dart';
 import 'core/theme_provider.dart';
 import 'widgets/index.dart';
 import 'navigation/app_router.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize dependency injection
+  await setupDependencyInjection();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      child: const ShopperMobileApp(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (context) => ThemeProvider(),
+        ),
+      ],
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AuthBloc>(
+            create: (context) => getIt<AuthBloc>(),
+          ),
+          BlocProvider<ProductsBloc>(
+            create: (context) => getIt<ProductsBloc>(),
+          ),
+          BlocProvider<CartBloc>(
+            create: (context) => getIt<CartBloc>(),
+          ),
+          BlocProvider<OrdersBloc>(
+            create: (context) => getIt<OrdersBloc>(),
+          ),
+          BlocProvider<SettingsBloc>(
+            create: (context) => getIt<SettingsBloc>(),
+          ),
+        ],
+        child: const ShopperMobileApp(),
+      ),
     ),
   );
 }

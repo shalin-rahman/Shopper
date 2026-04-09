@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import contextvars
 import logging
 import json
 
@@ -11,6 +12,16 @@ from config import get_settings
 from redis_client import close_redis, connect_redis
 from customers_router import router as customers_router
 from host_tenant import subdomain_from_host as host_subdomain
+
+tenant_id_ctx = contextvars.ContextVar("tenant_id", default="unknown")
+trace_id_ctx = contextvars.ContextVar("trace_id", default="unknown")
+
+
+class RequestContextFilter(logging.Filter):
+    def filter(self, record):
+        record.tenant_id = tenant_id_ctx.get()
+        record.trace_id = trace_id_ctx.get()
+        return True
 from payments_router import router as payments_router
 from products_router import router as products_router
 from reports_router import router as reports_router
@@ -26,18 +37,20 @@ REDIS = None
 async def lifespan(app: FastAPI):
     global POOL, MIGRATE_POOL, REDIS
 
-    # Configure structured JSON logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format=json.dumps({
-            "timestamp": "%(asctime)s",
-            "level": "%(levelname)s",
-            "message": "%(message)s",
-            "tenant_id": "%(tenant_id)s",
-            "trace_id": "%(trace_id)s"
-        }),
-        datefmt="%Y-%m-%dT%H:%M:%SZ"
-    )
+    # Configure structured JSON logging with tenant and trace context
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(json.dumps({
+        "timestamp": "%(asctime)s",
+        "level": "%(levelname)s",
+        "message": "%(message)s",
+        "tenant_id": "%(tenant_id)s",
+        "trace_id": "%(trace_id)s"
+    }), datefmt="%Y-%m-%dT%H:%M:%SZ"))
+    handler.addFilter(RequestContextFilter())
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    root_logger.handlers = [handler]
 
     settings = get_settings()
     app.state.settings = settings
@@ -103,21 +116,15 @@ app.add_middleware(
 async def tenant_context(request: Request, call_next):
     import uuid
     trace_id = str(uuid.uuid4())
-    logging.getLogger().handlers[0].setFormatter(
-        logging.Formatter(json.dumps({
-            "timestamp": "%(asctime)s",
-            "level": "%(levelname)s",
-            "message": "%(message)s",
-            "tenant_id": getattr(request.state, 'tenant_subdomain', 'unknown'),
-            "trace_id": trace_id
-        }), datefmt="%Y-%m-%dT%H:%M:%SZ")
-    )
-    request.state.trace_id = trace_id
+    trace_id_ctx.set(trace_id)
+
     settings = getattr(request.app.state, "settings", None) or get_settings()
     sub = host_subdomain(
         request.headers.get("host", ""),
         platform_root_domain=settings.platform_root_domain,
     )
+    tenant_id_ctx.set(sub or "unknown")
+    request.state.trace_id = trace_id
     request.state.tenant_subdomain = sub
     response = await call_next(request)
     return response
