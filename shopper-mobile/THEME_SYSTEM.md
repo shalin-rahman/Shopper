@@ -2,7 +2,7 @@
 
 This document outlines the comprehensive theme system implemented in the Shopper Mobile Flutter app.
 
-## 🎨 Theme Architecture
+##  Theme Architecture
 
 ### Theme Provider (`core/theme_provider.dart`)
 The app uses a robust theme management system with the following features:
@@ -21,7 +21,7 @@ enum AppTheme {
 }
 ```
 
-## 🌅 Light Theme
+##  Light Theme
 
 ### Color Palette
 - **Primary**: Blue (#1976D2) - Professional and trustworthy
@@ -37,7 +37,7 @@ enum AppTheme {
 - **Inputs**: Light gray borders with blue focus
 - **Navigation**: Blue selected, gray unselected
 
-## 🌙 Dark Theme
+##  Dark Theme
 
 ### Color Palette
 - **Primary**: Light Blue (#90CAF9) - Soft blue for dark backgrounds
@@ -53,7 +53,7 @@ enum AppTheme {
 - **Inputs**: Dark borders with light blue focus
 - **Navigation**: Light blue selected, gray unselected
 
-## 🔧 Usage
+##  Usage
 
 ### Basic Theme Switching
 ```dart
@@ -87,7 +87,7 @@ Consumer<ThemeProvider>(
 )
 ```
 
-## 🎯 Theme-Aware Components
+##  Theme-Aware Components
 
 All components automatically adapt to the current theme:
 
@@ -110,7 +110,7 @@ All components automatically adapt to the current theme:
 - Bottom nav: Theme-aware selected/unselected colors
 - App bar: Theme-aware background and text
 
-## 💾 Persistence
+##  Persistence
 
 Theme preferences are automatically saved and restored:
 
@@ -119,7 +119,7 @@ Theme preferences are automatically saved and restored:
 - **Default**: AppTheme.system
 - **Persistence**: Survives app restarts
 
-## 🔄 Dynamic Theme Switching
+##  Dynamic Theme Switching
 
 The theme system supports runtime switching without app restart:
 
@@ -129,7 +129,7 @@ The theme system supports runtime switching without app restart:
 4. Preference saved to storage
 5. Theme persists across sessions
 
-## 📱 System Theme Integration
+##  System Theme Integration
 
 When using `AppTheme.system`:
 
@@ -137,7 +137,7 @@ When using `AppTheme.system`:
 - **Android**: Follows system dark mode toggle
 - **Fallback**: Defaults to light theme if system preference unavailable
 
-## 🎨 Customization
+##  Customization
 
 ### Extending Themes
 ```dart
@@ -167,7 +167,7 @@ colorScheme: const ColorScheme.light(
 ),
 ```
 
-## 🧪 Testing Themes
+##  Testing Themes
 
 ### Manual Testing
 1. Use the theme switcher in Settings
@@ -192,7 +192,7 @@ testWidgets('Theme switching works', (tester) async {
 });
 ```
 
-## 🚀 Best Practices
+##  Best Practices
 
 ### Component Development
 - Always use theme-aware colors from Theme.of(context)
@@ -209,7 +209,7 @@ testWidgets('Theme switching works', (tester) async {
 - Use const constructors where possible
 - Avoid unnecessary theme-dependent calculations
 
-## 📋 Theme Checklist
+##  Theme Checklist
 
 - [x] Light theme implementation
 - [x] Dark theme implementation
@@ -221,4 +221,4 @@ testWidgets('Theme switching works', (tester) async {
 - [x] Demo screen integration
 - [x] Documentation complete
 
-The theme system is now fully functional and provides a professional, accessible, and user-friendly theming experience! 🌟
+The theme system is now fully functional and provides a professional, accessible, and user-friendly theming experience! 

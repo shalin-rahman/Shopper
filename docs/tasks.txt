@@ -1,0 +1,84 @@
+# SHOPPER PLATFORM — MASTER TASK LIST (Consolidated & Verified)
+
+> **Last Updated:** 2026-04-20
+> **Status:** Phase 1 Complete | **Next:** Financials & Tenant Isolation
+
+This list prioritizes tasks based on the April 2026 Comprehensive Architecture & Security Review. It reconciles the root tasks.txt with actual code found in migrations.
+
+---
+
+## I. CORE INFRASTRUCTURE & ARCHITECTURE
+Status: RLS-Model Stable; Per-Tenant Silo Pending.
+
+| Task | Priority | Status | Description/Action |
+|:---|:---:|:---:|:---|
+| **Configurable Isolation Model** | **CRITICAL** | TODO | Toggle between RLS (shared schema) and Per-Tenant Schema via config. |
+| **Bi-directional Migration** | **CRITICAL** | TODO | Migrate data from Shared DB (RLS) to Multi-Schema and vice-versa. |
+| **Fail-Closed Resolver** | **HIGH** | TODO | Unknown subdomain on API must return 403, not fallback to demo. |
+| **Dedicated DB Routing** | **HIGH** | TODO | Provision separate DB instances for high-tier tenants. |
+| **Operational Monitoring** | **MED** | TODO | Cert expiry alerts, pool monitoring, and SLO tracking. |
+| **Post-Change Workflow** | **LOW** | DONE | .cursor/rules/post-change-workflow.mdc enforced. |
+
+---
+
+## II. FINANCIALS, PAYMENTS & VAT
+Status: Hooks exists; Logic missing.
+
+| Task | Priority | Status | Description/Action |
+|:---|:---:|:---:|:---|
+| **Mushak 6.3/6.1/6.2/6.6** | **CRITICAL** | TODO | Bilingual PDF generation for Tax Invoices and Registers. |
+| **Payment Sessions** | **CRITICAL** | TODO | Implement POST -> Gateway Redirect (SSLCommerz, bKash). |
+| **Remote IPN Validation** | **HIGH** | TODO | Remote check of val_id against Gateway APIs for security. |
+| **Inventory Valuation** | **HIGH** | TODO | Implementation of WAC and FIFO (cost layers) logic. |
+| **Outstanding Balances** | **HIGH** | TODO | Formula: Invoices.total - Payments.total calculation engine. |
+| **Commercial Invoicing** | **MED** | TODO | Installment JSONB support and line-level VAT logic. |
+
+---
+
+## III. MOBILE POS (FLUTTER)
+Status: Scaffold & UI Done; Functional Core Pending.
+
+| Task | Priority | Status | Description/Action |
+|:---|:---:|:---:|:---|
+| **Offline Sync Protocol** | **HIGH** | TODO | SQLite -> API sync with conflict resolution (vector clocks). |
+| **Real Transaction Core** | **HIGH** | TODO | Checkout flow, search, and stock deduction in mobile app. |
+| **Thermal Printing** | **MED** | TODO | Bluetooth/ESC-POS support for thermal receipts. |
+| **10k+ SKU Search** | **MED** | TODO | SQLite FTS index for ultra-fast local product search. |
+| **UI Design System** | - | DONE | 8pt grid, typography, and validated Shopper widgets. |
+
+---
+
+## IV. WEB FRONTEND (ANGULAR)
+Status: Framework Ready; Features Thin.
+
+| Task | Priority | Status | Description/Action |
+|:---|:---:|:---:|:---|
+| **Product & Admin UI** | - | DONE | Basic management and tenant lifecycle dashboard. |
+| **Theme Engine (10+ Themes)**| **MED** | TODO | Implementation of lazy-loaded CSS variable themes. |
+| **Reusable UI Library** | **MED** | TODO | Consolidation of buttons, modals, and data grids. |
+| **Zero-Literals Audit** | **LOW** | TODO | Ensure 100% of strings are in assets/i18n (Transloco). |
+
+---
+
+## V. SECURITY & COMPLIANCE
+Status: Basic RLS Ready; Advanced Hardening Pending.
+
+| Task | Priority | Status | Description/Action |
+|:---|:---:|:---:|:---|
+| **Audit Log Triggers** | - | DONE | 008_audit_triggers.sql implements DML tracking on key tables. |
+| **Hash Chaining** | **HIGH** | TODO | Tamper-evident chaining for the audit_log table. |
+| **RBAC Implementation** | **HIGH** | TODO | Role-based gatekeeping (Cashier vs Manager vs Accountant). |
+| **IPN Idempotency** | - | DONE | Redis-backed successful IPN replay suppression. |
+| **HMAC Verification** | **HIGH** | TODO | Mandatory check of gateway signatures on all IPN routes. |
+
+---
+
+## VI. QA & TESTING
+| Task | Priority | Status | Description/Action |
+|:---|:---:|:---:|:---|
+| **Isolation Suite** | **HIGH** | TODO | Automated tests verifying data cannot leak between tenants. |
+| **E2E POS Flow** | **MED** | TODO | Full "Scan -> Pay -> Print -> Sync" integration test. |
+| **Migration Pipeline** | **LOW** | TODO | CI test that runs full migration path on clean DB. |
+
+---
+**Note to Developers:** Focus on Section II (Financials) and Section I (Schema Isolation) as the next high-value engineering blocks.

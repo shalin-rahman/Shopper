@@ -10,136 +10,136 @@
 
 ---
 
-## 📊 Business Entities Flow & Implementation Status
+##  Business Entities Flow & Implementation Status
 
 ### Core Business Entities Overview
 The Shopper platform manages the following key business entities with their relationships and current implementation status:
 
-#### 🏢 **Platform-Level Entities** (Multi-tenant Infrastructure)
-- **✅ COMPLETED: Tenants** - Registry with bilingual names, subdomain routing, status management
-- **✅ COMPLETED: Tenant Settings** - Theme, language, BIN, legal titles, module access (JSONB)
-- **✅ COMPLETED: Platform Users** - Super admin roles, authentication, tenant management
-- **✅ COMPLETED: Schema Migrations** - Idempotent SQL migrations, version tracking
+####  **Platform-Level Entities** (Multi-tenant Infrastructure)
+- ** COMPLETED: Tenants** - Registry with bilingual names, subdomain routing, status management
+- ** COMPLETED: Tenant Settings** - Theme, language, BIN, legal titles, module access (JSONB)
+- ** COMPLETED: Platform Users** - Super admin roles, authentication, tenant management
+- ** COMPLETED: Schema Migrations** - Idempotent SQL migrations, version tracking
 
-#### 🏪 **Tenant-Level Business Entities** (Per-Business Data)
+####  **Tenant-Level Business Entities** (Per-Business Data)
 
-##### **📦 Product Management**
-- **✅ COMPLETED: Products** - Bilingual names (en/bn), SKU generation, pricing, categories
-- **✅ COMPLETED: Product Categories** - Hierarchical structure, bilingual labels
-- **✅ COMPLETED: Barcode/QR Generation** - SKU-based codes, storefront links
-- **✅ COMPLETED: Product Images** - File storage, optimization pipeline
+##### ** Product Management**
+- ** COMPLETED: Products** - Bilingual names (en/bn), SKU generation, pricing, categories
+- ** COMPLETED: Product Categories** - Hierarchical structure, bilingual labels
+- ** COMPLETED: Barcode/QR Generation** - SKU-based codes, storefront links
+- ** COMPLETED: Product Images** - File storage, optimization pipeline
 
-##### **👥 Customer & Supplier Management**
-- **✅ COMPLETED: Customers** - Bilingual contact info, payment history, loyalty tracking
-- **✅ COMPLETED: Suppliers** - Purchase orders, payment terms, contact management
-- **✅ COMPLETED: Customer Categories** - Segmentation, pricing tiers
+##### ** Customer & Supplier Management**
+- ** COMPLETED: Customers** - Bilingual contact info, payment history, loyalty tracking
+- ** COMPLETED: Suppliers** - Purchase orders, payment terms, contact management
+- ** COMPLETED: Customer Categories** - Segmentation, pricing tiers
 
-##### **📊 Inventory & Stock Management**
-- **✅ COMPLETED: Stock Transactions** - In/out movements, cost tracking, reservations
-- **✅ COMPLETED: Stock Balances** - Real-time quantities, warehouse locations
-- **❌ NOT IMPLEMENTED: Warehouse Management** - Multi-location support, transfers
-- **❌ NOT IMPLEMENTED: FIFO/LIFO Valuation** - Cost layer tracking, WAC calculation
-- **❌ NOT IMPLEMENTED: Stock Aging Reports** - Inventory turnover analysis
+##### ** Inventory & Stock Management**
+- ** COMPLETED: Stock Transactions** - In/out movements, cost tracking, reservations
+- ** COMPLETED: Stock Balances** - Real-time quantities, warehouse locations
+- ** NOT IMPLEMENTED: Warehouse Management** - Multi-location support, transfers
+- ** NOT IMPLEMENTED: FIFO/LIFO Valuation** - Cost layer tracking, WAC calculation
+- ** NOT IMPLEMENTED: Stock Aging Reports** - Inventory turnover analysis
 
-##### **💰 Financial Management**
-- **❌ NOT IMPLEMENTED: Invoices** - Header/line structure, VAT calculations, installments
-- **❌ NOT IMPLEMENTED: Invoice Lines** - Product details, VAT rates, exemptions
-- **❌ NOT IMPLEMENTED: Payments** - Multi-gateway integration, installment tracking
-- **❌ NOT IMPLEMENTED: Payment IPN Events** - Webhook processing, reconciliation
-- **✅ COMPLETED: Ledger Entries** - Double-entry accounting, AR/AP tracking
-- **❌ NOT IMPLEMENTED: Outstanding Balance Calculations** - Bo = I - ΣP formula
+##### ** Financial Management**
+- ** NOT IMPLEMENTED: Invoices** - Header/line structure, VAT calculations, installments
+- ** NOT IMPLEMENTED: Invoice Lines** - Product details, VAT rates, exemptions
+- ** NOT IMPLEMENTED: Payments** - Multi-gateway integration, installment tracking
+- ** NOT IMPLEMENTED: Payment IPN Events** - Webhook processing, reconciliation
+- ** COMPLETED: Ledger Entries** - Double-entry accounting, AR/AP tracking
+- ** NOT IMPLEMENTED: Outstanding Balance Calculations** - Bo = I - ΣP formula
 
-##### **🧾 Bangladesh VAT Compliance (Mushak)**
-- **✅ COMPLETED: VAT Sales Register Lines** - Basic structure (DDL exists, queries pending)
-- **❌ NOT IMPLEMENTED: Mushak 6.1 (Purchase)** - Supplier invoice tracking
-- **❌ NOT IMPLEMENTED: Mushak 6.2 (Sales)** - Customer invoice tracking
-- **❌ NOT IMPLEMENTED: Mushak 6.3 (Tax Invoice)** - Bilingual PDF generation
-- **❌ NOT IMPLEMENTED: Mushak 6.5 (Transfer)** - Inter-branch movements
-- **❌ NOT IMPLEMENTED: Mushak 6.6 (VDS)** - Value Declared at Source
-- **❌ NOT IMPLEMENTED: Mushak 6.7 (Credit Notes)** - Sales returns, adjustments
-- **❌ NOT IMPLEMENTED: Mushak 6.8 (Debit Notes)** - Purchase amendments
-- **❌ NOT IMPLEMENTED: Mushak 6.10 (High-Value)** - >BDT 200K transactions, NID capture
-- **❌ NOT IMPLEMENTED: Mushak 9.1 (VAT Return)** - Periodic filing, summary generation
+##### ** Bangladesh VAT Compliance (Mushak)**
+- ** COMPLETED: VAT Sales Register Lines** - Basic structure (DDL exists, queries pending)
+- ** NOT IMPLEMENTED: Mushak 6.1 (Purchase)** - Supplier invoice tracking
+- ** NOT IMPLEMENTED: Mushak 6.2 (Sales)** - Customer invoice tracking
+- ** NOT IMPLEMENTED: Mushak 6.3 (Tax Invoice)** - Bilingual PDF generation
+- ** NOT IMPLEMENTED: Mushak 6.5 (Transfer)** - Inter-branch movements
+- ** NOT IMPLEMENTED: Mushak 6.6 (VDS)** - Value Declared at Source
+- ** NOT IMPLEMENTED: Mushak 6.7 (Credit Notes)** - Sales returns, adjustments
+- ** NOT IMPLEMENTED: Mushak 6.8 (Debit Notes)** - Purchase amendments
+- ** NOT IMPLEMENTED: Mushak 6.10 (High-Value)** - >BDT 200K transactions, NID capture
+- ** NOT IMPLEMENTED: Mushak 9.1 (VAT Return)** - Periodic filing, summary generation
 
-##### **🔐 Security & Audit**
-- **✅ COMPLETED: Audit Log Schema** - Table structure with RLS policies
-- **❌ NOT IMPLEMENTED: Audit Triggers** - Automatic INSERT on DML operations
-- **❌ NOT IMPLEMENTED: Hash Chaining** - Tamper-evident audit trails
+##### ** Security & Audit**
+- ** COMPLETED: Audit Log Schema** - Table structure with RLS policies
+- ** NOT IMPLEMENTED: Audit Triggers** - Automatic INSERT on DML operations
+- ** NOT IMPLEMENTED: Hash Chaining** - Tamper-evident audit trails
 
-##### **💳 Payment Gateway Integrations**
-- **❌ NOT IMPLEMENTED: SSLCommerz** - IPN handling, signature verification
-- **❌ NOT IMPLEMENTED: bKash Tokenized** - Grant Token, createPayment, executePayment
-- **❌ NOT IMPLEMENTED: Nagad** - RSA encryption, SHA1withRSA signatures
-- **❌ NOT IMPLEMENTED: Rocket** - Mobile financial service integration
+##### ** Payment Gateway Integrations**
+- ** NOT IMPLEMENTED: SSLCommerz** - IPN handling, signature verification
+- ** NOT IMPLEMENTED: bKash Tokenized** - Grant Token, createPayment, executePayment
+- ** NOT IMPLEMENTED: Nagad** - RSA encryption, SHA1withRSA signatures
+- ** NOT IMPLEMENTED: Rocket** - Mobile financial service integration
 
-##### **📈 Reporting & Analytics**
-- **❌ NOT IMPLEMENTED: Inventory Aging** - 0-30, 31-60, 61-90, 90+ day buckets
-- **❌ NOT IMPLEMENTED: Sales Analytics** - Date-wise trends, product performance
-- **❌ NOT IMPLEMENTED: Excel/PDF Export** - White-labeled reports
-- **❌ NOT IMPLEMENTED: Inventory Turnover Ratio** - ITR = COGS ÷ Average Inventory
-- **❌ NOT IMPLEMENTED: Economic Order Quantity** - EOQ optimization
+##### ** Reporting & Analytics**
+- ** NOT IMPLEMENTED: Inventory Aging** - 0-30, 31-60, 61-90, 90+ day buckets
+- ** NOT IMPLEMENTED: Sales Analytics** - Date-wise trends, product performance
+- ** NOT IMPLEMENTED: Excel/PDF Export** - White-labeled reports
+- ** NOT IMPLEMENTED: Inventory Turnover Ratio** - ITR = COGS ÷ Average Inventory
+- ** NOT IMPLEMENTED: Economic Order Quantity** - EOQ optimization
 
-##### **🌐 Public Storefront**
-- **❌ NOT IMPLEMENTED: Product Listings** - Active products with pricing, descriptions
-- **❌ NOT IMPLEMENTED: Theme Engine** - 10+ professional themes, dynamic application
-- **❌ NOT IMPLEMENTED: Shopping Cart** - Multi-product, quantity management
-- **❌ NOT IMPLEMENTED: Checkout Flow** - Payment integration, order processing
+##### ** Public Storefront**
+- ** NOT IMPLEMENTED: Product Listings** - Active products with pricing, descriptions
+- ** NOT IMPLEMENTED: Theme Engine** - 10+ professional themes, dynamic application
+- ** NOT IMPLEMENTED: Shopping Cart** - Multi-product, quantity management
+- ** NOT IMPLEMENTED: Checkout Flow** - Payment integration, order processing
 
-##### **📱 Mobile POS (Flutter)**
-- **✅ COMPLETED: Basic App Structure** - Bilingual localization, scanner integration
-- **❌ NOT IMPLEMENTED: Offline Mode** - SQLite sync, conflict resolution
-- **❌ NOT IMPLEMENTED: Transaction Processing** - Real-time sales, inventory updates
-- **❌ NOT IMPLEMENTED: Customer Management** - POS customer lookup, loyalty
-- **❌ NOT IMPLEMENTED: Receipt Printing** - Bluetooth thermal printers
+##### ** Mobile POS (Flutter)**
+- ** COMPLETED: Basic App Structure** - Bilingual localization, scanner integration
+- ** NOT IMPLEMENTED: Offline Mode** - SQLite sync, conflict resolution
+- ** NOT IMPLEMENTED: Transaction Processing** - Real-time sales, inventory updates
+- ** NOT IMPLEMENTED: Customer Management** - POS customer lookup, loyalty
+- ** NOT IMPLEMENTED: Receipt Printing** - Bluetooth thermal printers
 
 ### Business Process Flows
 
-#### **🏪 Sales Process Flow**
+#### ** Sales Process Flow**
 ```
 Customer Inquiry → Product Search → Add to Cart → Customer Lookup/Create → 
 Apply Discounts → Calculate VAT → Select Payment Method → Process Payment → 
 Update Inventory → Generate Receipt → Mushak 6.2 Recording
 ```
-**Status:** ❌ **NOT IMPLEMENTED** - Basic product display exists, full e-commerce flow missing
+**Status:**  **NOT IMPLEMENTED** - Basic product display exists, full e-commerce flow missing
 
-#### **📥 Purchase Process Flow**
+#### ** Purchase Process Flow**
 ```
 Supplier Selection → Create PO → Receive Goods → Quality Check → 
 Update Inventory → Process Invoice → Calculate Input VAT → 
 Record Payment → Mushak 6.1 Recording
 ```
-**Status:** ❌ **NOT IMPLEMENTED** - Basic supplier/customer tables exist, full procurement flow missing
+**Status:**  **NOT IMPLEMENTED** - Basic supplier/customer tables exist, full procurement flow missing
 
-#### **📊 Inventory Management Flow**
+#### ** Inventory Management Flow**
 ```
 Stock Receipt → Putaway → Stock Adjustment → Reservation → 
 Sales Consumption → Stock Transfer → Physical Count → 
 Aging Analysis → Reorder Alerts
 ```
-**Status:** ⚠️ **PARTIALLY IMPLEMENTED** - Basic stock transactions exist, advanced features missing
+**Status:** ️ **PARTIALLY IMPLEMENTED** - Basic stock transactions exist, advanced features missing
 
-#### **💰 Payment Processing Flow**
+#### ** Payment Processing Flow**
 ```
 Order Creation → Gateway Selection → Redirect to Payment → 
 IPN Processing → Signature Verification → Order Fulfillment → 
 Reconciliation → Mushak Compliance
 ```
-**Status:** ❌ **NOT IMPLEMENTED** - Gateway interfaces exist, real integrations missing
+**Status:**  **NOT IMPLEMENTED** - Gateway interfaces exist, real integrations missing
 
-#### **🧾 VAT Compliance Flow**
+#### ** VAT Compliance Flow**
 ```
 Transaction Recording → VAT Calculation → Mushak Form Generation → 
 Digital Submission → Audit Trail → Annual Return Filing
 ```
-**Status:** ❌ **NOT IMPLEMENTED** - Basic tables exist, full compliance workflow missing
+**Status:**  **NOT IMPLEMENTED** - Basic tables exist, full compliance workflow missing
 
-#### **🔄 Tenant Onboarding Flow**
+#### ** Tenant Onboarding Flow**
 ```
 Business Registration → BIN Validation → Schema Creation → 
 Theme Selection → Payment Setup → User Creation → 
 Initial Data Seeding → Go-Live
 ```
-**Status:** ⚠️ **PARTIALLY IMPLEMENTED** - Basic tenant creation exists, full onboarding missing
+**Status:** ️ **PARTIALLY IMPLEMENTED** - Basic tenant creation exists, full onboarding missing
 
 ### Entity Relationships Diagram
 
@@ -169,15 +169,15 @@ Platform.tenants (1) ──── (M) tenant_data.products
 ```
 
 **Legend:**
-- **✅ COMPLETED** - Fully implemented with API endpoints and UI
-- **⚠️ PARTIALLY IMPLEMENTED** - Tables/schema exist, functionality incomplete
-- **❌ NOT IMPLEMENTED** - Missing tables, logic, or integration
+- ** COMPLETED** - Fully implemented with API endpoints and UI
+- **️ PARTIALLY IMPLEMENTED** - Tables/schema exist, functionality incomplete
+- ** NOT IMPLEMENTED** - Missing tables, logic, or integration
 
 ---
 
-## 1. 🏛️ Architecture & Tenant Isolation Review
+## 1. ️ Architecture & Tenant Isolation Review
 
-## 1. 🏛️ Architecture & Tenant Isolation Review
+## 1. ️ Architecture & Tenant Isolation Review
 
 ### The Silo Challenge: Schema-per-Tenant Implementation
 **Current State:** The codebase implements RLS with `app.tenant_id` session GUC, not true schema isolation. This violates the requirements' "Single-Tenant Silo Model" mandate for physical data separation.
@@ -222,7 +222,7 @@ async def schema_switch(request: Request, call_next):
 
 ---
 
-## 2. 🔐 Security & Data Sovereignty Audit
+## 2.  Security & Data Sovereignty Audit
 
 ### SQL Injection in No-ORM Environment
 **Threat Assessment:** Raw SQL with string interpolation (`f"SELECT * FROM {table}"`) is vulnerable. Current code uses parameterized queries (`$1, $2`), but dynamic table/column names are risky.
@@ -267,7 +267,7 @@ async def validate_and_switch_schema(conn, schema_name):
 
 ---
 
-## 3. ⚙️ Feature Gap & Implementation Analysis
+## 3. ️ Feature Gap & Implementation Analysis
 
 ### Bangladesh Regulatory Gaps
 **Mushak Forms:** 6.1/6.2/6.3 schemas exist but lack:
@@ -299,7 +299,7 @@ Lazy-load theme CSS files per storefront route to avoid bundle bloat.
 
 ---
 
-## 4. 📊 Logging & Observability Strategy
+## 4.  Logging & Observability Strategy
 
 ### Tenant-Scoped Logs
 **Architecture:** Use structured JSON logging with `tenant_id` field. Platform admin sees aggregated metrics (error rates, latency) without PII.
@@ -333,7 +333,7 @@ Trigger on financial tables; append-only with hash chaining.
 
 ---
 
-## 5. 🧹 SOLID, DRY, and Best Practices
+## 5.  SOLID, DRY, and Best Practices
 
 ### Clean Code Principles
 **Payment Module:** Implement `PaymentGateway` interface with factory pattern for extensibility.
@@ -345,7 +345,7 @@ Trigger on financial tables; append-only with hash chaining.
 
 ---
 
-## 6. 🧪 Testing & Quality Assurance
+## 6.  Testing & Quality Assurance
 
 ### Unit Testing Requirements
 **Cross-Tenant Isolation:** Test with two seeded tenants; verify `set_config` prevents data leakage.
@@ -355,7 +355,7 @@ Trigger on financial tables; append-only with hash chaining.
 
 ---
 
-## 7. 🐳 Low-Cost Infrastructure & DevOps
+## 7.  Low-Cost Infrastructure & DevOps
 
 ### OpenResty/Nginx Audit
 **Rate Limiting Risk:** ACME challenges limited to 50/week per domain. Implement backoff and queue for bulk registrations.
@@ -373,40 +373,40 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 ---
 
-## 📋 Gap Report — Critical / High
+##  Gap Report — Critical / High
 
 | Category | Entity/Area | Current Status | Impact | Priority |
 |----------|-------------|----------------|--------|----------|
-| **🏢 Platform Infrastructure** | Tenants Registry | ✅ **COMPLETED** | Core functionality working | - |
-| | Tenant Settings | ✅ **COMPLETED** | Theme/language/BIN management ready | - |
-| | Schema Migrations | ✅ **COMPLETED** | Database versioning working | - |
-| **📦 Product Management** | Products & Categories | ✅ **COMPLETED** | Core catalog management ready | - |
-| | Barcode/QR Generation | ✅ **COMPLETED** | POS scanning capabilities ready | - |
-| **👥 CRM** | Customers & Suppliers | ✅ **COMPLETED** | Basic contact management ready | - |
-| **📊 Inventory** | Stock Transactions | ✅ **COMPLETED** | Basic in/out tracking ready | - |
-| | Warehouse Management | ❌ **NOT IMPLEMENTED** | Multi-location inventory blocked | **High** |
-| | FIFO/WAC Valuation | ❌ **NOT IMPLEMENTED** | Accurate costing impossible | **High** |
-| **💰 Financial** | Invoices & Lines | ❌ **NOT IMPLEMENTED** | No sales/purchase documentation | **Critical** |
-| | Payment Processing | ❌ **NOT IMPLEMENTED** | No transaction processing | **Critical** |
-| | Outstanding Balances | ❌ **NOT IMPLEMENTED** | No financial visibility | **Critical** |
-| **🧾 VAT Compliance** | Mushak Forms (6.1-6.10) | ❌ **NOT IMPLEMENTED** | Regulatory non-compliance | **Critical** |
-| | VAT Return (9.1) | ❌ **NOT IMPLEMENTED** | Legal requirement missing | **Critical** |
-| **🔐 Security** | Audit Trail Triggers | ❌ **NOT IMPLEMENTED** | No change tracking | **High** |
-| | Schema Isolation | ❌ **NOT IMPLEMENTED** | Data leakage risk | **Critical** |
-| **💳 Payments** | Gateway Integrations | ❌ **NOT IMPLEMENTED** | No payment processing | **Critical** |
-| **📈 Reporting** | Analytics & Exports | ❌ **NOT IMPLEMENTED** | No business insights | **High** |
-| **🌐 Storefront** | E-commerce Flow | ❌ **NOT IMPLEMENTED** | No online sales | **Medium** |
-| **📱 Mobile** | POS Transactions | ❌ **NOT IMPLEMENTED** | No mobile sales | **High** |
-| | Offline Mode | ❌ **NOT IMPLEMENTED** | Limited field usability | **Medium** |
+| ** Platform Infrastructure** | Tenants Registry |  **COMPLETED** | Core functionality working | - |
+| | Tenant Settings |  **COMPLETED** | Theme/language/BIN management ready | - |
+| | Schema Migrations |  **COMPLETED** | Database versioning working | - |
+| ** Product Management** | Products & Categories |  **COMPLETED** | Core catalog management ready | - |
+| | Barcode/QR Generation |  **COMPLETED** | POS scanning capabilities ready | - |
+| ** CRM** | Customers & Suppliers |  **COMPLETED** | Basic contact management ready | - |
+| ** Inventory** | Stock Transactions |  **COMPLETED** | Basic in/out tracking ready | - |
+| | Warehouse Management |  **NOT IMPLEMENTED** | Multi-location inventory blocked | **High** |
+| | FIFO/WAC Valuation |  **NOT IMPLEMENTED** | Accurate costing impossible | **High** |
+| ** Financial** | Invoices & Lines |  **NOT IMPLEMENTED** | No sales/purchase documentation | **Critical** |
+| | Payment Processing |  **NOT IMPLEMENTED** | No transaction processing | **Critical** |
+| | Outstanding Balances |  **NOT IMPLEMENTED** | No financial visibility | **Critical** |
+| ** VAT Compliance** | Mushak Forms (6.1-6.10) |  **NOT IMPLEMENTED** | Regulatory non-compliance | **Critical** |
+| | VAT Return (9.1) |  **NOT IMPLEMENTED** | Legal requirement missing | **Critical** |
+| ** Security** | Audit Trail Triggers |  **NOT IMPLEMENTED** | No change tracking | **High** |
+| | Schema Isolation |  **NOT IMPLEMENTED** | Data leakage risk | **Critical** |
+| ** Payments** | Gateway Integrations |  **NOT IMPLEMENTED** | No payment processing | **Critical** |
+| ** Reporting** | Analytics & Exports |  **NOT IMPLEMENTED** | No business insights | **High** |
+| ** Storefront** | E-commerce Flow |  **NOT IMPLEMENTED** | No online sales | **Medium** |
+| ** Mobile** | POS Transactions |  **NOT IMPLEMENTED** | No mobile sales | **High** |
+| | Offline Mode |  **NOT IMPLEMENTED** | Limited field usability | **Medium** |
 
 **Implementation Status Summary:**
-- **✅ COMPLETED (30%)**: Core infrastructure, basic data models, RLS security
-- **⚠️ PARTIAL (20%)**: Tables/schema exist, business logic incomplete
-- **❌ NOT IMPLEMENTED (50%)**: Critical business processes missing
+- ** COMPLETED (30%)**: Core infrastructure, basic data models, RLS security
+- **️ PARTIAL (20%)**: Tables/schema exist, business logic incomplete
+- ** NOT IMPLEMENTED (50%)**: Critical business processes missing
 
 ---
 
-## 🔒 Security Hardening Checklist (Raw SQL / No ORM)
+##  Security Hardening Checklist (Raw SQL / No ORM)
 
 1. **Parameterized statements only** — every value as `$1…$n` or `%(name)s` with driver binding; **never** `f"… {user_input} …"` in SQL.
 2. **Allow-list dynamic fragments** — identifiers (`ORDER BY`, optional `SET` columns) from fixed enums/tuples only; never user input as identifiers.
@@ -421,7 +421,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 ---
 
-## 🧪 Testing Blueprint — Multi-Tenant Isolation
+##  Testing Blueprint — Multi-Tenant Isolation
 
 1. **Fixture DB** — Postgres in CI with **same** init SQL as production; role `shopper_app`.
 2. **Two tenants** — seed `tenant_a`, `tenant_b` with disjoint products.
@@ -434,7 +434,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 ---
 
-## 🗃️ Refined Data Schema — Installments & Complex VAT Logic
+## ️ Refined Data Schema — Installments & Complex VAT Logic
 
 ```sql
 -- Enhanced for installments and VAT complexity

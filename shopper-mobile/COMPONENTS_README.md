@@ -2,7 +2,7 @@
 
 This document outlines all the reusable UI components available in the Shopper Mobile Flutter app.
 
-## 📦 Component Categories
+##  Component Categories
 
 ### Buttons (`widgets/buttons.dart`)
 - `ShopperPrimaryButton` - Main action button with loading state
@@ -46,7 +46,7 @@ This document outlines all the reusable UI components available in the Shopper M
 - `ShopperExpandablePanel` - Collapsible content panels
 - `ShopperTabBar` - Custom styled tab navigation
 
-## 🎯 Usage Examples
+##  Usage Examples
 
 ### Basic Screen Structure
 ```dart
@@ -143,7 +143,7 @@ ShopperResponsiveLayout(
 )
 ```
 
-## 🎨 Design System Integration
+##  Design System Integration
 
 All components follow the established design system:
 - Colors: `kPrimaryColor`, `kSecondaryColor`, `kSurfaceColor`, etc.
@@ -151,14 +151,14 @@ All components follow the established design system:
 - Spacing: `kSpacing4`, `kSpacing8`, `kSpacing16`, etc.
 - Border radius: `kBorderRadiusSmall`, `kBorderRadiusMedium`, etc.
 
-## 📱 Responsive Design
+##  Responsive Design
 
 Components automatically adapt to different screen sizes:
 - `ShopperResponsiveGrid` adjusts columns based on screen width
 - `ShopperRow` can wrap on smaller screens with `responsive: true`
 - Touch targets meet minimum size requirements (`kMinTouchTarget`)
 
-## 🔧 Customization
+##  Customization
 
 Most components accept customization parameters:
 - Colors, spacing, and styling can be overridden
@@ -166,6 +166,6 @@ Most components accept customization parameters:
 - Loading states and error handling
 - Accessibility considerations
 
-## 📋 Demo Screen
+##  Demo Screen
 
 Navigate to the Components Demo screen from the home page to see all components in action with interactive examples.
