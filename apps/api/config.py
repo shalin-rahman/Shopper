@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     )
 
     testing: bool = False
+    tenant_isolation_mode: str = "rls"  # rls or schema
     integration_test: bool = False
     database_url: str = "postgresql://shopper_app:shopper_app_change_me@localhost:5432/shopper"
     migrate_database_url: str | None = None

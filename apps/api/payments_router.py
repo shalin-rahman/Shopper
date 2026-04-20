@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -9,55 +8,13 @@ import asyncpg
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from config import Settings
-from deps import SettingsDep
+from deps import SettingsDep, StaffDep
 from redis_client import build_ipn_idempotency_key, ipn_already_processed, ipn_record_processed
 from schemas import PaymentCreate, PaymentGateway, PaymentOut
 from tenant import resolve_tenant_id, subdomain_from_request, tenant_transaction
+from payments_core import get_gateway, get_tenant_settings, payment_row_to_out, PaymentGatewayInterface
 
 router = APIRouter(prefix="/v1/tenant/payments", tags=["payments"])
-
-
-class PaymentGatewayInterface(ABC):
-    @abstractmethod
-    async def initiate_payment(self, payment: PaymentCreate, tenant_subdomain: str) -> dict[str, Any]:
-        pass
-
-    @abstractmethod
-    async def verify_ipn(self, ipn_data: dict[str, Any]) -> bool:
-        pass
-
-    def ipn_payment_status(self, ipn_data: dict[str, Any]) -> str:
-        """Maps gateway payload to tenant_data.payments.status (completed or failed)."""
-        return "completed"
-
-
-class SSLCommerzGateway(PaymentGatewayInterface):
-    def __init__(self, settings: Settings):
-        self.store_id = settings.sslcommerz_store_id
-        self.store_password = settings.sslcommerz_store_password
-
-    async def initiate_payment(self, payment: PaymentCreate, tenant_subdomain: str) -> dict[str, Any]:
-        # Placeholder: integrate with SSLCommerz API
-        return {"gateway_url": "https://sandbox.sslcommerz.com/gwprocess/v4/api.php", "sessionkey": "test"}
-
-    async def verify_ipn(self, ipn_data: dict[str, Any]) -> bool:
-        if self.store_id:
-            got = str(ipn_data.get("store_id") or "").strip()
-            if got != str(self.store_id).strip():
-                return False
-        return True
-
-    def ipn_payment_status(self, ipn_data: dict[str, Any]) -> str:
-        st = str(ipn_data.get("status") or "").strip().upper()
-        return "completed" if st == "VALID" else "failed"
-
-
-def _get_gateway(gateway: PaymentGateway, settings: Settings) -> PaymentGatewayInterface:
-    if gateway == PaymentGateway.sslcommerz:
-        return SSLCommerzGateway(settings)
-    # Add others as implemented
-    raise HTTPException(status_code=501, detail=f"Gateway {gateway} not implemented")
-
 
 def _pool(request: Request) -> asyncpg.Pool:
     pool = request.app.state.db_pool
@@ -102,23 +59,28 @@ def _ipn_refs(gateway: PaymentGateway, data: dict[str, Any]) -> tuple[str, str]:
 
 
 @router.post("", response_model=PaymentOut, status_code=201)
-async def create_payment(request: Request, body: PaymentCreate, settings: SettingsDep):
+async def create_payment(request: Request, body: PaymentCreate, settings: SettingsDep, _auth: StaffDep):
     sub = subdomain_from_request(request)
     if not sub:
         raise HTTPException(status_code=400, detail="Tenant subdomain required")
 
     pool = _pool(request)
-    tenant_id = await resolve_tenant_id(pool, sub)
+    tenant = await resolve_tenant_id(pool, sub)
+    tenant_id = tenant["id"]
+    tenant_settings = await get_tenant_settings(request, tenant_id)
 
-    gateway = _get_gateway(body.gateway, settings)
-    await gateway.initiate_payment(body, sub)
+    gateway = get_gateway(body.gateway, settings)
+    init_data = await gateway.initiate_payment(body, sub, settings, tenant_settings)
 
-    async with tenant_transaction(pool, tenant_id) as conn:
+    # Use gateway_transaction_id if returned (bKash returns paymentID here)
+    gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
+
+    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
         row = await conn.fetchrow(
             """
             INSERT INTO tenant_data.payments (
-                gateway, amount, currency, status, description, order_id
-            ) VALUES ($1, $2, $3, 'pending', $4, $5)
+                gateway, amount, currency, status, description, order_id, gateway_transaction_id
+            ) VALUES ($1, $2, $3, 'pending', $4, $5, $6)
             RETURNING id, gateway, amount, currency, status, gateway_transaction_id, created_at, updated_at
             """,
             body.gateway.value,
@@ -126,8 +88,12 @@ async def create_payment(request: Request, body: PaymentCreate, settings: Settin
             body.currency,
             body.description,
             body.order_id,
+            gw_txn_id,
         )
-    return _row_to_out(row)
+    
+    res = payment_row_to_out(row)
+    res.gateway_url = init_data.get("gateway_url")
+    return res
 
 
 @router.post("/ipn/{gateway}")
@@ -148,9 +114,12 @@ async def handle_ipn(
     ipn_data = await _ipn_payload_dict(request)
     pool = _pool(request)
     sub = tenant.strip().lower()
-    tenant_id = await resolve_tenant_id(pool, sub)
-    gw = _get_gateway(gateway, settings)
-    if not await gw.verify_ipn(ipn_data):
+    tenant_info = await resolve_tenant_id(pool, sub)
+    tenant_id = tenant_info["id"]
+    tenant_settings = await get_tenant_settings(request, tenant_id)
+    
+    gw = get_gateway(gateway, settings)
+    if not await gw.verify_ipn(ipn_data, settings, tenant_settings):
         raise HTTPException(status_code=400, detail="Invalid IPN")
 
     order_ref, gw_txn_id = _ipn_refs(gateway, ipn_data)
@@ -170,7 +139,7 @@ async def handle_ipn(
     if new_status not in ("completed", "failed"):
         new_status = "failed"
 
-    async with tenant_transaction(pool, tenant_id) as conn:
+    async with tenant_transaction(request, tenant_id, tenant_info["dedicated_database_name"]) as conn:
         row = await conn.fetchrow(
             """
             SELECT id, amount, status, gateway_transaction_id, order_id
@@ -210,14 +179,37 @@ async def handle_ipn(
             new_status,
             gw_txn_id,
         )
+        # If this payment is linked to an invoice, update the invoice totals
+        if row.get('invoice_id'):
+            invoice_id = row['invoice_id']
+            # Fetch current invoice data
+            inv = await conn.fetchrow(
+                """
+                SELECT id, subtotal, total_vat, total_amount, amount_paid, balance_due, status
+                FROM tenant_data.invoices
+                WHERE id = $1
+                """,
+                invoice_id,
+            )
+            if inv:
+                # Calculate new paid amount and balance
+                paid = (inv['amount_paid'] or Decimal('0')) + row['amount']
+                balance = (inv['total_amount'] or Decimal('0')) - paid
+                new_inv_status = 'paid' if balance <= 0 else 'partially_paid'
+                await conn.execute(
+                    """
+                    UPDATE tenant_data.invoices
+                    SET amount_paid = $2,
+                        balance_due = $3,
+                        status = $4,
+                        updated_at = now()
+                    WHERE id = $1
+                    """,
+                    invoice_id,
+                    paid,
+                    balance,
+                    new_inv_status,
+                )
 
     await ipn_record_processed(r, dedupe_key, ttl)
     return {"status": "ok", "payment_id": str(row["id"]), "payment_status": new_status}
-
-
-def _row_to_out(row: asyncpg.Record) -> PaymentOut:
-    d = dict(row)
-    if d.get("amount") is not None:
-        d["amount"] = Decimal(str(d["amount"]))
-    d["gateway"] = PaymentGateway(d["gateway"])
-    return PaymentOut(**d)

@@ -21,6 +21,7 @@ class ProductBase(BaseModel):
     mrp: Decimal | None = None
     vat_rate_pct: Decimal = Field(default=Decimal("0"))
     category_id: UUID | None = None
+    stock_quantity: Decimal = Field(default=Decimal("0"))
 
 
 class ProductCreate(ProductBase):
@@ -39,6 +40,7 @@ class ProductUpdate(BaseModel):
     vat_rate_pct: Decimal | None = None
     category_id: UUID | None = None
     is_active: bool | None = None
+    stock_quantity: Decimal | None = None
 
 
 class TenantSettingsOut(BaseModel):
@@ -51,6 +53,15 @@ class TenantSettingsOut(BaseModel):
     bin: str | None
     default_vat_rate_pct: Decimal
     module_access: dict[str, Any]
+    sslcommerz_store_id: str | None = None
+    sslcommerz_store_password: str | None = None
+    bkash_app_key: str | None = None
+    bkash_app_secret: str | None = None
+    bkash_username: str | None = None
+    bkash_password: str | None = None
+    nagad_merchant_id: str | None = None
+    nagad_public_key: str | None = None
+    nagad_private_key: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -73,6 +84,7 @@ class ProductOut(BaseModel):
     vat_rate_pct: Decimal
     barcode: str | None
     qr_payload: str | None
+    stock_quantity: Decimal
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -130,7 +142,7 @@ class PaymentCreate(BaseModel):
     amount: Decimal
     currency: str = "BDT"
     description: str | None = None
-    order_id: str | None = None  # tenant-scoped order reference
+    order_id: str | None = None
 
 
 class PaymentOut(BaseModel):
@@ -138,17 +150,62 @@ class PaymentOut(BaseModel):
     gateway: PaymentGateway
     amount: Decimal
     currency: str
-    status: str  # pending, completed, failed
+    status: str
     gateway_transaction_id: str | None
+    gateway_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-class StorefrontProductOut(BaseModel):
-    """Public catalog fields (no cost / buy_price)."""
+class InvoiceLineBase(BaseModel):
+    product_id: UUID | None = None
+    description: str
+    qty: Decimal
+    unit_price: Decimal
+    vat_rate_pct: Decimal = Field(default=Decimal("0"))
 
+
+class InvoiceLineCreate(InvoiceLineBase):
+    pass
+
+
+class InvoiceLineOut(InvoiceLineBase):
+    id: UUID
+    vat_amount: Decimal
+    line_total: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class InvoiceCreate(BaseModel):
+    customer_id: UUID | None = None
+    invoice_no: str
+    lines: list[InvoiceLineCreate]
+    notes: str | None = None
+
+
+class InvoiceOut(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    customer_id: UUID | None
+    invoice_no: str
+    subtotal: Decimal
+    total_vat: Decimal
+    total_amount: Decimal
+    amount_paid: Decimal
+    balance_due: Decimal
+    status: str
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+    lines: list[InvoiceLineOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class StorefrontProductOut(BaseModel):
     id: UUID
     sku: str
     name_en: str
@@ -169,8 +226,9 @@ class StorefrontProductListResponse(BaseModel):
     total: int
 
 
-InventoryAgingBucket = Literal["0_30", "31_60", "61_90", "90_plus"]
+# --- Reports ---
 
+InventoryAgingBucket = Literal["0_30", "31_60", "61_90", "90_plus"]
 
 class InventoryAgingItem(BaseModel):
     sku: str
@@ -182,8 +240,35 @@ class InventoryAgingItem(BaseModel):
     days_idle: int
     bucket: InventoryAgingBucket
 
-
 class InventoryAgingReportOut(BaseModel):
     as_of: date
     items: list[InventoryAgingItem]
     summary: dict[str, int]
+
+class StockValuationItem(BaseModel):
+    sku: str
+    name_en: str
+    name_bn: str
+    stock_quantity: Decimal
+    wac_cost: Decimal
+    total_value: Decimal
+
+class StockValuationReportOut(BaseModel):
+    total_inventory_value: Decimal
+    items: list[StockValuationItem]
+
+class VatRegisterLineOut(BaseModel):
+    invoice_no: str
+    invoice_date: date
+    buyer_name_en: str | None
+    qty: Decimal
+    taxable_value: Decimal
+    vat_amount: Decimal
+    total_amount: Decimal
+
+class VatRegisterReportOut(BaseModel):
+    start_date: date
+    end_date: date
+    total_taxable_value: Decimal
+    total_vat_amount: Decimal
+    lines: list[VatRegisterLineOut]

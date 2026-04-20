@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 
 from schemas import CustomerCreate, CustomerOut, CustomerUpdate
 from tenant import resolve_tenant_id, subdomain_from_request, tenant_transaction
+from deps import StaffDep
 
 router = APIRouter(prefix="/v1/tenant/customers", tags=["customers"])
 
@@ -19,14 +20,15 @@ def _pool(request: Request) -> asyncpg.Pool:
 
 
 @router.get("", response_model=list[CustomerOut])
-async def list_customers(request: Request):
+async def list_customers(request: Request, _auth: StaffDep):
     sub = subdomain_from_request(request)
     if not sub:
         raise HTTPException(status_code=400, detail="Tenant subdomain required")
 
     pool = _pool(request)
-    tenant_id = await resolve_tenant_id(pool, sub)
-    async with tenant_transaction(pool, tenant_id) as conn:
+    tenant = await resolve_tenant_id(pool, sub)
+    tenant_id = tenant["id"]
+    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
         rows = await conn.fetch(
             """
             SELECT id, tenant_id, code, name_en, name_bn, phone, email,
@@ -39,14 +41,15 @@ async def list_customers(request: Request):
 
 
 @router.post("", response_model=CustomerOut, status_code=201)
-async def create_customer(request: Request, body: CustomerCreate):
+async def create_customer(request: Request, body: CustomerCreate, _auth: StaffDep):
     sub = subdomain_from_request(request)
     if not sub:
         raise HTTPException(status_code=400, detail="Tenant subdomain required")
 
     pool = _pool(request)
-    tenant_id = await resolve_tenant_id(pool, sub)
-    async with tenant_transaction(pool, tenant_id) as conn:
+    tenant = await resolve_tenant_id(pool, sub)
+    tenant_id = tenant["id"]
+    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
         try:
             row = await conn.fetchrow(
                 """

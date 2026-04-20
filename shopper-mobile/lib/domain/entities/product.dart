@@ -11,8 +11,10 @@ import '../../core/validation/validation.dart';
 /// - General: Use `variants` for different combinations (color+size, etc.)
 class Product extends Equatable {
   final String id;
-  final String name;
-  final String? description;
+  final String nameEn;
+  final String? nameBn;
+  final String? descriptionEn;
+  final String? descriptionBn;
   final String? barcode;
   final String? sku;
   final double price; // Base selling price
@@ -38,8 +40,10 @@ class Product extends Equatable {
 
   const Product({
     required this.id,
-    required this.name,
-    this.description,
+    required this.nameEn,
+    this.nameBn,
+    this.descriptionEn,
+    this.descriptionBn,
     this.barcode,
     this.sku,
     required this.price,
@@ -66,6 +70,9 @@ class Product extends Equatable {
 
   /// Returns the effective selling price (sell price if available, otherwise regular price)
   double get effectivePrice => sellPrice ?? price;
+
+  String get displayName => nameEn;
+  String? get displayDescription => descriptionEn;
 
   /// Returns the discount amount if sell price is set
   double? get discountAmount => sellPrice != null ? price - sellPrice! : null;
@@ -347,8 +354,10 @@ class Product extends Equatable {
   @override
   List<Object?> get props => [
         id,
-        name,
-        description,
+        nameEn,
+        nameBn,
+        descriptionEn,
+        descriptionBn,
         barcode,
         sku,
         price,

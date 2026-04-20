@@ -17,5 +17,5 @@ def subdomain_from_host(host: str, *, platform_root_domain: str | None = None) -
     if m:
         return m.group(1)
     if host in ("localhost", "api", "127.0.0.1"):
-        return "demo"
+        return None
     return None

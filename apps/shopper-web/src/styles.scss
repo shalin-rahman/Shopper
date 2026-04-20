@@ -7,7 +7,73 @@ body {
   height: 100%;
 }
 
-/* Theme hook: set tokens per data-theme (add presets under assets/themes/ later). */
-:root[data-theme='default'] {
-  --shopper-accent: rgb(79 70 229);
+/* Base Tokens */
+:root {
+  --shopper-primary: #6366f1;
+  --shopper-bg: #ffffff;
+  --shopper-text: #1f2937;
+  --shopper-accent: #4f46e5;
+  --shopper-surface: #f3f4f6;
+  --shopper-border: #e5e7eb;
 }
+
+/* --- Premium Palettes --- */
+
+/* 1. Midnight (Dark Mode) */
+:root[data-theme='midnight'] {
+  --shopper-primary: #818cf8;
+  --shopper-bg: #0f172a;
+  --shopper-text: #f8fafc;
+  --shopper-accent: #38bdf8;
+  --shopper-surface: #1e293b;
+  --shopper-border: #334155;
+  color-scheme: dark;
+}
+
+/* 2. Emerald (Fresh) */
+:root[data-theme='emerald'] {
+  --shopper-primary: #10b981;
+  --shopper-bg: #ffffff;
+  --shopper-text: #064e3b;
+  --shopper-accent: #059669;
+  --shopper-surface: #ecfdf5;
+  --shopper-border: #d1fae5;
+}
+
+/* 3. Ruby (Premium) */
+:root[data-theme='ruby'] {
+  --shopper-primary: #e11d48;
+  --shopper-bg: #fff1f2;
+  --shopper-text: #4c0519;
+  --shopper-accent: #be123c;
+  --shopper-surface: #ffe4e6;
+  --shopper-border: #fecdd3;
+}
+
+/* 4. Cyberpunk (Vibrant) */
+:root[data-theme='cyberpunk'] {
+  --shopper-primary: #ff00ff;
+  --shopper-bg: #1a1a1a;
+  --shopper-text: #00ff00;
+  --shopper-accent: #ffff00;
+  --shopper-surface: #2a2a2a;
+  --shopper-border: #ff00ff;
+  color-scheme: dark;
+}
+
+/* 5. Amber (Professional) */
+:root[data-theme='amber'] {
+  --shopper-primary: #d97706;
+  --shopper-bg: #fffbeb;
+  --shopper-text: #451a03;
+  --shopper-accent: #b45309;
+  --shopper-surface: #fef3c7;
+  --shopper-border: #fde68a;
+}
+
+/* UTILITY CLASSES using variables */
+.bg-shopper-bg { background-color: var(--shopper-bg); }
+.bg-shopper-surface { background-color: var(--shopper-surface); }
+.text-shopper-text { color: var(--shopper-text); }
+.text-shopper-primary { color: var(--shopper-primary); }
+.border-shopper-border { border-color: var(--shopper-border); }

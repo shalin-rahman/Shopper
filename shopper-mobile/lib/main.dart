@@ -64,9 +64,7 @@ class ShopperMobileApp extends StatelessWidget {
             Locale('en'), // English
             Locale('bn'), // Bengali
           ],
-          theme: themeProvider.lightTheme,
-          darkTheme: themeProvider.darkTheme,
-          themeMode: themeProvider.themeMode,
+          theme: themeProvider.themeData,
           onGenerateRoute: AppRouter.generateRoute,
           home: const MainNavigation(),
         );

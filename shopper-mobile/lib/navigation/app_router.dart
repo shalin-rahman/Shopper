@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import '../widgets/index.dart';
 import '../screens/components_demo.dart';
+import '../screens/products_screen.dart';
+import '../screens/cart_screen.dart';
+import '../screens/checkout_screen.dart';
 
 class AppRouter {
   static const String home = '/';
@@ -137,42 +140,6 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class ProductsScreen extends StatelessWidget {
-  const ProductsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ShopperScreen(
-      title: AppLocalizations.of(context)?.products ?? 'Products',
-      body: const Center(child: Text('Products')),
-    );
-  }
-}
-
-class CartScreen extends StatelessWidget {
-  const CartScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ShopperScreen(
-      title: AppLocalizations.of(context)?.cart ?? 'Cart',
-      body: const Center(child: Text('Cart')),
-    );
-  }
-}
-
-class CheckoutScreen extends StatelessWidget {
-  const CheckoutScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ShopperScreen(
-      title: AppLocalizations.of(context)?.checkout ?? 'Checkout',
-      body: const Center(child: Text('Checkout')),
     );
   }
 }

@@ -43,20 +43,26 @@ class OrderItem extends Equatable {
   final String id;
   final String productId;
   final String productName;
+  final String? nameBn;
   final int quantity;
   final double unitPrice;
   final double? discount;
   final double? taxAmount;
+  final double vatRatePct;
+  final double vatAmount;
   final String? notes;
 
   const OrderItem({
     required this.id,
     required this.productId,
     required this.productName,
+    this.nameBn,
     required this.quantity,
     required this.unitPrice,
     this.discount,
     this.taxAmount,
+    this.vatRatePct = 0.0,
+    this.vatAmount = 0.0,
     this.notes,
   });
 
@@ -161,6 +167,8 @@ class Order extends Equatable {
   final String? customerName;
   final String? customerPhone;
   final String? notes;
+  final bool isSynced;
+  final String? serverInvoiceId;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -177,6 +185,8 @@ class Order extends Equatable {
     this.customerName,
     this.customerPhone,
     this.notes,
+    this.isSynced = false,
+    this.serverInvoiceId,
     required this.createdAt,
     required this.updatedAt,
   });

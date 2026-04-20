@@ -27,6 +27,12 @@ class ProvisionDedicatedDBBody(BaseModel):
     database_name: str  # e.g., tenant_{subdomain}
 
 
+class MigrateTenantBody(BaseModel):
+    tenant_id: UUID
+    source_db: str | None = None  # None for main DB
+    target_db: str
+
+
 @router.post("/tenants/provision-db")
 async def provision_dedicated_db(
     request: Request,
@@ -69,6 +75,26 @@ async def provision_dedicated_db(
         )
 
     return {"status": "provisioned", "database": db_name}
+
+
+@router.post("/tenants/migrate")
+async def migrate_tenant(
+    request: Request,
+    body: MigrateTenantBody,
+    settings: SettingsDep,
+    x_shopper_admin_key: str | None = Header(default=None, alias="X-Shopper-Admin-Key"),
+):
+    _require_admin(x_shopper_admin_key, settings)
+    from migration_service import migrate_to_dedicated
+    
+    success = await migrate_to_dedicated(
+        request, 
+        body.tenant_id, 
+        body.source_db, 
+        body.target_db
+    )
+    
+    return {"status": "migrated" if success else "failed"}
 
 
 def _migrate_pool(request: Request) -> asyncpg.Pool | None:

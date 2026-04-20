@@ -75,10 +75,10 @@ class CartInitial extends CartState {}
 
 class CartLoading extends CartState {}
 
-class CartLoaded extends CartState {
+class CartLoadSuccess extends CartState {
   final Cart cart;
 
-  const CartLoaded(this.cart);
+  const CartLoadSuccess(this.cart);
 
   @override
   List<Object?> get props => [cart];
@@ -131,7 +131,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
           emit(CartError(failure.message));
         }
       },
-      (cart) => emit(CartLoaded(cart)),
+      (cart) => emit(CartLoadSuccess(cart)),
     );
   }
 
@@ -158,7 +158,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
           emit(CartError(failure.message));
         }
       },
-      (cart) => emit(CartLoaded(cart)),
+      (cart) => emit(CartLoadSuccess(cart)),
     );
   }
 
@@ -179,7 +179,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
     result.fold(
       (failure) => emit(CartError(failure.message)),
-      (cart) => emit(CartLoaded(cart)),
+      (cart) => emit(CartLoadSuccess(cart)),
     );
   }
 
@@ -195,7 +195,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
     result.fold(
       (failure) => emit(CartError(failure.message)),
-      (cart) => emit(CartLoaded(cart)),
+      (cart) => emit(CartLoadSuccess(cart)),
     );
   }
 
@@ -209,7 +209,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
 
     result.fold(
       (failure) => emit(CartError(failure.message)),
-      (cart) => emit(CartLoaded(cart)),
+      (cart) => emit(CartLoadSuccess(cart)),
     );
   }
 }

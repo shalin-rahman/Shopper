@@ -37,6 +37,8 @@ dependencies:
   get_it: ^7.6.4
   dartz: ^0.10.1
   rxdart: ^0.27.7
+  blue_thermal_printer: ^0.1.5
+  esc_pos_utils: ^1.1.0
 
 dev_dependencies:
   flutter_test:

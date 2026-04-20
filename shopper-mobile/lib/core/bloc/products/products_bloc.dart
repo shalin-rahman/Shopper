@@ -53,11 +53,11 @@ class ProductsInitial extends ProductsState {}
 
 class ProductsLoading extends ProductsState {}
 
-class ProductsLoaded extends ProductsState {
+class ProductsLoadSuccess extends ProductsState {
   final List<Product> products;
   final bool hasReachedMax;
 
-  const ProductsLoaded({
+  const ProductsLoadSuccess({
     required this.products,
     this.hasReachedMax = false,
   });
@@ -112,7 +112,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
           emit(ProductsError(failure.message));
         }
       },
-      (products) => emit(ProductsLoaded(products: products)),
+      (products) => emit(ProductsLoadSuccess(products: products)),
     );
   }
 
@@ -139,7 +139,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
           emit(ProductsError(failure.message));
         }
       },
-      (products) => emit(ProductsLoaded(products: products)),
+      (products) => emit(ProductsLoadSuccess(products: products)),
     );
   }
 
@@ -161,7 +161,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
           emit(ProductsError(failure.message));
         }
       },
-      (products) => emit(ProductsLoaded(products: products)),
+      (products) => emit(ProductsLoadSuccess(products: products)),
     );
   }
 }

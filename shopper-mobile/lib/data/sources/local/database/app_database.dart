@@ -5,8 +5,10 @@ part 'app_database.g.dart';
 
 class Products extends Table {
   TextColumn get id => text()();
-  TextColumn get name => text()();
-  TextColumn get description => text().nullable()();
+  TextColumn get nameEn => text()();
+  TextColumn get nameBn => text().nullable()();
+  TextColumn get descriptionEn => text().nullable()();
+  TextColumn get descriptionBn => text().nullable()();
   TextColumn get barcode => text().nullable()();
   TextColumn get sku => text().nullable()();
   RealColumn get price => real()();
@@ -32,6 +34,19 @@ class Products extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+class ProductSearch extends VirtualTable {
+  TextColumn get id => text()();
+  TextColumn get nameEn => text()();
+  TextColumn get nameBn => text()();
+  TextColumn get barcode => text()();
+  TextColumn get sku => text()();
+  TextColumn get category => text()();
+  TextColumn get brand => text()();
+
+  @override
+  String get moduleAndArgs => 'fts5(id, nameEn, nameBn, barcode, sku, category, brand, content=products, content_rowid=rowid)';
 }
 
 class CartItems extends Table {
@@ -61,6 +76,8 @@ class Orders extends Table {
   TextColumn get customerName => text().nullable()();
   TextColumn get customerPhone => text().nullable()();
   TextColumn get notes => text().nullable()();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  TextColumn get serverInvoiceId => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -77,18 +94,20 @@ class OrderItems extends Table {
   RealColumn get unitPrice => real()();
   RealColumn get discount => real().nullable()();
   RealColumn get taxAmount => real().nullable()();
+  RealColumn get vatRatePct => real().withDefault(const Constant(0.0))();
+  RealColumn get vatAmount => real().withDefault(const Constant(0.0))();
   TextColumn get notes => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Products, CartItems, Orders, OrderItems])
+@DriftDatabase(tables: [Products, ProductSearch, CartItems, Orders, OrderItems])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -103,6 +122,17 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(products, products.attributes);
         await m.addColumn(products, products.specifications);
         await m.addColumn(products, products.variants);
+      }
+      if (from < 3) {
+        // Version 3: Bilingual and Sync columns
+        await m.addColumn(products, products.nameEn);
+        await m.addColumn(products, products.nameBn);
+        await m.addColumn(products, products.descriptionEn);
+        await m.addColumn(products, products.descriptionBn);
+        await m.addColumn(orders, orders.isSynced);
+        await m.addColumn(orders, orders.serverInvoiceId);
+        await m.addColumn(orderItems, orderItems.vatRatePct);
+        await m.addColumn(orderItems, orderItems.vatAmount);
       }
     },
   );
@@ -142,6 +172,19 @@ class AppDatabase extends _$AppDatabase {
       (delete(products)..where((tbl) => tbl.id.equals(id))).go();
 
   Future<void> clearProducts() => delete(products).go();
+
+  // FTS Search
+  Future<List<Product>> searchProducts(String query) async {
+    final searchResults = await (select(productSearch)
+          ..where((tbl) => tbl.anyMatch(query)))
+        .get();
+    
+    final ids = searchResults.map((e) => e.id).toList();
+    
+    if (ids.isEmpty) return [];
+    
+    return (select(products)..where((tbl) => tbl.id.isIn(ids))).get();
+  }
 
   // Cart operations
   Future<List<CartItem>> getAllCartItems() => select(cartItems).get();

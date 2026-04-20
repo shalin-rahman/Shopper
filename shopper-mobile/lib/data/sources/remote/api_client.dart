@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dartz/dartz.dart';
 import '../../../core/error/failures.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/entities/auth_token.dart';
@@ -340,8 +341,10 @@ class ApiClient {
         (data) => (data['products'] as List)
             .map((product) => Product(
                   id: product['id'],
-                  name: product['name'],
-                  description: product['description'],
+                  nameEn: product['name_en'] ?? product['name'],
+                  nameBn: product['name_bn'],
+                  descriptionEn: product['description_en'] ?? product['description'],
+                  descriptionBn: product['description_bn'],
                   barcode: product['barcode'],
                   sku: product['sku'],
                   price: product['price'].toDouble(),
@@ -431,6 +434,50 @@ class ApiClient {
           updatedAt: DateTime.parse(data['updated_at']),
         ),
       );
+    } catch (e) {
+      return Left(NetworkFailure('Network error: ${e.toString()}'));
+    }
+  }
+
+  // POS Sync endpoints
+  Future<Either<Failure, Map<String, dynamic>>> syncPosData() async {
+    if (!await _isConnected()) {
+      return Left(NetworkFailure('No internet connection'));
+    }
+
+    try {
+      final response = await client.get(
+        Uri.parse('$baseUrl/tenant/pos/sync'),
+        headers: await _getHeaders(),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return Right(json.decode(response.body));
+      } else {
+        return Left(ServerFailure('Sync failed', code: response.statusCode.toString()));
+      }
+    } catch (e) {
+      return Left(NetworkFailure('Network error: ${e.toString()}'));
+    }
+  }
+
+  Future<Either<Failure, Map<String, dynamic>>> offlinePunchOrders(List<Map<String, dynamic>> orders) async {
+    if (!await _isConnected()) {
+      return Left(NetworkFailure('No internet connection'));
+    }
+
+    try {
+      final response = await client.post(
+        Uri.parse('$baseUrl/tenant/pos/offline-punch'),
+        headers: await _getHeaders(),
+        body: json.encode(orders),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return Right(json.decode(response.body));
+      } else {
+        return Left(ServerFailure('Offline punch failed', code: response.statusCode.toString()));
+      }
     } catch (e) {
       return Left(NetworkFailure('Network error: ${e.toString()}'));
     }

@@ -15,22 +15,37 @@ def subdomain_from_request(request: Request) -> str | None:
     return getattr(request.state, "tenant_subdomain", None)
 
 
-async def resolve_tenant_id(pool: asyncpg.Pool, subdomain: str) -> UUID:
+async def resolve_tenant_id(pool: asyncpg.Pool, subdomain: str) -> dict[str, Any]:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT id FROM platform.tenants WHERE subdomain = $1 AND status = 'active'",
+            "SELECT id, dedicated_database_name FROM platform.tenants WHERE subdomain = $1 AND status = 'active'",
             subdomain,
         )
     if not row:
         raise HTTPException(status_code=404, detail="Unknown or inactive tenant")
-    return row["id"]
+    return dict(row)
 
 
 @asynccontextmanager
 async def tenant_transaction(
-    pool: asyncpg.Pool, tenant_id: UUID
+    request: Request, tenant_id: UUID, dedicated_db: str | None = None
 ) -> AsyncIterator[asyncpg.Connection]:
+    from .db import get_tenant_pool
+    pool = await get_tenant_pool(request, dedicated_db)
+    
     async with pool.acquire() as conn:
         async with conn.transaction():
-            await conn.execute("SELECT set_config('app.tenant_id', $1, true)", str(tenant_id))
+            # Choose isolation strategy based on configuration
+            from .config import get_settings
+            settings = get_settings()
+            if settings.tenant_isolation_mode == "schema":
+                # Assume a schema named after the tenant UUID exists
+                schema_name = f"tenant_{tenant_id}"
+                await conn.execute(f'SET search_path = "{schema_name}"')
+            else:
+                # Default RLS approach
+                await conn.execute(
+                    "SELECT set_config('app.tenant_id', $1, true)",
+                    str(tenant_id),
+                )
             yield conn

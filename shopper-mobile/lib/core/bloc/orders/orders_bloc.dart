@@ -4,6 +4,8 @@ import '../../../domain/entities/order.dart';
 import '../../../domain/entities/cart.dart';
 import '../../../domain/usecases/orders/create_order_usecase.dart';
 import '../../../domain/usecases/orders/get_orders_usecase.dart';
+import '../../../domain/usecases/orders/sync_orders_usecase.dart';
+import '../../../../core/usecases/usecase.dart';
 import '../../../core/error/failures.dart';
 
 // Events
@@ -52,6 +54,8 @@ class OrderCreated extends OrdersEvent {
 
 class OrdersRefreshed extends OrdersEvent {}
 
+class OrdersSyncRequested extends OrdersEvent {}
+
 // States
 abstract class OrdersState extends Equatable {
   const OrdersState();
@@ -64,11 +68,11 @@ class OrdersInitial extends OrdersState {}
 
 class OrdersLoading extends OrdersState {}
 
-class OrdersLoaded extends OrdersState {
+class OrdersLoadSuccess extends OrdersState {
   final List<Order> orders;
   final bool hasReachedMax;
 
-  const OrdersLoaded({
+  const OrdersLoadSuccess({
     required this.orders,
     this.hasReachedMax = false,
   });
@@ -76,6 +80,8 @@ class OrdersLoaded extends OrdersState {
   @override
   List<Object?> get props => [orders, hasReachedMax];
 }
+
+class OrdersSyncSuccess extends OrdersState {}
 
 class OrderCreatedSuccess extends OrdersState {
   final Order order;
@@ -97,17 +103,20 @@ class OrdersError extends OrdersState {
 
 // BLoC
 class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
-  final CreateOrderUseCase createOrderUseCase;
-  final GetOrdersUseCase getOrdersUseCase;
-
   OrdersBloc({
     required this.createOrderUseCase,
     required this.getOrdersUseCase,
+    required this.syncOrdersUseCase,
   }) : super(OrdersInitial()) {
     on<OrdersLoaded>(_onOrdersLoaded);
     on<OrderCreated>(_onOrderCreated);
     on<OrdersRefreshed>(_onOrdersRefreshed);
+    on<OrdersSyncRequested>(_onOrdersSyncRequested);
   }
+
+  final CreateOrderUseCase createOrderUseCase;
+  final GetOrdersUseCase getOrdersUseCase;
+  final SyncOrdersUseCase syncOrdersUseCase;
 
   Future<void> _onOrdersLoaded(
     OrdersLoaded event,
@@ -133,7 +142,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           emit(OrdersError(failure.message));
         }
       },
-      (orders) => emit(OrdersLoaded(orders: orders)),
+      (orders) => emit(OrdersLoadSuccess(orders: orders)),
     );
   }
 
@@ -182,7 +191,24 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           emit(OrdersError(failure.message));
         }
       },
-      (orders) => emit(OrdersLoaded(orders: orders)),
+      (orders) => emit(OrdersLoadSuccess(orders: orders)),
+    );
+  }
+
+  Future<void> _onOrdersSyncRequested(
+    OrdersSyncRequested event,
+    Emitter<OrdersState> emit,
+  ) async {
+    emit(OrdersLoading());
+
+    final result = await syncOrdersUseCase(NoParams());
+
+    result.fold(
+      (failure) => emit(OrdersError(failure.message)),
+      (_) {
+        emit(OrdersSyncSuccess());
+        add(OrdersRefreshed());
+      },
     );
   }
 }
