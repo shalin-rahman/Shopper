@@ -31,6 +31,15 @@ from reports_router import router as reports_router
 from receipt_router import router as receipt_router
 from settings_router import router as settings_router
 from storefront_router import router as storefront_router
+from inventory_router import router as inventory_router
+from suppliers_router import router as suppliers_router
+from registration_router import router as registration_router
+from staff_router import router as staff_router
+from expenses_router import router as expenses_router
+from accounts_router import router as accounts_router
+from maintenance_router import router as maintenance_router
+from marketplace_router import router as marketplace_router
+from procurement_router import router as procurement_router
 
 
 REDIS = None
@@ -117,7 +126,11 @@ async def tenant_context(request: Request, call_next):
         platform_root_domain=settings.platform_root_domain,
     )
     if not sub:
-        raise HTTPException(status_code=403, detail="Unknown tenant subdomain")
+        # Allow tenant-less access to global/platform-level endpoints
+        if request.url.path == "/health" or request.url.path.startswith(("/v1/admin", "/v1/marketplace", "/v1/register", "/docs", "/openapi.json")):
+            sub = "global"
+        else:
+            raise HTTPException(status_code=403, detail="Unknown tenant subdomain")
     tenant_id_ctx.set(sub)
     request.state.trace_id = trace_id
     request.state.tenant_subdomain = sub
@@ -142,3 +155,12 @@ app.include_router(customers_router)
 app.include_router(storefront_router)
 # Payment session endpoint added below in payments_router
 app.include_router(invoices_router)
+app.include_router(inventory_router)
+app.include_router(suppliers_router)
+app.include_router(registration_router)
+app.include_router(staff_router)
+app.include_router(expenses_router)
+app.include_router(accounts_router)
+app.include_router(maintenance_router)
+app.include_router(marketplace_router)
+app.include_router(procurement_router)

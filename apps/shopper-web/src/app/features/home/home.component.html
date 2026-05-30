@@ -1,18 +1,64 @@
-<section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-  <p class="text-sm text-slate-600">
-    <span class="font-medium text-slate-800">BDT</span>
-    (৳) {{ 'home.sampleCurrency' | transloco }}:
-    <span class="ms-1 font-mono text-slate-900">{{ formattedCurrency() }}</span>
-  </p>
-  <p class="mt-2 text-sm text-slate-600">
-    {{ 'home.sampleGrouping' | transloco }}
-    <span class="ms-1 font-mono text-slate-900">{{ formattedDecimal() }}</span>
-  </p>
-  <p class="mt-4">
-    <a
-      routerLink="/products"
-      class="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-      >{{ 'nav.products' | transloco }} →</a
-    >
-  </p>
-</section>
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-1000 space-y-10">
+  
+  <!-- Hero Section -->
+  <section class="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-shopper-primary to-shopper-accent p-12 text-white shadow-2xl">
+    <div class="relative z-10 max-w-2xl space-y-6">
+      <h2 class="text-5xl font-black tracking-tighter leading-tight uppercase">
+        Welcome to your <br/> Enterprise Hub.
+      </h2>
+      <p class="text-lg font-medium text-white/80 leading-relaxed">
+        Manage multitenant infrastructure, inventory aging, and VAT compliance with our state-of-the-art administrative suite.
+      </p>
+      <div class="flex gap-4 pt-4">
+        <a routerLink="/products" class="rounded-full bg-white px-8 py-3 text-sm font-black text-shopper-primary shadow-xl transition-all hover:scale-105 active:scale-95">
+          View Catalog
+        </a>
+        <a routerLink="/admin/tenants" class="rounded-full border-2 border-white/30 px-8 py-3 text-sm font-black text-white backdrop-blur-md transition-all hover:bg-white/10">
+          Admin Panel
+        </a>
+      </div>
+    </div>
+
+    <!-- Decorative Elements -->
+    <div class="absolute -right-20 -top-20 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
+    <div class="absolute -bottom-10 right-20 h-64 w-64 rounded-full bg-black/10 blur-2xl"></div>
+  </section>
+
+  <!-- Metric Grid -->
+  <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    @for (s of stats; track s.label) {
+      <div class="group cursor-default rounded-3xl border border-shopper-border bg-shopper-bg p-6 transition-all hover:border-shopper-primary hover:shadow-xl hover:shadow-shopper-primary/5">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-3xl">{{ s.icon }}</span>
+          <span class="rounded-full bg-shopper-surface px-2 py-1 text-[10px] font-black uppercase tracking-tighter text-slate-500 group-hover:bg-shopper-primary/10 group-hover:text-shopper-primary">
+            {{ s.trend }}
+          </span>
+        </div>
+        <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">{{ s.label }}</p>
+        <p class="text-2xl font-black text-shopper-text tracking-tighter">
+          {{ formattedCurrency(s.value) }}
+        </p>
+      </div>
+    }
+  </div>
+
+  <!-- Localization Preview -->
+  <section class="rounded-3xl border border-shopper-border bg-shopper-bg/50 backdrop-blur-sm p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+    <div class="space-y-1">
+      <h3 class="text-lg font-black text-shopper-text uppercase tracking-tighter">{{ 'home.sampleGrouping' | transloco }}</h3>
+      <p class="text-sm text-slate-500 font-medium">Bilingual ready with native Bengali digit support.</p>
+    </div>
+    <div class="flex items-center gap-6">
+      <div class="text-right">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Standard</div>
+        <div class="text-xl font-mono font-bold text-shopper-primary">{{ formattedDecimal() }}</div>
+      </div>
+      <div class="h-10 w-px bg-shopper-border"></div>
+      <div class="text-right">
+        <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Currency (BDT)</div>
+        <div class="text-xl font-mono font-extrabold text-shopper-text">{{ formattedCurrency(sampleAmount) }}</div>
+      </div>
+    </div>
+  </section>
+
+</div>

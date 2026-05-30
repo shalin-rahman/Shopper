@@ -19,7 +19,7 @@ _DB_NAME_RE = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
 
 
 class TenantStatusBody(BaseModel):
-    status: Literal["pending", "active", "suspended", "deleted"]
+    status: Literal["pending", "active", "suspended", "deleted", "trialing", "past_due", "canceled"]
 
 
 class ProvisionDedicatedDBBody(BaseModel):
@@ -158,3 +158,92 @@ async def set_tenant_status(
     if not row:
         raise HTTPException(status_code=404, detail="Tenant not found")
     return dict(row)
+
+@router.get("/tenants/{tenant_id}/export")
+async def export_tenant_data(
+    request: Request,
+    tenant_id: UUID,
+    settings: SettingsDep,
+    x_shopper_admin_key: str | None = Header(default=None, alias="X-Shopper-Admin-Key"),
+):
+    """
+    Consolidates ALL data for a tenant into a single portable JSON structure.
+    Used for secure offboarding or legal portability requests.
+    """
+    _require_admin(x_shopper_admin_key, settings)
+    pool = _migrate_pool(request)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Migrate database pool not configured")
+
+    async with pool.acquire() as conn:
+        tenant = await conn.fetchrow("SELECT * FROM platform.tenants WHERE id = $1", tenant_id)
+        if not tenant:
+            raise HTTPException(status_code=404, detail="Tenant not found")
+        
+        export_body = {
+            "tenant_meta": dict(tenant),
+            "data": {}
+        }
+        
+        tables = [
+            "customers", "product_categories", "products", 
+            "invoices", "invoice_lines", "payments", 
+            "stock_transactions", "vat_sales_register_lines"
+        ]
+        
+        for table in tables:
+            rows = await conn.fetch(
+                f"SELECT * FROM tenant_data.{table} WHERE tenant_id = $1", 
+                tenant_id
+            )
+            export_body["data"][table] = [dict(r) for r in rows]
+            
+    return export_body
+
+
+@router.post("/cron/dunning")
+async def run_dunning_cron(
+    request: Request,
+    settings: SettingsDep,
+    x_shopper_admin_key: str | None = Header(default=None, alias="X-Shopper-Admin-Key"),
+):
+    """
+    SaaS Billing Platform Automation:
+    1. Identifies tenants whose trial is over -> transitions to 'past_due' (Day 0)
+    2. Identifies tenants in 'past_due' for > 14 days -> transitions to 'suspended' (Day 14)
+    Suspended tenants automatically lose database access / API token validation.
+    """
+    _require_admin(x_shopper_admin_key, settings)
+    pool = _migrate_pool(request)
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Migrate database pool not configured")
+
+    actions = {"past_due": [], "suspended": []}
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Rule 1: Trial expired -> Past Due
+            rows_past_due = await conn.fetch(
+                """
+                UPDATE platform.tenants
+                SET status = 'past_due', updated_at = now(), last_payment_failed_at = now()
+                WHERE status = 'trialing' AND trial_ends_at < now()
+                RETURNING id, subdomain
+                """
+            )
+            actions["past_due"] = [r["subdomain"] for r in rows_past_due]
+
+            # Rule 2: Past Due longer than 14 days -> Suspended (Locks down access)
+            rows_suspended = await conn.fetch(
+                """
+                UPDATE platform.tenants
+                SET status = 'suspended', updated_at = now()
+                WHERE status = 'past_due' 
+                  AND last_payment_failed_at < now() - interval '14 days'
+                RETURNING id, subdomain
+                """
+            )
+            actions["suspended"] = [r["subdomain"] for r in rows_suspended]
+
+    return {"status": "success", "processed_actions": actions}
+

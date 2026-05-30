@@ -1,0 +1,61 @@
+{
+  "tenants": [
+    {
+      "subdomain": "demo",
+      "display_name_en": "Shopper Flagship Store",
+      "display_name_bn": "শপার ফ্ল্যাগশিপ স্টোর",
+      "settings": {
+        "legal_title_en": "Shopper Global Retail Ltd",
+        "bin": "1902104561-0101",
+        "default_language": "en"
+      },
+      "staff": [
+        { "username": "admin", "password": "password", "full_name": "System Admin", "role": "admin" },
+        { "username": "manager", "password": "password", "full_name": "Operations Manager", "role": "manager" },
+        { "username": "cashier", "password": "password", "full_name": "Front Desk Cashier", "role": "cashier" }
+      ],
+      "categories": [
+        { "name_en": "Electronics", "name_bn": "ইলেকট্রনিক্স", "slug": "electronics" },
+        { "name_en": "Fashion", "name_bn": "ফ্যাশন", "slug": "fashion" }
+      ],
+      "suppliers": [
+        {
+          "name": "Global Tech Distribution",
+          "contact_name": "John Supplier",
+          "phone": "01711223344",
+          "email": "distro@globaltech.com"
+        }
+      ],
+      "products": [
+        {
+          "sku": "IPHONE-15",
+          "name_en": "iPhone 15 Pro",
+          "name_bn": "আইফোন ১৫ প্রো",
+          "buy_price": 120000.00,
+          "sell_price": 145000.00,
+          "vat_rate_pct": 5.0,
+          "stock_quantity": 10,
+          "category_slug": "electronics"
+        },
+        {
+          "sku": "TSHIRT-001",
+          "name_en": "Premium Cotton T-Shirt",
+          "name_bn": "প্রিমিয়াম কটন টি-শার্ট",
+          "buy_price": 450.00,
+          "sell_price": 850.00,
+          "vat_rate_pct": 5.0,
+          "stock_quantity": 100,
+          "category_slug": "fashion"
+        }
+      ],
+      "customers": [
+        { "name": "Akram Hossain", "phone": "01811223344", "email": "akram@email.com", "is_credit_allowed": true },
+        { "name": "Walk-in Customer", "phone": "00000000000", "is_credit_allowed": false }
+      ],
+      "expenses": [
+        { "category": "Rent", "amount": 25000.00, "notes": "Shop monthly rent" },
+        { "category": "Utility", "amount": 4200.00, "notes": "Electricity bill March" }
+      ]
+    }
+  ]
+}

@@ -3,6 +3,9 @@ import 'package:equatable/equatable.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/usecases/products/get_products_usecase.dart';
 import '../../../domain/usecases/products/search_products_usecase.dart';
+import '../../../domain/usecases/products/adjust_stock_usecase.dart';
+import '../../../domain/usecases/products/sync_adjustments_usecase.dart';
+import '../../../../core/usecases/usecase.dart';
 import '../../../core/error/failures.dart';
 
 // Events
@@ -40,6 +43,27 @@ class ProductsSearched extends ProductsEvent {
 }
 
 class ProductsRefreshed extends ProductsEvent {}
+
+class AdjustStockRequested extends ProductsEvent {
+  final String sku;
+  final double quantity;
+  final String type;
+  final String? notes;
+  final String? reasonCode;
+
+  const AdjustStockRequested({
+    required this.sku,
+    required this.quantity,
+    required this.type,
+    this.notes,
+    this.reasonCode,
+  });
+
+  @override
+  List<Object?> get props => [sku, quantity, type, notes, reasonCode];
+}
+
+class SyncAdjustmentsRequested extends ProductsEvent {}
 
 // States
 abstract class ProductsState extends Equatable {
@@ -79,14 +103,20 @@ class ProductsError extends ProductsState {
 class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
   final GetProductsUseCase getProductsUseCase;
   final SearchProductsUseCase searchProductsUseCase;
+  final AdjustStockUseCase adjustStockUseCase;
+  final SyncAdjustmentsUseCase syncAdjustmentsUseCase;
 
   ProductsBloc({
     required this.getProductsUseCase,
     required this.searchProductsUseCase,
+    required this.adjustStockUseCase,
+    required this.syncAdjustmentsUseCase,
   }) : super(ProductsInitial()) {
     on<ProductsLoaded>(_onProductsLoaded);
     on<ProductsSearched>(_onProductsSearched);
     on<ProductsRefreshed>(_onProductsRefreshed);
+    on<AdjustStockRequested>(_onAdjustStockRequested);
+    on<SyncAdjustmentsRequested>(_onSyncAdjustmentsRequested);
   }
 
   Future<void> _onProductsLoaded(
@@ -162,6 +192,38 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
         }
       },
       (products) => emit(ProductsLoadSuccess(products: products)),
+    );
+  }
+
+  Future<void> _onAdjustStockRequested(
+    AdjustStockRequested event,
+    Emitter<ProductsState> emit,
+  ) async {
+    final result = await adjustStockUseCase(
+      AdjustStockParams(
+        sku: event.sku,
+        quantity: event.quantity,
+        type: event.type,
+        notes: event.notes,
+        reasonCode: event.reasonCode,
+      ),
+    );
+
+    result.fold(
+      (failure) => emit(ProductsError(failure.message)),
+      (_) => add(SyncAdjustmentsRequested()),
+    );
+  }
+
+  Future<void> _onSyncAdjustmentsRequested(
+    SyncAdjustmentsRequested event,
+    Emitter<ProductsState> emit,
+  ) async {
+    final result = await syncAdjustmentsUseCase(NoParams());
+    
+    result.fold(
+      (failure) => emit(ProductsError(failure.message)),
+      (_) => add(ProductsRefreshed()),
     );
   }
 }

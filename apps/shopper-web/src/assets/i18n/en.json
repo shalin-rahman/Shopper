@@ -8,7 +8,15 @@
   "nav": {
     "home": "Home",
     "products": "Products",
-    "admin": "Admin"
+    "admin": "Admin",
+    "accounting": "Accounting",
+    "expenses": "Expenses",
+    "suppliers": "Suppliers",
+    "invoices": "Invoices",
+    "inventory": "Inventory",
+    "procurement": "Procurement",
+    "customers": "Customers",
+    "staff": "Staff"
   },
   "admin": {
     "title": "Platform admin",
@@ -68,6 +76,12 @@
     "title": "Payments",
     "gateway": "Gateway",
     "amount": "Amount",
+    "status": "Status"
+  },
+  "staff": {
+    "title": "Staff Management",
+    "addTitle": "Add team member",
+    "role": "Role",
     "status": "Status"
   }
 }

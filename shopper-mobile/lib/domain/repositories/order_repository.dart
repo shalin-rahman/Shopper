@@ -9,6 +9,8 @@ abstract class OrderRepository {
     String? customerName,
     String? customerPhone,
     String? notes,
+    String? paymentMethod,
+    double? amountPaid,
   });
 
   Future<Either<Failure, List<Order>>> getOrders({

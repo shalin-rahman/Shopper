@@ -30,13 +30,13 @@ async def resolve_tenant_id(pool: asyncpg.Pool, subdomain: str) -> dict[str, Any
 async def tenant_transaction(
     request: Request, tenant_id: UUID, dedicated_db: str | None = None
 ) -> AsyncIterator[asyncpg.Connection]:
-    from .db import get_tenant_pool
+    from db import get_tenant_pool
     pool = await get_tenant_pool(request, dedicated_db)
     
     async with pool.acquire() as conn:
         async with conn.transaction():
             # Choose isolation strategy based on configuration
-            from .config import get_settings
+            from config import get_settings
             settings = get_settings()
             if settings.tenant_isolation_mode == "schema":
                 # Assume a schema named after the tenant UUID exists

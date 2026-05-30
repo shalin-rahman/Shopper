@@ -3,10 +3,29 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, BeforeValidator, PlainSerializer
+
+def parse_date(v: Any) -> date:
+    if isinstance(v, date) and not isinstance(v, datetime):
+        return v
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, str):
+        for fmt in ("%d-%m-%Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(v.strip(), fmt).date()
+            except ValueError:
+                pass
+    raise ValueError("Invalid date format, expected dd-MM-yyyy or YYYY-MM-DD")
+
+FormattedDate = Annotated[
+    date,
+    BeforeValidator(parse_date),
+    PlainSerializer(lambda v: v.strftime("%d-%m-%Y"), return_type=str),
+]
 
 
 class ProductBase(BaseModel):
@@ -53,6 +72,13 @@ class TenantSettingsOut(BaseModel):
     bin: str | None
     default_vat_rate_pct: Decimal
     module_access: dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TenantSettingsInternalOut(TenantSettingsOut):
     sslcommerz_store_id: str | None = None
     sslcommerz_store_password: str | None = None
     bkash_app_key: str | None = None
@@ -62,10 +88,6 @@ class TenantSettingsOut(BaseModel):
     nagad_merchant_id: str | None = None
     nagad_public_key: str | None = None
     nagad_private_key: str | None = None
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 class ProductOut(BaseModel):
@@ -130,6 +152,26 @@ class CustomerOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CustomerCollectionCreate(BaseModel):
+    customer_id: UUID
+    amount: Decimal
+    payment_method: Literal["cash", "bkash", "nagad", "bank"]
+    reference_no: str | None = None
+    notes: str | None = None
+
+
+class CustomerCollectionOut(BaseModel):
+    id: UUID
+    customer_id: UUID
+    amount: Decimal
+    payment_method: str
+    reference_no: str | None
+    notes: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class PaymentGateway(str, Enum):
     sslcommerz = "sslcommerz"
     bkash = "bkash"
@@ -181,6 +223,7 @@ class InvoiceLineOut(InvoiceLineBase):
 
 class InvoiceCreate(BaseModel):
     customer_id: UUID | None = None
+    customer_data: CustomerCreate | None = None # Smart inline saving
     invoice_no: str
     lines: list[InvoiceLineCreate]
     notes: str | None = None
@@ -236,12 +279,12 @@ class InventoryAgingItem(BaseModel):
     name_bn: str
     unit: str
     sell_price: Decimal | None = None
-    reference_date: date
+    reference_date: FormattedDate
     days_idle: int
     bucket: InventoryAgingBucket
 
 class InventoryAgingReportOut(BaseModel):
-    as_of: date
+    as_of: FormattedDate
     items: list[InventoryAgingItem]
     summary: dict[str, int]
 
@@ -259,7 +302,7 @@ class StockValuationReportOut(BaseModel):
 
 class VatRegisterLineOut(BaseModel):
     invoice_no: str
-    invoice_date: date
+    invoice_date: FormattedDate
     buyer_name_en: str | None
     qty: Decimal
     taxable_value: Decimal
@@ -267,8 +310,151 @@ class VatRegisterLineOut(BaseModel):
     total_amount: Decimal
 
 class VatRegisterReportOut(BaseModel):
-    start_date: date
-    end_date: date
+    start_date: FormattedDate
+    end_date: FormattedDate
     total_taxable_value: Decimal
     total_vat_amount: Decimal
     lines: list[VatRegisterLineOut]
+
+class BusinessAnalyticsOut(BaseModel):
+    inventory_turnover_ratio: Decimal
+    average_inventory_value: Decimal
+    cogs_annualized: Decimal
+    eoq_recommendations: list[dict] # List of {sku: str, eoq: float}
+
+
+class SalesReturnCreate(BaseModel):
+    invoice_id: UUID
+    reason: str
+    items: list[dict] # {product_id: UUID, qty: Decimal}
+
+
+class CreditNoteOut(BaseModel):
+    id: UUID
+    note_no: str
+    invoice_id: UUID
+    reason: str | None
+    total_adjustment: Decimal
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class InventoryTransferCreate(BaseModel):
+    transfer_no: str
+    from_location: str
+    to_location: str
+    items: list[dict] # {product_id: UUID, qty: Decimal, value: Decimal}
+
+
+class InventoryTransferOut(BaseModel):
+    id: UUID
+    transfer_no: str
+    from_location: str
+    to_location: str
+    total_value_taxable: Decimal
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DebitNoteOut(BaseModel):
+    id: UUID
+    note_no: str
+    reference_id: UUID | None
+    reason: str | None
+    total_adjustment: Decimal
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PurchaseReturnCreate(BaseModel):
+    po_id: UUID
+    reason: str
+    items: list[dict] # {product_id: UUID, qty: Decimal}
+
+
+class SupplierBase(BaseModel):
+    code: str = Field(..., min_length=1, max_length=32)
+    name_en: str = Field(..., min_length=1)
+    name_bn: str = Field(..., min_length=1)
+    contact_person: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    address: str | None = None
+
+
+class SupplierCreate(SupplierBase):
+    pass
+
+
+class SupplierOut(SupplierBase):
+    id: UUID
+    tenant_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class POLineBase(BaseModel):
+    product_id: UUID
+    qty: Decimal
+    unit_cost: Decimal
+
+
+class POLineCreate(POLineBase):
+    pass
+
+
+class POLineOut(POLineBase):
+    id: UUID
+    line_total: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class POCreate(BaseModel):
+    supplier_id: UUID
+    po_no: str
+    lines: list[POLineCreate]
+
+
+class POOut(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    supplier_id: UUID
+    po_no: str
+    status: str
+    total_amount: Decimal
+    amount_paid: Decimal
+    balance_due: Decimal
+    created_at: datetime
+    updated_at: datetime
+    lines: list[POLineOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class SupplierPaymentCreate(BaseModel):
+    supplier_id: UUID
+    po_id: UUID | None = None
+    payment_no: str
+    amount: Decimal
+    payment_method: Literal["cash", "bank", "check"]
+    ref_no: str | None = None
+
+
+class SupplierPaymentOut(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    supplier_id: UUID
+    po_id: UUID | None
+    payment_no: str
+    amount: Decimal
+    payment_method: str
+    ref_no: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

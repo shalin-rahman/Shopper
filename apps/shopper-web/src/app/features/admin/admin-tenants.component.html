@@ -1,87 +1,102 @@
-<section class="space-y-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-  <h2 class="text-lg font-semibold text-slate-900">{{ 'admin.title' | transloco }}</h2>
-  <p class="text-sm text-slate-600">{{ 'admin.keyHint' | transloco }}</p>
-
-  <div class="flex flex-wrap items-end gap-2">
-    <label class="flex min-w-[16rem] flex-1 flex-col gap-1 text-sm">
-      <span class="font-medium text-slate-700">{{ 'admin.apiKey' | transloco }}</span>
-      <input
-        type="password"
-        autocomplete="off"
-        class="rounded-md border border-slate-300 px-3 py-2 text-slate-900"
-        [(ngModel)]="adminKeyInput"
-        name="adminKey"
-      />
-    </label>
-    <button
-      type="button"
-      class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500"
-      (click)="saveKey()"
-    >
-      {{ 'admin.saveKey' | transloco }}
-    </button>
-    <button
-      type="button"
-      class="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
-      (click)="clearKey()"
-    >
-      {{ 'admin.clearKey' | transloco }}
-    </button>
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+  
+  <!-- Admin Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-3xl font-black tracking-tighter text-shopper-text uppercase">{{ 'admin.title' | transloco }}</h2>
+      <p class="text-sm text-slate-500 font-medium">{{ 'admin.keyHint' | transloco }}</p>
+    </div>
+    @if (keySaved()) {
+      <app-shopper-button variant="secondary" (btnClick)="reload()">
+        <span>↺</span> {{ 'admin.refresh' | transloco }}
+      </app-shopper-button>
+    }
   </div>
 
-  @if (loadError()) {
-    <p class="text-sm text-red-600">{{ loadError()! | transloco }}</p>
-  }
-
-  @if (keySaved()) {
-    <div class="flex items-center gap-2">
-      <button
-        type="button"
-        class="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-        (click)="reload()"
-      >
-        {{ 'admin.refresh' | transloco }}
-      </button>
+  <!-- API Key Security Card -->
+  <section class="rounded-3xl border border-shopper-border bg-shopper-bg/80 backdrop-blur-md p-8 shadow-2xl shadow-indigo-500/5">
+    <div class="flex flex-wrap items-end gap-6">
+      <div class="flex-1 min-w-[300px] space-y-2">
+        <label class="text-xs font-bold uppercase tracking-widest text-slate-400">{{ 'admin.apiKey' | transloco }}</label>
+        <div class="relative group">
+          <input
+            type="password"
+            autocomplete="off"
+            class="w-full rounded-2xl border border-shopper-border bg-slate-50/50 px-5 py-4 font-mono text-sm outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+            [(ngModel)]="adminKeyInput"
+            name="adminKey"
+            placeholder="••••••••••••••••••••••••"
+          />
+          <div class="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-focus-within:opacity-100 transition-opacity">
+            <span class="text-[10px] font-bold text-shopper-primary uppercase tracking-tighter">Secure Connection</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="flex gap-3">
+        <app-shopper-button (btnClick)="saveKey()">
+          {{ 'admin.saveKey' | transloco }}
+        </app-shopper-button>
+        <app-shopper-button variant="ghost" (btnClick)="clearKey()">
+          <span class="text-red-500">{{ 'admin.clearKey' | transloco }}</span>
+        </app-shopper-button>
+      </div>
     </div>
 
-    <div class="overflow-x-auto">
-      <table class="min-w-full border-collapse text-left text-sm">
-        <thead>
-          <tr class="border-b border-slate-200 text-slate-600">
-            <th class="py-2 pe-4 font-medium">{{ 'admin.subdomain' | transloco }}</th>
-            <th class="py-2 pe-4 font-medium">{{ 'admin.displayName' | transloco }}</th>
-            <th class="py-2 pe-4 font-medium">{{ 'admin.status' | transloco }}</th>
-            <th class="py-2 font-medium">{{ 'admin.dedicatedDb' | transloco }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of items(); track row.id) {
-            <tr class="border-b border-slate-100">
-              <td class="py-2 pe-4 font-mono text-slate-900">{{ row.subdomain }}</td>
-              <td class="py-2 pe-4 text-slate-800">{{ row.display_name_en }}</td>
-              <td class="py-2 pe-4">
-                <select
-                  class="rounded border border-slate-300 bg-white px-2 py-1 text-slate-900"
-                  [value]="row.status"
-                  [disabled]="savingId() === row.id"
-                  (change)="onStatusSelectChange(row, $event)"
-                >
-                  @for (s of statuses(); track s) {
-                    <option [value]="s">{{ statusLabelKey(s) | transloco }}</option>
-                  }
-                </select>
-              </td>
-              <td class="py-2 font-mono text-xs text-slate-600">
-                {{ row.dedicated_database_name || '—' }}
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    @if (items().length === 0 && !loadError()) {
-      <p class="text-sm text-slate-500">{{ 'admin.empty' | transloco }}</p>
+    @if (loadError()) {
+      <div class="mt-6 rounded-xl bg-red-50 p-4 text-xs font-bold text-red-600 animate-bounce">
+        ❌ {{ loadError()! | transloco }}
+      </div>
     }
+  </section>
+
+  <!-- Platform Management Table -->
+  @if (keySaved()) {
+    <div class="rounded-3xl border border-shopper-border bg-shopper-bg overflow-hidden shadow-xl">
+      <app-shopper-data-grid
+        title="Global Tenant Fleet"
+        [data]="items()"
+        [columns]="[
+          { key: 'subdomain', header: 'admin.subdomain' | transloco, width: '150px' },
+          { key: 'display_name_en', header: 'admin.displayName' | transloco },
+          { key: 'status', header: 'admin.status' | transloco, width: '180px' },
+          { key: 'dedicated_database_name', header: 'admin.dedicatedDb' | transloco, width: '200px' }
+        ]"
+      >
+        <ng-template #cell let-row="row" let-col="col">
+          @if (col.key === 'status') {
+            <div class="flex items-center gap-2">
+              <select
+                class="w-full rounded-xl border border-shopper-border bg-white px-3 py-2 text-xs font-bold transition-all focus:border-shopper-primary outline-none disabled:opacity-50"
+                [value]="row.status"
+                [disabled]="savingId() === row.id"
+                (change)="onStatusSelectChange(row, $event)"
+              >
+                @for (s of statuses(); track s) {
+                  <option [value]="s">{{ statusLabelKey(s) | transloco }}</option>
+                }
+              </select>
+              @if (savingId() === row.id) {
+                <span class="animate-spin text-shopper-primary">⌛</span>
+              }
+            </div>
+          } @else if (col.key === 'subdomain') {
+            <span class="font-black text-shopper-primary tracking-tighter">{{ row.subdomain }}.shopper.com</span>
+          } @else if (col.key === 'dedicated_database_name') {
+            <span class="font-mono text-[10px] px-2 py-1 bg-slate-100 rounded-md border border-slate-200 text-slate-500">
+              {{ row.dedicated_database_name || 'SHARED_CLUSTER' }}
+            </span>
+          } @else {
+            <span class="font-medium text-shopper-text">{{ row[col.key] }}</span>
+          }
+        </ng-template>
+      </app-shopper-data-grid>
+      
+      @if (items().length === 0 && !loadError()) {
+        <div class="p-12 text-center">
+          <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">{{ 'admin.empty' | transloco }}</p>
+        </div>
+      }
+    </div>
   }
-</section>
+</div>

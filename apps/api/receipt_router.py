@@ -11,7 +11,7 @@ async def get_thermal_receipt(
     request: Request, 
     invoice_id: UUID, 
     _auth: StaffDep,
-    lang: str = Query("en", regex="^(en|bn)$")
+    lang: str = Query("en", pattern="^(en|bn)$")
 ):
     """
     Generates a bilingual Mushak 6.3 receipt for thermal printers (80mm).
@@ -124,3 +124,103 @@ async def get_thermal_receipt(
     res.append("\n\n\n")
 
     return Response(content="\n".join(res), media_type="text/plain; charset=utf-8")
+
+@router.get("/{invoice_id}/pdf", responses={200: {"content": {"application/pdf": {}}}})
+async def get_pdf_receipt(
+    request: Request, 
+    invoice_id: UUID, 
+    _auth: StaffDep,
+    lang: str = Query("en", pattern="^(en|bn)$")
+):
+    """
+    Generates a formal A4 Mushak 6.3 PDF Tax Invoice.
+    """
+    import io
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import inch
+    
+    sub = subdomain_from_request(request)
+    pool = request.app.state.db_pool
+    tenant = await resolve_tenant_id(pool, sub)
+    tenant_id = tenant["id"]
+
+    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+        inv = await conn.fetchrow(
+            """
+            SELECT i.*, c.name_en as cust_en, c.name_bn as cust_bn, c.phone as cust_phone,
+                   c.billing_address_en as cust_addr
+            FROM tenant_data.invoices i
+            LEFT JOIN tenant_data.customers c ON i.customer_id = c.id
+            WHERE i.id = $1
+            """, 
+            invoice_id
+        )
+        if not inv:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        
+        lines = await conn.fetch(
+            "SELECT l.*, p.name_en, p.name_bn, p.sku FROM tenant_data.invoice_lines l "
+            "LEFT JOIN tenant_data.products p ON l.product_id = p.id WHERE l.invoice_id = $1",
+            invoice_id
+        )
+        settings = await conn.fetchrow("SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", tenant_id)
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    width, height = A4
+    
+    # PDF Header
+    c.setFont("Helvetica-Bold", 14)
+    c.drawCentredString(width/2, height - 1*inch, settings['legal_title_en'] if settings else sub)
+    c.setFont("Helvetica", 10)
+    c.drawCentredString(width/2, height - 1.2*inch, f"BIN: {settings['bin'] if settings else 'N/A'}")
+    c.setFont("Helvetica-Bold", 16)
+    c.drawCentredString(width/2, height - 1.6*inch, "Mushak 6.3 - Tax Invoice")
+    
+    # Invoice Meta
+    c.setFont("Helvetica", 10)
+    c.drawString(1*inch, height - 2*inch, f"Invoice No: {inv['invoice_no']}")
+    c.drawString(1*inch, height - 2.2*inch, f"Date: {inv['created_at'].strftime('%Y-%m-%d %H:%M')}")
+    
+    c.drawString(width - 3*inch, height - 2*inch, f"Customer: {inv['cust_en'] or 'Cash'}")
+    c.drawString(width - 3*inch, height - 2.2*inch, f"Phone: {inv['cust_phone'] or '-'}")
+    
+    # Table Header
+    y = height - 3*inch
+    c.line(1*inch, y, width - 1*inch, y)
+    c.drawString(1.1*inch, y - 0.2*inch, "Item / SKU")
+    c.drawString(3*inch, y - 0.2*inch, "Qty")
+    c.drawString(4*inch, y - 0.2*inch, "Price")
+    c.drawString(5*inch, y - 0.2*inch, "VAT")
+    c.drawString(6*inch, y - 0.2*inch, "Total")
+    c.line(1*inch, y - 0.3*inch, width - 1*inch, y - 0.3*inch)
+    
+    y -= 0.5*inch
+    for line in lines:
+        c.drawString(1.1*inch, y, f"{line['name_en']} ({line['sku']})")
+        c.drawString(3*inch, y, str(int(line['qty'])))
+        c.drawString(4*inch, y, f"{line['unit_price']:.2f}")
+        c.drawString(5*inch, y, f"{line['line_vat']:.2f}")
+        c.drawString(6*inch, y, f"{line['line_total']:.2f}")
+        y -= 0.25*inch
+        if y < 1.5*inch:
+            c.showPage()
+            y = height - 1*inch
+            
+    c.line(1*inch, y, width - 1*inch, y)
+    y -= 0.3*inch
+    c.drawString(4.5*inch, y, "Subtotal:")
+    c.drawRightString(width - 1.1*inch, y, f"{inv['subtotal']:.2f}")
+    y -= 0.2*inch
+    c.drawString(4.5*inch, y, "Total VAT:")
+    c.drawRightString(width - 1.1*inch, y, f"{inv['total_vat']:.2f}")
+    y -= 0.25*inch
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(4.5*inch, y, "GRAND TOTAL:")
+    c.drawRightString(width - 1.1*inch, y, f"{inv['total_amount']:.2f}")
+    
+    c.showPage()
+    c.save()
+    
+    return Response(content=buf.getvalue(), media_type="application/pdf")

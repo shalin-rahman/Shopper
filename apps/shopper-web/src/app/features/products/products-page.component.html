@@ -1,128 +1,139 @@
-<div class="space-y-6">
-  <div class="flex flex-wrap items-center justify-between gap-2">
-    <h2 class="text-lg font-semibold text-slate-900">{{ 'products.title' | transloco }}</h2>
-    <button
-      type="button"
-      class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm hover:bg-slate-50"
-      (click)="reload()"
-    >
-      {{ 'products.refresh' | transloco }}
-    </button>
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8 p-1">
+  
+  <!-- Header with Refresh -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h2 class="text-3xl font-bold tracking-tight text-shopper-text">{{ 'products.title' | transloco }}</h2>
+      <p class="text-sm text-slate-500 mt-1">Manage your catalog and inventory levels.</p>
+    </div>
+    <app-shopper-button variant="secondary" (btnClick)="reload()">
+      <span class="mr-1">↺</span> {{ 'products.refresh' | transloco }}
+    </app-shopper-button>
   </div>
 
   @if (loadError(); as err) {
-    <p class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-      {{ err | transloco }}
-    </p>
+    <div class="rounded-xl border border-red-200 bg-red-50/50 backdrop-blur-sm p-4 text-sm text-red-800 flex items-center gap-3">
+      <span class="text-lg">⚠️</span> {{ err | transloco }}
+    </div>
   }
 
-  <section class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-    <h3 class="mb-3 text-sm font-medium text-slate-800">{{ 'products.addTitle' | transloco }}</h3>
-    @if (formError(); as fe) {
-      <p class="mb-2 text-sm text-red-600">{{ fe | transloco }}</p>
-    }
-    <div class="grid gap-3 sm:grid-cols-2">
-      <label class="block text-sm">
-        <span class="text-slate-600">{{ 'products.sku' | transloco }}</span>
-        <input
-          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
-          [(ngModel)]="sku"
-          name="sku"
-        />
-      </label>
-      <label class="block text-sm">
-        <span class="text-slate-600">{{ 'products.sellPrice' | transloco }}</span>
-        <input
-          type="number"
-          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
-          [(ngModel)]="sellPrice"
-          name="sellPrice"
-        />
-      </label>
-      <label class="block text-sm sm:col-span-2">
-        <span class="text-slate-600">{{ 'products.nameEn' | transloco }}</span>
-        <input
-          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
-          [(ngModel)]="nameEn"
-          name="nameEn"
-        />
-      </label>
-      <label class="block text-sm sm:col-span-2">
-        <span class="text-slate-600">{{ 'products.nameBn' | transloco }}</span>
-        <input
-          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
-          [(ngModel)]="nameBn"
-          name="nameBn"
-        />
-      </label>
-      <label class="block text-sm">
-        <span class="text-slate-600">{{ 'products.vatPct' | transloco }}</span>
-        <input
-          type="number"
-          class="mt-1 w-full rounded border border-slate-300 px-2 py-1.5"
-          [(ngModel)]="vatRate"
-          name="vatRate"
-        />
-      </label>
+  <!-- Modern Add Form Card -->
+  <section class="group relative rounded-3xl border border-shopper-border bg-shopper-bg/80 backdrop-blur-md p-8 shadow-2xl shadow-indigo-500/5 transition-all hover:shadow-indigo-500/10">
+    <div class="absolute -top-3 left-8 rounded-full bg-shopper-primary px-4 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg">
+      Quick Actions
     </div>
-    <button
-      type="button"
-      class="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-      [disabled]="saving()"
-      (click)="submit()"
-    >
-      {{ 'products.save' | transloco }}
-    </button>
+    
+    <h3 class="mb-6 text-xl font-bold text-shopper-text flex items-center gap-2">
+      <span class="h-2 w-2 rounded-full bg-shopper-primary"></span>
+      {{ 'products.addTitle' | transloco }}
+    </h3>
+
+    @if (formError(); as fe) {
+      <p class="mb-4 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 animate-pulse">{{ fe | transloco }}</p>
+    }
+
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="space-y-1.5">
+        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.sku' | transloco }}</label>
+        <input
+          class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+          [(ngModel)]="sku"
+          placeholder="e.g. SKU-1001"
+        />
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.sellPrice' | transloco }}</label>
+        <input
+          type="number"
+          class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+          [(ngModel)]="sellPrice"
+          placeholder="0.00"
+        />
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.vatPct' | transloco }}</label>
+        <div class="relative">
+          <input
+            type="number"
+            class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+            [(ngModel)]="vatRate"
+          />
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+        </div>
+      </div>
+
+      <div class="space-y-1.5 lg:col-span-3">
+        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.nameEn' | transloco }}</label>
+        <input
+          class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+          [(ngModel)]="nameEn"
+        />
+      </div>
+
+      <div class="space-y-1.5 lg:col-span-3">
+        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.nameBn' | transloco }} (Bilingual)</label>
+        <input
+          class="w-full font-bengali rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+          [(ngModel)]="nameBn"
+        />
+      </div>
+    </div>
+
+    <div class="mt-8 flex justify-end">
+      <app-shopper-button 
+        [disabled]="saving()" 
+        [loading]="saving()"
+        (btnClick)="submit()"
+        class="w-full sm:w-auto"
+      >
+        <span class="mr-2">💾</span> {{ 'products.save' | transloco }}
+      </app-shopper-button>
+    </div>
   </section>
 
-  <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-    <table class="min-w-full divide-y divide-slate-200 text-sm">
-      <thead class="bg-slate-50">
-        <tr>
-          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.sku' | transloco }}</th>
-          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.name' | transloco }}</th>
-          <th class="px-3 py-2 text-end font-medium text-slate-700">{{ 'products.sellPrice' | transloco }}</th>
-          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.barcode' | transloco }}</th>
-          <th class="px-3 py-2 text-start font-medium text-slate-700">{{ 'products.status' | transloco }}</th>
-          <th class="px-3 py-2 text-end font-medium text-slate-700"></th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-slate-100">
-        @for (p of items(); track p.id) {
-          <tr [class.opacity-50]="!p.is_active">
-            <td class="px-3 py-2 font-mono text-xs">{{ p.sku }}</td>
-            <td class="px-3 py-2">{{ labelName(p) }}</td>
-            <td class="px-3 py-2 text-end font-mono">
-              @if (p.sell_price != null) {
-                {{ locale.formatCurrency(+p.sell_price) }}
-              } @else {
-                —
-              }
-            </td>
-            <td class="px-3 py-2 font-mono text-xs">{{ p.barcode || '—' }}</td>
-            <td class="px-3 py-2">
-              {{ p.is_active ? ('products.active' | transloco) : ('products.inactive' | transloco) }}
-            </td>
-            <td class="px-3 py-2 text-end">
-              @if (p.is_active) {
-                <button
-                  type="button"
-                  class="text-xs text-red-600 hover:underline"
-                  (click)="deactivate(p)"
-                >
-                  {{ 'products.deactivate' | transloco }}
-                </button>
-              }
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="6" class="px-3 py-6 text-center text-slate-500">
-              {{ 'products.empty' | transloco }}
-            </td>
-          </tr>
+  <!-- Premium Data Grid -->
+  <div class="rounded-3xl border border-shopper-border bg-shopper-bg overflow-hidden shadow-xl">
+    <app-shopper-data-grid
+      title="Active Product Catalog"
+      [data]="items()"
+      [columns]="[
+        { key: 'sku', header: 'products.sku' | transloco, width: '120px' },
+        { key: 'name_en', header: 'products.name' | transloco },
+        { key: 'sell_price', header: 'products.sellPrice' | transloco, align: 'right' },
+        { key: 'vat_rate_pct', header: 'VAT (%)', align: 'center', width: '80px' },
+        { key: 'is_active', header: 'Status', width: '100px' }
+      ]"
+    >
+      <!-- Custom Cell for Status -->
+      <ng-template #cell let-row="row" let-col="col">
+        @if (col.key === 'is_active') {
+          <span [class]="row.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter">
+            {{ row.is_active ? 'Active' : 'Inactive' }}
+          </span>
+        } @else if (col.key === 'sell_price') {
+          <span class="font-mono font-bold text-shopper-primary">
+            {{ locale.formatCurrency(+row.sell_price) }}
+          </span>
+        } @else if (col.key === 'name_en') {
+          <div class="flex flex-col">
+            <span class="font-medium text-shopper-text">{{ row.name_en }}</span>
+            <span class="text-[10px] text-slate-400 font-bengali">{{ row.name_bn }}</span>
+          </div>
+        } @else {
+          {{ row[col.key] }}
         }
-      </tbody>
-    </table>
+      </ng-template>
+
+      <!-- Row Action -->
+      <ng-template #actions let-row="row">
+        @if (row.is_active) {
+          <app-shopper-button variant="ghost" (btnClick)="deactivate(row)">
+            <span class="text-red-500 text-xs">🗑️ Deactivate</span>
+          </app-shopper-button>
+        }
+      </ng-template>
+    </app-shopper-data-grid>
   </div>
 </div>

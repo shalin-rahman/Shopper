@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     migrate_database_url: str | None = None
     platform_root_domain: str | None = None
     storefront_public_base_url: str | None = None
+    jwt_secret_key: str = "shopper-dev-secret-change-in-prod"
+    jwt_algorithm: str = "HS256"
     cors_allow_origins: str = "*"
     shopper_admin_api_key: str | None = None
     redis_url: str | None = "redis://redis:6379/0"

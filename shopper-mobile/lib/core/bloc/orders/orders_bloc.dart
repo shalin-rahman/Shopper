@@ -5,7 +5,7 @@ import '../../../domain/entities/cart.dart';
 import '../../../domain/usecases/orders/create_order_usecase.dart';
 import '../../../domain/usecases/orders/get_orders_usecase.dart';
 import '../../../domain/usecases/orders/sync_orders_usecase.dart';
-import '../../../../core/usecases/usecase.dart';
+import '../../usecase/usecase.dart';
 import '../../../core/error/failures.dart';
 
 // Events
@@ -40,16 +40,20 @@ class OrderCreated extends OrdersEvent {
   final String? customerName;
   final String? customerPhone;
   final String? notes;
+  final String paymentMethod;
+  final double amountPaid;
 
   const OrderCreated({
     required this.cart,
     this.customerName,
     this.customerPhone,
     this.notes,
+    this.paymentMethod = 'cash',
+    this.amountPaid = 0,
   });
 
   @override
-  List<Object?> get props => [cart, customerName, customerPhone, notes];
+  List<Object?> get props => [cart, customerName, customerPhone, notes, paymentMethod, amountPaid];
 }
 
 class OrdersRefreshed extends OrdersEvent {}
@@ -158,6 +162,8 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         customerName: event.customerName,
         customerPhone: event.customerPhone,
         notes: event.notes,
+        paymentMethod: event.paymentMethod,
+        amountPaid: event.amountPaid,
       ),
     );
 

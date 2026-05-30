@@ -78,6 +78,8 @@ class Orders extends Table {
   TextColumn get notes => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   TextColumn get serverInvoiceId => text().nullable()();
+  TextColumn get paymentMethod => text().withDefault(const Constant('cash'))();
+  RealColumn get amountPaid => real().withDefault(const Constant(0.0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -102,12 +104,26 @@ class OrderItems extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Products, ProductSearch, CartItems, Orders, OrderItems])
+class StockAdjustments extends Table {
+  TextColumn get id => text()();
+  TextColumn get sku => text()();
+  RealColumn get quantity => real()();
+  TextColumn get type => text()(); // damage, gift_out, expired, etc.
+  TextColumn get reasonCode => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Products, ProductSearch, CartItems, Orders, OrderItems, StockAdjustments])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -133,6 +149,15 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(orders, orders.serverInvoiceId);
         await m.addColumn(orderItems, orderItems.vatRatePct);
         await m.addColumn(orderItems, orderItems.vatAmount);
+      }
+      if (from < 4) {
+        // Version 4: Stock Adjustments table
+        await m.createTable(stockAdjustments);
+      }
+      if (from < 5) {
+        // Version 5: Payment method and amount paid columns
+        await m.addColumn(orders, orders.paymentMethod);
+        await m.addColumn(orders, orders.amountPaid);
       }
     },
   );
@@ -234,4 +259,18 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteOrderItems(String orderId) =>
       (delete(orderItems)..where((tbl) => tbl.orderId.equals(orderId))).go();
+
+  // Stock Adjustment operations
+  Future<List<StockAdjustment>> getUnsyncedAdjustments() =>
+      (select(stockAdjustments)..where((tbl) => tbl.isSynced.equals(false))).get();
+
+  Future<void> insertAdjustment(StockAdjustmentsCompanion adjustment) =>
+      into(stockAdjustments).insert(adjustment, mode: InsertMode.replace);
+
+  Future<void> markAdjustmentSynced(String id) =>
+      (update(stockAdjustments)..where((tbl) => tbl.id.equals(id)))
+          .write(const StockAdjustmentsCompanion(isSynced: Value(true)));
+
+  Future<void> clearSyncedAdjustments() =>
+      (delete(stockAdjustments)..where((tbl) => tbl.isSynced.equals(true))).go();
 }

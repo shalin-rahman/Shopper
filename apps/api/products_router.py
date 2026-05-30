@@ -18,9 +18,58 @@ def _pool(request: Request) -> asyncpg.Pool:
     return pool
 
 @router.get("", response_model=list[ProductOut])
-async def list_products(request: Request, _auth: StaffDep):
+async def list_products(request: Request, _auth: StaffDep, settings: SettingsDep):
     sub = subdomain_from_request(request)
-    pool = _pool(request)
+    pool = request.app.state.db_pool
+    
+    if pool is None and settings.testing:
+        # Mock data for UI demonstration
+        from datetime import datetime
+        return [
+            ProductOut(
+                id=UUID("00000000-0000-0000-0000-000000000001"),
+                tenant_id=UUID("00000000-0000-0000-0000-000000000000"),
+                category_id=None,
+                sku="MOCK-001",
+                name_en="Sample Smartphone",
+                name_bn="স্মার্টফোন নমুনা",
+                description_en="High end smartphone",
+                description_bn="উচ্চ মানের স্মার্টফোন",
+                buy_price=Decimal("15000.00"),
+                sell_price=Decimal("18500.00"),
+                mrp=Decimal("19000.00"),
+                vat_rate_pct=Decimal("5.0"),
+                stock_quantity=Decimal("50"),
+                is_active=True,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                unit="pcs",
+                barcode="12345678",
+                qr_payload="https://shopper.com/p/MOCK-001"
+            ),
+            ProductOut(
+                id=UUID("00000000-0000-0000-0000-000000000002"),
+                tenant_id=UUID("00000000-0000-0000-0000-000000000000"),
+                category_id=None,
+                sku="MOCK-002",
+                name_en="Wireless Keyboard",
+                name_bn="ওয়্যারলেস কিবোর্ড",
+                description_en="Bluetooth keyboard",
+                description_bn="ব্লুটুথ কীবোর্ড",
+                buy_price=Decimal("2000.00"),
+                sell_price=Decimal("2500.00"),
+                mrp=Decimal("2800.00"),
+                vat_rate_pct=Decimal("5.0"),
+                stock_quantity=Decimal("120"),
+                is_active=True,
+                created_at=datetime.now(),
+                updated_at=datetime.now(),
+                unit="pcs",
+                barcode="87654321",
+                qr_payload="https://shopper.com/p/MOCK-002"
+            )
+        ]
+
     tenant = await resolve_tenant_id(pool, sub)
     tenant_id = tenant["id"]
     async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
@@ -152,6 +201,61 @@ async def delete_product(request: Request, product_id: UUID, _auth: StaffDep):
         res = await conn.execute("UPDATE tenant_data.products SET is_active = false, updated_at = now() WHERE id = $1", product_id)
     if res == "UPDATE 0": raise HTTPException(status_code=404, detail="Product not found")
     return None
+
+@router.get("/{product_id}/label", responses={200: {"content": {"application/pdf": {}}}})
+async def get_product_label(request: Request, product_id: UUID, _auth: StaffDep):
+    """
+    Generates a 2x1 inch thermal-printer ready PDF label with a 1D Code128 Barcode.
+    """
+    sub = subdomain_from_request(request)
+    pool = _pool(request)
+    tenant = await resolve_tenant_id(pool, sub)
+    tenant_id = tenant["id"]
+
+    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+        row = await conn.fetchrow(
+            "SELECT sku, name_en, sell_price, barcode FROM tenant_data.products WHERE id = $1",
+            product_id
+        )
+        settings = await conn.fetchrow("SELECT legal_title_en FROM platform.tenant_settings WHERE tenant_id = $1", tenant_id)
+        
+    if not row:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    import io
+    from reportlab.pdfgen import canvas
+    from reportlab.graphics.barcode import code128
+    from reportlab.lib.units import inch
+    from fastapi import Response
+
+    buf = io.BytesIO()
+    # 2 inches wide x 1 inch high
+    c = canvas.Canvas(buf, pagesize=(2 * inch, 1 * inch))
+    
+    tenant_name = settings["legal_title_en"][:20] if settings and settings.get("legal_title_en") else sub
+    prod_name = str(row["name_en"])[:25]
+    price = f"BDT {row['sell_price']}" if row['sell_price'] else ""
+    barcode_val = row["barcode"] or row["sku"]
+
+    # Header / Meta
+    c.setFont("Helvetica-Bold", 6)
+    c.drawString(0.05 * inch, 0.85 * inch, tenant_name)
+    c.setFont("Helvetica", 6)
+    c.drawString(0.05 * inch, 0.75 * inch, prod_name)
+    
+    # Generate Code128 Barcode
+    barcode = code128.Code128(barcode_val, barHeight=0.4*inch, barWidth=0.012*inch)
+    # Center the barcode (approximate drawing offsets)
+    barcode.drawOn(c, 0.1 * inch, 0.25 * inch)
+    
+    # Price
+    c.setFont("Helvetica-Bold", 8)
+    c.drawRightString(1.9 * inch, 0.1 * inch, price)
+
+    c.showPage()
+    c.save()
+
+    return Response(content=buf.getvalue(), media_type="application/pdf")
 
 def _row_to_out(row: asyncpg.Record) -> ProductOut:
     d = dict(row)

@@ -10,10 +10,19 @@ import {
   TenantLifecycleStatus,
 } from './admin-platform.service';
 
+import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
+import { ShopperDataGridComponent } from '../../shared/components/shopper-data-grid.component';
+
 @Component({
   selector: 'app-admin-tenants',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoPipe],
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    TranslocoPipe,
+    ShopperButtonComponent,
+    ShopperDataGridComponent
+  ],
   templateUrl: './admin-tenants.component.html',
 })
 export class AdminTenantsComponent implements OnInit {

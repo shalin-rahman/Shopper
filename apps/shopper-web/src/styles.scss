@@ -73,7 +73,10 @@ body {
 
 /* UTILITY CLASSES using variables */
 .bg-shopper-bg { background-color: var(--shopper-bg); }
+.bg-shopper-primary { background-color: var(--shopper-primary); }
+.bg-shopper-accent { background-color: var(--shopper-accent); }
 .bg-shopper-surface { background-color: var(--shopper-surface); }
 .text-shopper-text { color: var(--shopper-text); }
 .text-shopper-primary { color: var(--shopper-primary); }
+.text-white { color: #ffffff; }
 .border-shopper-border { border-color: var(--shopper-border); }

@@ -8,7 +8,15 @@
   "nav": {
     "home": "হোম",
     "products": "পণ্য",
-    "admin": "অ্যাডমিন"
+    "admin": "অ্যাডমিন",
+    "accounting": "অ্যাকাউন্টিং",
+    "expenses": "খরচ",
+    "suppliers": "সরবরাহকারী",
+    "invoices": "ইনভয়েস",
+    "inventory": "ইনভেন্টরি",
+    "procurement": "প্রকিউরমেন্ট",
+    "customers": "গ্রাহক",
+    "staff": "কর্মী"
   },
   "admin": {
     "title": "প্ল্যাটফর্ম অ্যাডমিন",
@@ -68,6 +76,12 @@
     "title": "পেমেন্ট",
     "gateway": "গেটওয়ে",
     "amount": "পরিমাণ",
+    "status": "অবস্থা"
+  },
+  "staff": {
+    "title": "কর্মী ব্যবস্থাপনা",
+    "addTitle": "টিম মেম্বার যোগ করুন",
+    "role": "ভূমিকা",
     "status": "অবস্থা"
   }
 }

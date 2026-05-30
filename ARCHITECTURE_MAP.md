@@ -1,6 +1,6 @@
 # Shopper Platform — Architecture Map
 
-> **Last Updated:** 2026-04-10  
+> **Last Updated:** 2026-04-20
 > **Rule:** Always update this map as the last step of any structural change.
 
 ---
@@ -59,8 +59,6 @@ graph TB
 
 ### Tech Stack Summary
 
-| Layer | Tech | Location |
-|-------|------|----------|
 | API | Python 3.11+, FastAPI, asyncpg, Pydantic v2 | `apps/api/` |
 | Web FE | Angular 17+, TypeScript, Transloco i18n | `apps/shopper-web/` |
 | Mobile | Flutter/Dart, BLoC, Drift (SQLite), GetIt DI | `shopper-mobile/` |
@@ -118,6 +116,11 @@ graph TB
 | `TenantSettingsOut` | `BaseModel` | `tenant_id`, `theme_id`, `default_language`, `logo_url`, `legal_title_en/bn`, `bin`, `default_vat_rate_pct`, `module_access`, timestamps | Response |
 | `PaymentCreate` | `BaseModel` | `gateway` (enum), `amount`, `currency`, `description`, `order_id` | `POST /payments` |
 | `PaymentOut` | `BaseModel` | `id`, `gateway`, `amount`, `currency`, `status`, `gateway_transaction_id`, timestamps | Response |
+| `InvoiceOut` | `BaseModel` | `id`, `invoice_no`, `buyer_tin`, `grand_total`, `balance_due`, `status` | Response |
+| `InvoiceLineOut` | `BaseModel` | `id`, `description`, `qty`, `unit_price`, `vat_rate_pct`, `line_vat` | Response |
+| `StockValuationOut` | `BaseModel` | `sku`, `name_en`, `qty`, `wac_cost`, `total_valuation` | Report |
+| `VATRegisterOut` | `BaseModel` | `mushak_form`, `invoice_no`, `taxable_value`, `vat_amount` | Report |
+| `BusinessAnalyticsOut` | `BaseModel` | `itr`, `eoq_recommendations[]` | Report |
 | `StorefrontProductOut` | `BaseModel` | `id`, `sku`, `name_en/bn`, prices (no `buy_price`), `barcode`, `qr_payload` | Public catalog |
 | `StorefrontProductListResponse` | `BaseModel` | `tenant`, `products[]`, `total` | Response |
 | `InventoryAgingItem` | `BaseModel` | `sku`, `name_en/bn`, `unit`, `sell_price`, `reference_date`, `days_idle`, `bucket` | Report |
@@ -174,6 +177,29 @@ graph TB
 | Method | Path | Function |
 |--------|------|----------|
 | `GET` | `/inventory-aging` | `inventory_aging_report` |
+| `GET` | `/stock-valuation` | `stock_valuation_report` |
+| `GET` | `/vat-register` | `vat_register_report` |
+| `GET` | `/vat-register/export/excel` | `vat_register_excel_export` |
+| `GET` | `/business-analytics` | `business_analytics_report` |
+| `GET` | `/mushak-6-10` | `mushak_6_10_report` |
+| `GET` | `/mushak-6-1` | `mushak_6_1_report` |
+
+#### `inventory_router.py` — prefix `/v1/tenant/inventory`
+| Method | Path | Function | Description |
+|--------|------|----------|-------------|
+| `POST` | `/receive` | `stock_receive` | Increase stock (gift/purchase) |
+| `POST` | `/adjust` | `stock_adjust` | Decrease stock (damage/return) |
+| `POST` | `/transfer` | `create_stock_transfer` | recorded in `stock_transactions` |
+| `GET` | `/history` | `get_inventory_history` | Audit trail of all movements |
+| `GET` | `/transfer/{tx_id}/mushak-6-5` | `get_mushak_6_5_pdf` | Mushak 6.5 Stock Transfer PDF |
+
+#### `procurement_router.py` — prefix `/v1/tenant/procurement`
+| Method | Path | Function | Description |
+|--------|------|----------|-------------|
+| `POST` | `/po` | `create_purchase_order` | Draft PO |
+| `POST` | `/po/{id}/receive` | `receive_po` | Finalize + Inventory Update |
+| `POST` | `/payments` | `record_supplier_payment` | AP Tracking |
+| `POST` | `/returns` | `create_purchase_return` | Mushak 6.8 (Debit Note) |
 
 #### `admin_router.py` — prefix `/v1/admin`
 | Method | Path | Function | Auth |
@@ -181,9 +207,69 @@ graph TB
 | `GET` | `/tenants` | `list_tenants` | `X-Shopper-Admin-Key` |
 | `PATCH` | `/tenants/{id}/status` | `set_tenant_status` | `X-Shopper-Admin-Key` |
 | `POST` | `/tenants/provision-db` | `provision_dedicated_db` | `X-Shopper-Admin-Key` |
+| `POST` | `/tenants/migrate` | `migrate_tenant` | `X-Shopper-Admin-Key` |
+| `GET` | `/tenants/{id}/export` | `export_tenant_data` | `X-Shopper-Admin-Key` |
+
+#### `registration_router.py` — prefix `/v1/register`
+| Method | Path | Function | Description |
+|--------|------|----------|-------------|
+| `POST` | `` | `register_tenant` | Self-service onboarding |
+
+#### `suppliers_router.py` — prefix `/v1/tenant/suppliers`
+| Method | Path | Function |
+|--------|------|----------|
+| `GET`  | `` | `list_suppliers` |
+| `POST` | `` | `create_supplier` |
+
+#### `staff_router.py` — prefix `/v1/tenant/staff`
+| Method | Path | Function |
+|--------|------|----------|
+| `GET`  | `` | `list_staff` |
+| `POST` | `` | `create_staff` |
+
+#### `expenses_router.py` — prefix `/v1/tenant/expenses`
+| Method | Path | Function |
+|--------|------|----------|
+| `GET`  | `/categories` | `list_categories` |
+| `POST` | `` | `create_expense` |
+
+#### `accounts_router.py` — prefix `/v1/tenant/accounts`
+| Method | Path | Function | Description |
+|--------|------|----------|-------------|
+| `GET`  | `` | `list_accounts` | COA View |
+| `POST` | `/transfer` | `transfer_funds` | Double-entry journal |
+
+#### `maintenance_router.py` — prefix `/v1/tenant/maintenance`
+| Method | Path | Function | Description |
+|--------|------|----------|-------------|
+| `POST` | `/ledger-reconcile` | `reconcile_ledger_balances` | Self-healing account balances |
+| `GET`  | `/health` | `health_check` | Deep connectivity verify |
+
+### 🕒 Mobile Synchronization Architecture
+The mobile app operates on an **Offline-First** principle with an **ACK-First** sync pattern.
+- **Local DB**: Drift (SQLite) with schema version 4.
+- **Sync Model**:
+  - **Orders**: Atomic local stock deduction followed by `offline-punch` API call.
+  - **Stock Adjustments**: Unsynced changes in `stock_adjustments` table are batch-processed via `SyncAdjustmentsUseCase`.
+- **Conflict Resolution**: Last-write-wins with server timestamp override.
+
+### 📦 Component Mapping
+
+#### `invoices_router.py` — prefix `/v1/tenant/invoices`
+| Method | Path | Function |
+|--------|------|----------|
+| `GET` | `` | `list_invoices` |
+| `GET` | `/{id}` | `get_invoice` |
+| `POST` | `` | `create_invoice` |
+
+#### `receipt_router.py` — prefix `/v1/tenant/receipts`
+| Method | Path | Function | Notes |
+|--------|------|----------|-------|
+| `GET` | `/{id}/pdf` | `generate_mushak_6_3` | Bilingual Mushak 6.3 PDF |
+| `GET` | `/{id}/thermal`| `generate_thermal` | ESC/POS Thermal Receipt |
 
 **Request Bodies:**
-- `TenantStatusBody` — `status: Literal["pending","active","suspended","deleted"]`
+- `TenantStatusBody` — `status: Literal["pending","active","suspended","deleted","trialing","past_due","canceled"]`
 - `ProvisionDedicatedDBBody` — `tenant_id: UUID`, `database_name: str`
 
 ---
@@ -257,6 +343,7 @@ graph TB
 | File | Class / Fn | Purpose |
 |------|-------|---------|
 | `tenant-settings.service.ts` | `TenantSettingsService` | Fetch tenant-specific theme, logo, and VAT config |
+| `theme.service.ts` | `ThemeService` | Manage 10+ dynamic themes via CSS variables |
 | `tenant-bootstrap.ts` | `tenantBootstrap` | App init: set `data-theme` and default language |
 
 #### Networking (`core/http/`)
@@ -264,6 +351,12 @@ graph TB
 |------|----------|-----------------|
 | `shopper-admin.interceptor.ts` | `shopperAdminInterceptor` | `X-Shopper-Admin-Key` (session) |
 | `shopper-tenant.interceptor.ts` | `shopperTenantInterceptor` | `X-Shopper-Tenant` (env/host) |
+
+#### Shared Components (`shared/components/`)
+| File | Component | Purpose |
+|------|-----------|---------|
+| `shopper-button.component.ts` | `ShopperButtonComponent` | Reusable button with variants |
+| `shopper-data-grid.component.ts`| `ShopperDataGridComponent` | Reusable data table with sorting/pagination |
 
 ### 3.3 Feature Components (UI Layer)
 
@@ -286,6 +379,33 @@ graph TB
 |------|---|---|
 | `home.component.ts` | `HomeComponent` | Static landing page shell |
 | `home.component.html` | Template | Public landing content |
+
+#### Invoices Feature (`features/invoices/`)
+| File | Component | Purpose |
+|------|-----------|---------|
+| `invoices-page.component.ts` | `InvoicesPageComponent` | Sales ledger and Mushak 6.3 preview |
+
+#### Procurement Feature (`features/procurement/`)
+| File | Component | Purpose |
+|------|-----------|---------|
+| `procurement-page.component.ts` | `ProcurementPageComponent` | PO Lifecycle and Debit Notes |
+
+#### Inventory Feature (`features/inventory/`)
+| File | Component | Purpose |
+|------|-----------|---------|
+| `inventory-page.component.ts` | `InventoryPageComponent` | Non-monetary stock audit log |
+
+### 3.4 Mobile POS UI (Flutter)
+| Path | Component / Screen | Purpose |
+|------|-----------|---------|
+| `screens/home_screen.dart` | `HomeScreen` | Activity dashboard & quick actions |
+| `screens/products_screen.dart`| `ProductsScreen`| Searchable product catalog |
+| `screens/cart_screen.dart` | `CartScreen` | Subtotal & adjustment view |
+| `screens/checkout_screen.dart`| `CheckoutScreen`| Multi-payment and Credit completion |
+| `screens/inventory_screen.dart`| `InventoryScreen`| Manual stock adjustments (Damaged, Gift) |
+| `screens/daily_sales_register_screen.dart`| `DailySalesRegisterScreen`| Offline-to-Online transaction audit |
+| `screens/reports_screen.dart` | `ReportsScreen` | Analytics dashboard shell |
+| `screens/settings_screen.dart`| `SettingsScreen`| Configuration & Language toggle |
 
 ### 3.3 HTTP Interceptors
 
@@ -560,6 +680,16 @@ Methods: `validate()`
 | `currencySymbol` | `String` | `'৳'` |
 | `decimalPlaces` | `int` | `2` |
 
+---
+
+#### `core/services/printer_service.dart`
+
+**class `PrinterService`**
+- `connect(address)` — Bluetooth/IP connection
+- `disconnect()`
+- `printReceipt(invoice)` — Render ESC/POS commands
+- `isConnected` (getter)
+
 Methods: `copyWith(...)`, `validate()`
 
 ---
@@ -818,7 +948,7 @@ Dependencies: `ApiClient`, `AppPreferences`
 | `subdomain` | `CITEXT` | UNIQUE, regex `^[a-z0-9]...` |
 | `display_name_en` | `TEXT` | NOT NULL |
 | `display_name_bn` | `TEXT` | NOT NULL |
-| `status` | `TEXT` | CHECK: `pending/active/suspended/deleted` |
+| `status` | `TEXT` | CHECK: `pending/active/suspended/deleted/trialing/past_due/canceled` |
 | `dedicated_database_name` | `TEXT` | nullable |
 | `created_at` | `TIMESTAMPTZ` | auto |
 | `updated_at` | `TIMESTAMPTZ` | auto (trigger) |
@@ -872,6 +1002,24 @@ Dependencies: `ApiClient`, `AppPreferences`
 | `description_en/bn` | `TEXT` nullable |
 | `qty`, `taxable_value`, `vat_amount`, `total_amount` | `NUMERIC(18,4)` |
 
+#### `tenant_data.invoices`
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | `UUID` | PK |
+| `tenant_id` | `UUID` | FK->tenants |
+| `invoice_no` | `TEXT` | UNIQUE(tenant_id, invoice_no) |
+| `buyer_tin` | `TEXT` | nullable |
+| `grand_total`, `balance_due` | `NUMERIC(18,4)` | NOT NULL |
+| `status` | `TEXT` | `draft/paid/partial/void` |
+
+#### `tenant_data.invoice_lines`
+| Column | Type | Constraints |
+|--------|------|-------------|
+| `id` | `UUID` | PK |
+| `invoice_id` | `UUID` | FK->invoices |
+| `description_en`, `description_bn` | `TEXT` | NOT NULL |
+| `qty`, `unit_price`, `line_vat` | `NUMERIC(18,4)` | NOT NULL |
+
 ### 5.3 Migrations (`database/migrations/`)
 
 | File | Purpose |
@@ -884,6 +1032,11 @@ Dependencies: `ApiClient`, `AppPreferences`
 | `007_billing.sql` | Billing module |
 | `008_audit_triggers.sql` | Audit trigger functions |
 | `009_vat_sales_register_lines.sql` | VAT register lines |
+| `011_invoices.sql` | Invoices and line items |
+| `012_invoice_balances.sql`| Automatic balance triggers |
+| `013_inventory_valuation.sql`| Materialized WAC/FIFO logic |
+| `014_stock_triggers.sql` | Inventory audit triggers |
+| `015_audit_chaining.sql` | SHA-256 tamper-evident logs |
 
 ### 5.4 RLS Policies
 
@@ -908,6 +1061,9 @@ Dependencies: `ApiClient`, `AppPreferences`
 | `test_codes.py` | Barcode/QR payload generation | Unit |
 | `test_host_tenant.py` | Host-based subdomain resolution | Unit |
 | `test_redis_client.py` | IPN idempotency key building | Unit |
+| `test_billing.py` | VAT and Invoice math validation | Unit |
+| `test_pos_e2e.py` | Full transaction sync lifecycle | E2E |
+| `test_isolation.py` | Cross-tenant data leakage prevention | Integration |
 | `test_integration_rls.py` | `test_tenant_a_cannot_see_tenant_b_products`, `test_tenant_product_fetch_isolation` | Integration (needs real DB) |
 | `conftest.py` | Shared fixtures | Config |
 
@@ -1039,6 +1195,7 @@ Routers access via:
 |---|---|---|
 | `GET /v1/tenant/products` | `ProductService.list()` -> `ProductsPageComponent` | `GetProductsUseCase` -> `ProductsBloc` |
 | `POST /v1/tenant/products` | `ProductService.create()` -> `ProductsPageComponent.submit()` | *(not wired yet)* |
+| `POST /v1/tenant/inventory/adjust` | `InventoryPageComponent` | `AdjustStockRequested` -> `SyncAdjustmentsUseCase` |
 | `DELETE /v1/tenant/products/{id}` | `ProductService.deactivate()` -> `ProductsPageComponent.deactivate()` | *(not wired yet)* |
 | `PATCH /v1/tenant/products/{id}` | *(not wired yet)* | *(not wired yet)* |
 | `GET /v1/tenant/settings` | `TenantSettingsService.load()` -> `tenantBootstrap` | `GetSettingsUseCase` -> `SettingsBloc` |
@@ -1048,8 +1205,15 @@ Routers access via:
 | `POST /v1/tenant/payments/ipn/{gw}` | *(server-to-server webhook)* | *(N/A)* |
 | `GET /v1/storefront/products` | *(not wired yet)* | *(not wired yet)* |
 | `GET /v1/tenant/reports/inventory-aging` | *(not wired yet)* | *(not wired yet)* |
-| `GET /v1/tenant/customers` | *(not wired yet)* | *(not wired yet)* |
-| `POST /v1/tenant/customers` | *(not wired yet)* | *(not wired yet)* |
+| `GET /v1/tenant/suppliers` | *(not wired yet)* | *(not wired yet)* |
+| `POST /v1/tenant/expenses` | *(not wired yet)* | *(not wired yet)* |
+| `POST /v1/register` | `RegistrationPageComponent` | *(not wired yet)* |
+| `GET /v1/tenant/staff` | `StaffPageComponent` | *(not wired yet)* |
+| `GET /v1/tenant/accounts` | `AccountingDashboardComponent` | *(not wired yet)* |
+| `POST /v1/tenant/accounts/transfer` | `AccountingDashboardComponent` | *(not wired yet)* |
+| `GET /v1/tenant/receipts/{id}/pdf` | *(not wired yet)* | *(not wired yet)* |
+| `GET /v1/tenant/inventory/transfer` | *(not wired yet)* | *(not wired yet)* |
+| `GET /v1/admin/tenants/{id}/export` | *(platform admin only)* | *(N/A)* |
 
 ---
 
@@ -1083,8 +1247,9 @@ Routers access via:
 | Login | `LoginRequested` | `email`, `password` | `LoginParams.validate()` |
 | Add to Cart | `ItemAddedToCart` | `productId`, `quantity`, `discount?`, `notes?` | `AddToCartParams.validate()` |
 | Update Cart Item | `CartItemUpdated` | `cartItemId`, `quantity?`, `discount?`, `notes?` | *(none explicit)* |
-| Create Order | `OrderCreated` | `cart`, `customerName?`, `customerPhone?`, `notes?` | `CreateOrderParams.validate()` |
+| Create Order | `OrderCreated` | `cart`, `customerName?`, `customerPhone?`, `notes?`, `paymentMethod`, `amountPaid` | `CreateOrderParams.validate()` |
 | Product Search | `ProductsSearched` | `query` | `SearchProductsParams.validate()` |
+| Adjust Stock | `AdjustStockRequested` | `sku`, `quantity`, `type`, `notes?`, `reasonCode` | `AdjustStockParams.validate()` |
 | Update Settings | `SettingsUpdated` | `AppSettings` object | `UpdateSettingsParams.validate()` |
 
 ---

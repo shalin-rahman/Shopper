@@ -6,8 +6,8 @@ describe('ThemeService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(ThemeService);
     localStorage.clear();
+    service = TestBed.inject(ThemeService);
   });
 
   it('should be created', () => {

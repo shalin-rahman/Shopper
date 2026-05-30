@@ -23,4 +23,14 @@ abstract class ProductRepository {
   Future<Either<Failure, void>> cacheProducts(List<Product> products);
 
   Stream<List<Product>> watchLocalProducts();
+
+  Future<Either<Failure, void>> adjustStock({
+    required String sku,
+    required double quantity,
+    required String type,
+    String? notes,
+    String? reasonCode,
+  });
+
+  Future<Either<Failure, void>> syncAdjustments();
 }

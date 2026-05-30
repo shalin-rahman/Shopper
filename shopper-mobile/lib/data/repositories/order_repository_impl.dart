@@ -24,6 +24,8 @@ class OrderRepositoryImpl implements OrderRepository {
     String? customerName,
     String? customerPhone,
     String? notes,
+    String? paymentMethod,
+    double? amountPaid,
   }) async {
     try {
       final result = await database.transaction(() async {
@@ -45,6 +47,8 @@ class OrderRepositoryImpl implements OrderRepository {
           customerName: Value(customerName),
           customerPhone: Value(customerPhone),
           notes: Value(notes),
+          paymentMethod: Value(paymentMethod ?? 'cash'),
+          amountPaid: Value(amountPaid ?? 0),
           isSynced: const Value(false),
           createdAt: now,
           updatedAt: now,
@@ -211,6 +215,8 @@ class OrderRepositoryImpl implements OrderRepository {
           'customerName': order.customerName,
           'customerPhone': order.customerPhone,
           'notes': order.notes,
+          'payment_method': order.paymentMethod,
+          'amount_paid': order.amountPaid,
           'items': items.map((item) => {
             'productId': item.productId,
             'productName': item.productName,

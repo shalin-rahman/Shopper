@@ -482,4 +482,28 @@ class ApiClient {
       return Left(NetworkFailure('Network error: ${e.toString()}'));
     }
   }
+
+  Future<Either<Failure, void>> adjustStock({
+    required Map<String, dynamic> adjustmentData,
+  }) async {
+    if (!await _isConnected()) {
+      return Left(NetworkFailure('No internet connection'));
+    }
+
+    try {
+      final response = await client.post(
+        Uri.parse('$baseUrl/tenant/inventory/adjust'),
+        headers: await _getHeaders(),
+        body: json.encode(adjustmentData),
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return const Right(null);
+      } else {
+        return Left(ServerFailure('Adjustment failed', code: response.statusCode.toString()));
+      }
+    } catch (e) {
+      return Left(NetworkFailure('Network error: ${e.toString()}'));
+    }
+  }
 }

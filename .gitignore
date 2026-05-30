@@ -1,2 +1,12 @@
 .env
 *.log
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
+.idea/
+.cursor/
+node_modules/
+dist/
+.dart_tool/
+build/

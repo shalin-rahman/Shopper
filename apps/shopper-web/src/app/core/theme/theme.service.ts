@@ -1,6 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 
-export type ShopperTheme = 'default' | 'midnight' | 'emerald' | 'ruby' | 'cyberpunk' | 'amber';
+export type ShopperTheme = 
+  | 'default'   | 'midnight' | 'emerald'  | 'ruby' 
+  | 'cyberpunk' | 'amber'    | 'lavender' | 'ocean' 
+  | 'sunset'    | 'forest'   | 'slate'    | 'gold';
 
 @Injectable({
   providedIn: 'root'

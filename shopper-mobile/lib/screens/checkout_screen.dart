@@ -17,23 +17,40 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _amountPaidController = TextEditingController();
+
+  String _paymentMethod = 'cash';
+
+  @override
+  void initState() {
+    super.initState();
+    final cartState = context.read<CartBloc>().state;
+    if (cartState is CartLoadSuccess) {
+      _amountPaidController.text = cartState.cart.total.toStringAsFixed(2);
+    }
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
     _notesController.dispose();
+    _amountPaidController.dispose();
     super.dispose();
   }
 
   void _onPlaceOrder() {
     final cartState = context.read<CartBloc>().state;
     if (cartState is CartLoadSuccess) {
+      final double amountPaid = double.tryParse(_amountPaidController.text) ?? 0;
+      
       context.read<OrdersBloc>().add(OrderCreated(
         cart: cartState.cart,
         customerName: _nameController.text.isNotEmpty ? _nameController.text : null,
         customerPhone: _phoneController.text.isNotEmpty ? _phoneController.text : null,
         notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+        paymentMethod: _paymentMethod,
+        amountPaid: amountPaid,
       ));
     }
   }
@@ -45,14 +62,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     return BlocListener<OrdersBloc, OrdersState>(
       listener: (context, state) {
         if (state is OrderCreatedSuccess) {
-          // Clear cart after successful order (OrderRepositoryImpl already handles DB clear, but Bloc might need sync)
           context.read<CartBloc>().add(CartCleared());
-          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(l10n.orderPlacedSuccess)),
           );
-          
-          // Navigate to Home or Receipt Screen
           Navigator.pushNamedAndRemoveUntil(context, AppRouter.home, (route) => false);
         } else if (state is OrdersError) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -67,16 +80,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             spacing: kSpacing24,
             padding: const EdgeInsets.all(kSpacing16),
             children: [
-              // Order Summary Card
               _buildSummaryCard(),
-
-              // Customer Info Card
               _buildCustomerInfoCard(),
-
-              // Notes Card
+              _buildPaymentCard(),
               _buildNotesCard(),
-
-              // Place Order Button
+              
               BlocBuilder<OrdersBloc, OrdersState>(
                 builder: (context, state) {
                   return ShopperPrimaryButton(
@@ -107,15 +115,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('${item.productName} x${item.quantity}', style: kBodyMedium),
-                    Text((item.unitPrice * item.quantity).toStringAsFixed(2), style: kBodyMedium),
+                    Text(item.lineTotal.toStringAsFixed(2), style: kBodyMedium),
                   ],
                 )),
-                const Divider(),
+                const ShopperDivider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(l10n.totalAmount, style: kHeadline6),
-                    Text(cart.total.toStringAsFixed(2), style: kHeadline6.copyWith(color: kPrimaryColor)),
+                    Text(cart.total.toStringAsFixed(2), style: kHeadline6.copyWith(color: kPrimaryColor, fontWeight: FontWeight.black)),
                   ],
                 ),
               ],
@@ -128,6 +136,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildCustomerInfoCard() {
+    final l10n = AppLocalizations.of(context)!;
     return ShopperCard(
       child: ShopperColumn(
         spacing: kSpacing16,
@@ -149,7 +158,51 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
+  Widget _buildPaymentCard() {
+    final methods = [
+      {'id': 'cash', 'label': 'Cash', 'icon': Icons.payments_outlined},
+      {'id': 'mfs', 'label': 'MFS (bKash/Nagad)', 'icon': Icons.smartphone_outlined},
+      {'id': 'card', 'label': 'Bank Card', 'icon': Icons.credit_card_outlined},
+      {'id': 'credit', 'label': 'On Credit', 'icon': Icons.history_edu_outlined},
+    ];
+
+    return ShopperCard(
+      child: ShopperColumn(
+        spacing: kSpacing16,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ShopperSectionHeader(title: 'Payment Details'),
+          
+          const Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.black, color: Colors.grey)),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: methods.map((m) {
+              final isSelected = _paymentMethod == m['id'];
+              return ChoiceChip(
+                label: Text(m['label']! as String),
+                selected: isSelected,
+                avatar: Icon(m['icon']! as IconData, size: 16, color: isSelected ? Colors.white : kPrimaryColor),
+                onSelected: (val) => setState(() => _paymentMethod = m['id']! as String),
+                selectedColor: kPrimaryColor,
+                labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+              );
+            }).toList(),
+          ),
+
+          ShopperInputField(
+            label: 'Amount Collected (৳)',
+            controller: _amountPaidController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            hint: '0.00',
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNotesCard() {
+    final l10n = AppLocalizations.of(context)!;
     return ShopperCard(
       child: ShopperColumn(
         spacing: kSpacing16,
@@ -159,7 +212,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             label: l10n.notes,
             controller: _notesController,
             hint: l10n.specialInstructions,
-            maxLines: 3,
+            maxLines: 2,
           ),
         ],
       ),

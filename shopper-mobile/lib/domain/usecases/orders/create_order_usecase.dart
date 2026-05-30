@@ -12,12 +12,16 @@ class CreateOrderParams extends Equatable {
   final String? customerName;
   final String? customerPhone;
   final String? notes;
+  final String paymentMethod;
+  final double amountPaid;
 
   const CreateOrderParams({
     required this.cart,
     this.customerName,
     this.customerPhone,
     this.notes,
+    this.paymentMethod = 'cash',
+    this.amountPaid = 0,
   });
 
   /// Validates the create order parameters
@@ -58,7 +62,7 @@ class CreateOrderParams extends Equatable {
   }
 
   @override
-  List<Object?> get props => [cart, customerName, customerPhone, notes];
+  List<Object?> get props => [cart, customerName, customerPhone, notes, paymentMethod, amountPaid];
 }
 
 class CreateOrderUseCase implements UseCase<Order, CreateOrderParams> {
@@ -79,6 +83,8 @@ class CreateOrderUseCase implements UseCase<Order, CreateOrderParams> {
       customerName: params.customerName,
       customerPhone: params.customerPhone,
       notes: params.notes,
+      paymentMethod: params.paymentMethod,
+      amountPaid: params.amountPaid,
     );
   }
 }

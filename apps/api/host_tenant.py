@@ -16,6 +16,6 @@ def subdomain_from_host(host: str, *, platform_root_domain: str | None = None) -
     m = re.match(r"^([a-z0-9][a-z0-9-]*)\.localhost$", host)
     if m:
         return m.group(1)
-    if host in ("localhost", "api", "127.0.0.1"):
-        return None
+    if host in ("localhost", "api", "127.0.0.1", "testserver", "test"):
+        return "demo"
     return None

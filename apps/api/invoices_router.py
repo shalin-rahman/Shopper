@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 from uuid import UUID
+from datetime import datetime
 
 import io
 
@@ -12,7 +13,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 
-from schemas import InvoiceCreate, InvoiceOut, InvoiceLineOut
+from schemas import InvoiceCreate, InvoiceOut, InvoiceLineOut, SalesReturnCreate, CreditNoteOut
 from tenant import resolve_tenant_id, subdomain_from_request, tenant_transaction
 from deps import StaffDep
 
@@ -36,6 +37,34 @@ async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep)
     tenant = await resolve_tenant_id(pool, sub)
     tenant_id = tenant["id"]
 
+    # 0. Smart Inline Saving of Customer
+    customer_id = body.customer_id
+    if body.customer_data and not customer_id:
+        async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+            # Check if customer code already exists to prevent duplicates
+            existing = await conn.fetchval(
+                "SELECT id FROM tenant_data.customers WHERE code = $1", 
+                body.customer_data.code
+            )
+            if existing:
+                customer_id = existing
+            else:
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO tenant_data.customers (
+                        code, name_en, name_bn, phone, email, billing_address_en
+                    ) VALUES ($1, $2, $3, $4, $5, $6)
+                    RETURNING id
+                    """,
+                    body.customer_data.code,
+                    body.customer_data.name_en,
+                    body.customer_data.name_bn,
+                    body.customer_data.phone,
+                    body.customer_data.email,
+                    body.customer_data.billing_address_en
+                )
+                customer_id = row["id"]
+
     # 1. Calculate totals
     subtotal = Decimal("0")
     total_vat = Decimal("0")
@@ -57,6 +86,26 @@ async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep)
 
     total_amount = subtotal + total_vat
 
+    # High-Value Trigger (BDT 200,000) for Mushak 6.10 compliance
+    HIGH_VALUE_THRESHOLD = Decimal("200000")
+    if total_amount >= HIGH_VALUE_THRESHOLD:
+        if not customer_id:
+            raise HTTPException(
+                status_code=400, 
+                detail="Customer ID is required for high-value invoices (>= 200,000 BDT) for Mushak 6.10 compliance."
+            )
+        
+        async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+            customer = await conn.fetchrow(
+                "SELECT tin, nid, bin FROM tenant_data.customers WHERE id = $1", 
+                customer_id
+            )
+            if not customer or not (customer["tin"] or customer["nid"] or customer["bin"]):
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Customer must have a valid TIN, NID, or BIN for high-value invoices per Mushak 6.10 requirements."
+                )
+
     async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
         # Create Invoice
         invoice_row = await conn.fetchrow(
@@ -66,7 +115,7 @@ async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep)
             ) VALUES ($1, $2, $3, $4, $5, $5, 'draft', $6)
             RETURNING *
             """,
-            body.customer_id,
+            customer_id,
             body.invoice_no,
             subtotal,
             total_vat,
@@ -98,6 +147,89 @@ async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep)
             line_rows.append(lr)
 
     return _row_to_out(invoice_row, line_rows)
+
+
+@router.post("/returns", response_model=CreditNoteOut, status_code=201)
+async def create_sales_return(request: Request, body: SalesReturnCreate, _auth: StaffDep):
+    """
+    Creates a Sales Return (Mushak 6.7) and generates a Credit Note.
+    Decreases the invoice's balance_due and records stock reversal.
+    """
+    sub = subdomain_from_request(request)
+    pool = _pool(request)
+    tenant = await resolve_tenant_id(pool, sub)
+    tenant_id = tenant["id"]
+
+    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+        # 1. Fetch original invoice
+        invoice = await conn.fetchrow(
+            "SELECT * FROM tenant_data.invoices WHERE id = $1", body.invoice_id
+        )
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+
+        # 2. Calculate adjustment (Simplify: use direct items or total from body)
+        # For production-grade, we would calculate VAT per returned item.
+        # Here we use total returned value derived from items.
+        total_taxable = Decimal("0")
+        total_vat = Decimal("0")
+        
+        for item in body.items:
+            # Fetch product info for VAT and pricing
+            prod = await conn.fetchrow("SELECT sell_price, vat_rate_pct FROM tenant_data.products WHERE id = $1", item["product_id"])
+            if prod:
+                taxable = Decimal(str(item["qty"])) * Decimal(str(prod["sell_price"]))
+                vat = (taxable * Decimal(str(prod["vat_rate_pct"]))) / Decimal("100")
+                total_taxable += taxable
+                total_vat += vat
+
+        total_adjustment = total_taxable + total_vat
+        note_no = f"CN-{datetime.now().strftime('%Y%m%d')}-{body.invoice_id.hex[:4]}"
+
+        # 3. Insert Credit Note (Mushak 6.7)
+        cn_row = await conn.fetchrow(
+            """
+            INSERT INTO tenant_data.credit_notes (
+                tenant_id, invoice_id, note_no, reason, 
+                adjustment_amount_taxable, adjustment_amount_vat, total_adjustment
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *
+            """,
+            tenant_id, body.invoice_id, note_no, body.reason,
+            total_taxable, total_vat, total_adjustment
+        )
+
+        # 4. Update Invoice Balance
+        await conn.execute(
+            """
+            UPDATE tenant_data.invoices 
+            SET total_amount = total_amount - $1, 
+                balance_due = balance_due - $1,
+                updated_at = now()
+            WHERE id = $2
+            """,
+            total_adjustment, body.invoice_id
+        )
+
+        # 5. Reverse Stock for returned items
+        for item in body.items:
+             await conn.execute(
+                """
+                INSERT INTO tenant_data.stock_transactions (
+                    tenant_id, product_id, transaction_type, quantity, 
+                    reference_type, reference_id, notes
+                ) VALUES ($1, $2, 'in', $3, 'return', $4, $5)
+                """,
+                tenant_id, item["product_id"], item["qty"], 
+                cn_row["id"], f"Sales Return: {note_no}"
+            )
+             
+             await conn.execute(
+                 "UPDATE tenant_data.products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+                 item["qty"], item["product_id"]
+             )
+
+    return CreditNoteOut(**dict(cn_row))
 
 
 @router.get("", response_model=list[InvoiceOut])

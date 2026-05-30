@@ -6,10 +6,19 @@ import { TranslocoPipe } from '@ngneat/transloco';
 import { LocaleService } from '../../core/i18n/locale.service';
 import { Product, ProductService } from './product.service';
 
+import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
+import { ShopperDataGridComponent } from '../../shared/components/shopper-data-grid.component';
+
 @Component({
   selector: 'app-products-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslocoPipe],
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    TranslocoPipe, 
+    ShopperButtonComponent, 
+    ShopperDataGridComponent
+  ],
   templateUrl: './products-page.component.html',
 })
 export class ProductsPageComponent implements OnInit {

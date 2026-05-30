@@ -1,35 +1,134 @@
-<div class="min-h-screen bg-slate-50 text-slate-900">
-  <header
-    class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm"
-  >
-    <div class="flex flex-wrap items-center gap-4">
-      <h1 class="text-lg font-semibold tracking-tight">{{ 'app.title' | transloco }}</h1>
-      <nav class="flex gap-3 text-sm font-medium text-slate-600">
-        <a routerLink="/" class="hover:text-indigo-600">{{ 'nav.home' | transloco }}</a>
-        <a routerLink="/products" class="hover:text-indigo-600">{{ 'nav.products' | transloco }}</a>
-        <a routerLink="/admin/tenants" class="hover:text-indigo-600">{{ 'nav.admin' | transloco }}</a>
-      </nav>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="text-sm text-slate-600">{{ 'app.language' | transloco }}</span>
-      <button
-        type="button"
-        class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-        (click)="setLang('en')"
-      >
-        {{ 'app.english' | transloco }}
-      </button>
-      <button
-        type="button"
-        class="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
-        (click)="setLang('bn')"
-      >
-        {{ 'app.bangla' | transloco }}
-      </button>
+<div class="min-h-screen bg-shopper-bg text-shopper-text font-sans antialiased transition-colors duration-500">
+  
+  <!-- Premium Glossy Navbar -->
+  <header class="sticky top-0 z-50 w-full border-b border-shopper-border bg-shopper-bg/70 backdrop-blur-xl transition-all">
+    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      
+      <div class="flex items-center gap-8">
+        <div class="flex items-center gap-2 group cursor-pointer" routerLink="/">
+          <div class="h-8 w-8 rounded-lg bg-shopper-primary shadow-lg shadow-shopper-primary/20 flex items-center justify-center text-white font-black transform transition-transform group-hover:scale-110">S</div>
+          <h1 class="text-xl font-extrabold tracking-tighter text-shopper-text uppercase">{{ 'app.title' | transloco }}</h1>
+        </div>
+        
+        <nav class="hidden md:flex items-center gap-1">
+          <a routerLink="/" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary" 
+             [routerLinkActiveOptions]="{exact: true}"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.home' | transloco }}
+          </a>
+          <a routerLink="/products" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.products' | transloco }}
+          </a>
+          <a routerLink="/invoices" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.invoices' | transloco }}
+          </a>
+          <a routerLink="/inventory" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.inventory' | transloco }}
+          </a>
+          <a routerLink="/procurement" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.procurement' | transloco }}
+          </a>
+          <a routerLink="/suppliers" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.suppliers' | transloco }}
+          </a>
+          <a routerLink="/expenses" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.expenses' | transloco }}
+          </a>
+          <a routerLink="/accounting" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.accounting' | transloco }}
+          </a>
+          <a routerLink="/customers" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.customers' | transloco }}
+          </a>
+          <a routerLink="/staff" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.staff' | transloco }}
+          </a>
+          <a routerLink="/admin/tenants" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.admin' | transloco }}
+          </a>
+        </nav>
+      </div>
+
+      <div class="flex items-center gap-4">
+        
+        <!-- Theme Switcher (Mini Pills) -->
+        <div class="hidden lg:flex items-center gap-1.5 p-1 bg-shopper-surface rounded-full border border-shopper-border">
+          @for (t of themes; track t) {
+            <button 
+              type="button"
+              class="h-5 w-5 rounded-full border border-white/20 transition-transform hover:scale-125 focus:ring-2 focus:ring-shopper-primary"
+              [class.scale-125]="theme.currentTheme() === t"
+              [title]="t"
+              (click)="setTheme(t)"
+              [style.background]="getThemeColor(t)"
+              [attr.data-theme]="t"
+            ></button>
+          }
+        </div>
+
+        <!-- Language Dropdown placeholder (simplified for now) -->
+        <div class="flex gap-1">
+          <button
+            type="button"
+            class="rounded-lg px-3 py-1.5 text-xs font-black uppercase tracking-widest transition-all hover:bg-shopper-primary hover:text-white"
+            [class.bg-shopper-primary]="locale.activeLang() === 'en'"
+            [class.text-white]="locale.activeLang() === 'en'"
+            (click)="setLang('en')"
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            class="rounded-lg px-3 py-1.5 text-xs font-black uppercase tracking-widest transition-all hover:bg-shopper-primary hover:text-white"
+            [class.bg-shopper-primary]="locale.activeLang() === 'bn'"
+            [class.text-white]="locale.activeLang() === 'bn'"
+            (click)="setLang('bn')"
+          >
+            BN
+          </button>
+        </div>
+
+      </div>
     </div>
   </header>
 
-  <main class="mx-auto max-w-5xl p-4">
+  <!-- Main Viewport -->
+  <main class="mx-auto max-w-7xl pt-10 pb-20 px-6">
     <router-outlet />
   </main>
+
+  <!-- Subtle Footer -->
+  <footer class="border-t border-shopper-border py-12 bg-shopper-surface/30">
+    <div class="mx-auto max-w-7xl px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div class="text-sm text-slate-400 font-medium tracking-tight">
+        &copy; 2026 Shopper Enterprise Platform. All rights reserved.
+      </div>
+      <div class="flex items-center gap-4 text-xs font-bold text-slate-400 uppercase tracking-widest">
+        <span>Security</span>
+        <span>Privacy</span>
+        <span>Infrastructure</span>
+      </div>
+    </div>
+  </footer>
 </div>
