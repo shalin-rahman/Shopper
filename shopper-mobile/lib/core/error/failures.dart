@@ -12,30 +12,34 @@ abstract class Failure extends Equatable {
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure(String message, {String? code}) : super(message, code: code);
+  const ServerFailure(super.message, {super.code});
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure(String message, {String? code}) : super(message, code: code);
+  const NetworkFailure(super.message, {super.code});
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure(String message, {String? code}) : super(message, code: code);
+  const CacheFailure(super.message, {super.code});
 }
 
 class AuthFailure extends Failure {
-  const AuthFailure(String message, {String? code}) : super(message, code: code);
+  const AuthFailure(super.message, {super.code});
 }
 
 class ValidationFailure extends Failure {
-  const ValidationFailure(List<String> errors, {String? code})
+  ValidationFailure(List<String> errors, {String? code})
       : super(errors.isNotEmpty ? errors.first : 'Validation failed', errors: errors, code: code);
 }
 
 class BusinessLogicFailure extends Failure {
-  const BusinessLogicFailure(String message, {String? code}) : super(message, code: code);
+  const BusinessLogicFailure(super.message, {super.code});
+}
+
+class DatabaseFailure extends Failure {
+  const DatabaseFailure(super.message, {super.code});
 }
 
 class UnknownFailure extends Failure {
-  const UnknownFailure(String message, {String? code}) : super(message, code: code);
+  const UnknownFailure(super.message, {super.code});
 }

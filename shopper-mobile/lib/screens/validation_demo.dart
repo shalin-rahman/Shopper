@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
 import '../widgets/index.dart';
 import '../core/design_system.dart';
 
@@ -105,7 +105,7 @@ class _ValidationDemoScreenState extends State<ValidationDemoScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Validation Error Display Demo
-            Text(
+            const Text(
               'Validation Error Display',
               style: kHeadline6,
             ),
@@ -117,7 +117,7 @@ class _ValidationDemoScreenState extends State<ValidationDemoScreen> {
             const SizedBox(height: 24.0),
 
             // Form Fields Demo
-            Text(
+            const Text(
               'Form Fields with Validation',
               style: kHeadline6,
             ),
@@ -200,7 +200,7 @@ class _ValidationDemoScreenState extends State<ValidationDemoScreen> {
                     controller: _priceController,
                     labelText: 'Price (Optional)',
                     hintText: 'Enter price',
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     errorText: _showValidationErrors && _priceController.text.isNotEmpty
                         ? () {
                             final price = double.tryParse(_priceController.text);
@@ -241,7 +241,7 @@ class _ValidationDemoScreenState extends State<ValidationDemoScreen> {
             const SizedBox(height: 24.0),
 
             // Individual Error Text Demo
-            Text(
+            const Text(
               'Individual Error Text Demo',
               style: kHeadline6,
             ),
@@ -250,23 +250,23 @@ class _ValidationDemoScreenState extends State<ValidationDemoScreen> {
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
-                border: Border.all(color: kOutlineColor),
+                border: Border.all(color: Colors.grey),
                 borderRadius: BorderRadius.circular(8.0),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Field with Error:',
-                    style: kBodyText1,
+                    style: kBodyLarge,
                   ),
-                  const SizedBox(height: 8.0),
+                  SizedBox(height: 8.0),
                   ValidatedTextFormField(
                     initialValue: 'invalid-email',
                     labelText: 'Email',
                     errorText: 'This email format is invalid',
                   ),
-                  const SizedBox(height: 16.0),
+                  SizedBox(height: 16.0),
                   ValidationErrorText(
                     error: 'This is how individual errors appear below form fields',
                   ),
@@ -277,7 +277,7 @@ class _ValidationDemoScreenState extends State<ValidationDemoScreen> {
             const SizedBox(height: 24.0),
 
             // Usage Instructions
-            Text(
+            const Text(
               'Usage Instructions',
               style: kHeadline6,
             ),
@@ -288,29 +288,29 @@ class _ValidationDemoScreenState extends State<ValidationDemoScreen> {
               decoration: BoxDecoration(
                 color: kSurfaceColor,
                 borderRadius: BorderRadius.circular(8.0),
-                border: Border.all(color: kOutlineColor),
+                border: Border.all(color: Colors.grey),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     '• ValidationErrorDisplay: Shows multiple validation errors in a styled container',
-                    style: kBodyText2,
+                    style: kBodySmall,
                   ),
                   const SizedBox(height: 8.0),
-                  Text(
+                  const Text(
                     '• ValidationErrorText: Shows single error message below form fields',
-                    style: kBodyText2,
+                    style: kBodySmall,
                   ),
                   const SizedBox(height: 8.0),
-                  Text(
+                  const Text(
                     '• ValidatedTextFormField: Pre-styled form field with built-in error display',
-                    style: kBodyText2,
+                    style: kBodySmall,
                   ),
                   const SizedBox(height: 16.0),
                   Text(
                     'All components automatically integrate with the app\'s design system and support both light and dark themes.',
-                    style: kBodyText2.copyWith(fontStyle: FontStyle.italic),
+                    style: kBodySmall.copyWith(fontStyle: FontStyle.italic),
                   ),
                 ],
               ),

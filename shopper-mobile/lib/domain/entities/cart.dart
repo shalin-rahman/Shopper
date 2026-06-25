@@ -10,6 +10,10 @@ class CartItem extends Equatable {
   final double? discount;
   final String? notes;
   final DateTime addedAt;
+  // New fields for tax and VAT
+  final double? taxAmount;
+  final double? vatRatePct;
+  final double? vatAmount;
 
   const CartItem({
     required this.id,
@@ -19,11 +23,21 @@ class CartItem extends Equatable {
     this.discount,
     this.notes,
     required this.addedAt,
+    this.taxAmount,
+    this.vatRatePct,
+    this.vatAmount,
   });
 
   double get subtotal => (unitPrice * quantity) - (discount ?? 0);
 
   double get totalDiscount => (discount ?? 0) * quantity;
+
+  // New getters for tax and VAT
+  double get taxAmountValue => taxAmount ?? 0;
+  double get vatRatePercent => vatRatePct ?? 0;
+  double get vatAmountValue => vatAmount ?? 0;
+
+  String get productId => product.id;
 
   CartItem copyWith({
     String? id,
@@ -33,6 +47,9 @@ class CartItem extends Equatable {
     double? discount,
     String? notes,
     DateTime? addedAt,
+    double? taxAmount,
+    double? vatRatePct,
+    double? vatAmount,
   }) {
     return CartItem(
       id: id ?? this.id,
@@ -42,6 +59,9 @@ class CartItem extends Equatable {
       discount: discount ?? this.discount,
       notes: notes ?? this.notes,
       addedAt: addedAt ?? this.addedAt,
+      taxAmount: taxAmount ?? this.taxAmount,
+      vatRatePct: vatRatePct ?? this.vatRatePct,
+      vatAmount: vatAmount ?? this.vatAmount,
     );
   }
 
@@ -51,10 +71,7 @@ class CartItem extends Equatable {
 
     // Required field validations
     validations.add(ValidationUtils.validateRequired(id, 'Cart item ID'));
-    validations.add(ValidationUtils.validateRequired(product, 'Product'));
-    validations.add(ValidationUtils.validateRequired(quantity, 'Quantity'));
-    validations.add(ValidationUtils.validateRequired(unitPrice, 'Unit price'));
-    validations.add(ValidationUtils.validateRequired(addedAt, 'Added at'));
+    // Other fields are non-nullable and validated below
 
     // Product validation
     validations.add(product.validate());
@@ -108,7 +125,10 @@ class CartItem extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, product, quantity, unitPrice, discount, notes, addedAt];
+  List<Object?> get props => [id, product, quantity, unitPrice, discount, notes, addedAt, taxAmount, vatRatePct, vatAmount];
+  // Convenience getters
+  String get productName => product.displayName;
+  double get lineTotal => subtotal;
 }
 
 class Cart extends Equatable {
@@ -124,11 +144,25 @@ class Cart extends Equatable {
     required this.updatedAt,
   });
 
+  factory Cart.empty() {
+    final now = DateTime.now();
+    return Cart(
+      id: 'empty',
+      items: const [],
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
   double get subtotal => items.fold(0, (sum, item) => sum + item.subtotal);
 
   double get totalDiscount => items.fold(0, (sum, item) => sum + item.totalDiscount);
+  
+  double get discount => totalDiscount;
+  
+  double get taxAmount => items.fold(0, (sum, item) => sum + item.taxAmountValue);
 
-  double get total => subtotal;
+  double get total => subtotal + taxAmount - discount;
 
   int get totalItems => items.fold(0, (sum, item) => sum + item.quantity);
 
@@ -154,9 +188,7 @@ class Cart extends Equatable {
 
     // Required field validations
     validations.add(ValidationUtils.validateRequired(id, 'Cart ID'));
-    validations.add(ValidationUtils.validateRequired(items, 'Items'));
-    validations.add(ValidationUtils.validateRequired(createdAt, 'Created at'));
-    validations.add(ValidationUtils.validateRequired(updatedAt, 'Updated at'));
+    // Other fields are non-nullable and validated below
 
     // Items validation
     if (items.isEmpty) {

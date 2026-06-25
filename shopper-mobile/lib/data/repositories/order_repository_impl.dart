@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import 'package:drift/drift.dart';
 import '../../core/error/failures.dart';
 import '../../domain/entities/cart.dart';
@@ -40,8 +40,8 @@ class OrderRepositoryImpl implements OrderRepository {
           orderNumber: orderNumber,
           subtotal: cart.subtotal,
           total: cart.total,
-          discount: Value(cart.discount),
-          taxAmount: Value(cart.taxAmount),
+          discount: Value(cart.totalDiscount),
+          taxAmount: const Value(0.0),
           status: entity.OrderStatus.completed.value,
           paymentStatus: entity.PaymentStatus.pending.value,
           customerName: Value(customerName),
@@ -68,9 +68,9 @@ class OrderRepositoryImpl implements OrderRepository {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discount: Value(item.discount),
-            taxAmount: Value(item.taxAmount),
-            vatRatePct: Value(item.vatRatePct),
-            vatAmount: Value(item.vatAmount),
+            taxAmount: Value(item.taxAmount ?? 0.0),
+            vatRatePct: Value(item.vatRatePct ?? 0.0),
+            vatAmount: Value(item.vatAmount ?? 0.0),
             notes: Value(item.notes),
           ));
 
@@ -91,8 +91,8 @@ class OrderRepositoryImpl implements OrderRepository {
             unitPrice: item.unitPrice,
             discount: item.discount,
             taxAmount: item.taxAmount,
-            vatRatePct: item.vatRatePct,
-            vatAmount: item.vatAmount,
+            vatRatePct: item.vatRatePct ?? 0.0,
+            vatAmount: item.vatAmount ?? 0.0,
             notes: item.notes,
           ));
         }
@@ -170,9 +170,9 @@ class OrderRepositoryImpl implements OrderRepository {
 
   @override
   Future<Either<Failure, List<entity.Order>>> getOrders({int? limit, int? offset, entity.OrderStatus? status, DateTime? startDate, DateTime? endDate}) async {
-     final dbOrders = await database.getAllOrders();
+     await database.getAllOrders(); // Just to keep the Future call without unused variable warning if needed, or remove it.
      // Simplified implementation for now
-     return Right([]);
+     return const Right([]);
   }
 
   @override
@@ -256,7 +256,7 @@ class OrderRepositoryImpl implements OrderRepository {
 
   @override
   Future<Either<Failure, List<entity.Order>>> getLocalOrders() async {
-     final dbOrders = await database.getAllOrders();
+     await database.getAllOrders();
      return const Right([]);
   }
 

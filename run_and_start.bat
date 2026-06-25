@@ -1,13 +1,22 @@
 @echo off
 setlocal
 
-:: Attempt to kill any previously running instances of this launcher window
+:: Attempt to kill any previously running instances of launcher windows
 taskkill /F /FI "WINDOWTITLE eq *Shopper Pipeline Runner*" >nul 2>&1
+taskkill /F /FI "WINDOWTITLE eq *Shopper Mobile Launcher*" >nul 2>&1
 title Shopper Pipeline Runner
 
 echo ==============================================
 echo Checking Docker Desktop Status...
 echo ==============================================
+docker info >nul 2>&1
+if %errorlevel% equ 0 goto docker_running
+
+echo [INFO] Docker is not running. Attempting to start Docker Desktop...
+start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+echo Waiting for Docker to start (this may take a moment)...
+timeout /t 20 /nobreak
+
 docker info >nul 2>&1
 if %errorlevel% neq 0 (
     echo [ERROR] Docker is not running or not found.
@@ -15,6 +24,8 @@ if %errorlevel% neq 0 (
     pause
     exit /b 1
 )
+
+:docker_running
 
 echo ==============================================
 echo Stopping any already running services...
@@ -62,7 +73,7 @@ start http://localhost
 start http://localhost:8000/docs
 echo.
 echo Launching Mobile App...
-start cmd /k "title Shopper Mobile Launcher && echo Starting Shopper Mobile... && cd shopper-mobile && flutter run"
+start powershell -NoExit -Command "$Host.UI.RawUI.WindowTitle = 'Shopper Mobile Launcher'; Write-Host 'Starting Shopper Mobile...'; cd shopper-mobile; flutter run -d chrome 2>&1 | Tee-Object -FilePath 'flutter_run.log'"
 echo ==============================================
 echo Press any key to exit this window...
 pause >nul

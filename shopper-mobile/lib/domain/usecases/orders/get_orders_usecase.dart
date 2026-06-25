@@ -1,7 +1,7 @@
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import 'package:equatable/equatable.dart';
 import '../../../../core/error/failures.dart';
-import '../../../../core/usecases/usecase.dart';
+import '../../../../core/usecase/usecase.dart';
 import '../../entities/order.dart';
 import '../../repositories/order_repository.dart';
 

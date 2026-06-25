@@ -1,3 +1,4 @@
+import '../../../core/usecase/usecase.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/product.dart';
@@ -5,7 +6,6 @@ import '../../../domain/usecases/products/get_products_usecase.dart';
 import '../../../domain/usecases/products/search_products_usecase.dart';
 import '../../../domain/usecases/products/adjust_stock_usecase.dart';
 import '../../../domain/usecases/products/sync_adjustments_usecase.dart';
-import '../../../../core/usecases/usecase.dart';
 import '../../../core/error/failures.dart';
 
 // Events
@@ -137,7 +137,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(ProductsError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(ProductsError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(ProductsError(failure.message));
         }
@@ -158,13 +158,13 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
     emit(ProductsLoading());
 
     final result = await searchProductsUseCase(
-      SearchProductsParams(query: event.query),
+      SearchProductsParams(event.query),
     );
 
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(ProductsError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(ProductsError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(ProductsError(failure.message));
         }
@@ -186,7 +186,7 @@ class ProductsBloc extends Bloc<ProductsEvent, ProductsState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(ProductsError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(ProductsError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(ProductsError(failure.message));
         }

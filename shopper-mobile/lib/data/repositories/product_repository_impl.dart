@@ -1,14 +1,14 @@
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import 'package:drift/drift.dart';
 import '../../../core/error/failures.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/repositories/product_repository.dart';
-import '../sources/local/database/app_database.dart';
+import '../sources/local/database/app_database.dart' as db;
 import '../sources/remote/api_client.dart';
 
 class ProductRepositoryImpl implements ProductRepository {
   final ApiClient apiClient;
-  final AppDatabase database;
+  final db.AppDatabase database;
 
   ProductRepositoryImpl({
     required this.apiClient,
@@ -54,7 +54,7 @@ class ProductRepositoryImpl implements ProductRepository {
       if (localProduct != null) {
         return Right(_mapToEntity(localProduct));
       }
-      return Left(CacheFailure('Product not found locally'));
+      return const Left(CacheFailure('Product not found locally'));
     } catch (e) {
       return Left(CacheFailure('Failed to get local product: ${e.toString()}'));
     }
@@ -90,7 +90,7 @@ class ProductRepositoryImpl implements ProductRepository {
   @override
   Future<Either<Failure, void>> cacheProducts(List<Product> products) async {
     for (final p in products) {
-      await database.insertProduct(ProductsCompanion(
+      await database.insertProduct(db.ProductsCompanion(
         id: Value(p.id),
         nameEn: Value(p.nameEn),
         nameBn: Value(p.nameBn),
@@ -99,6 +99,7 @@ class ProductRepositoryImpl implements ProductRepository {
         sellPrice: Value(p.sellPrice),
         stockQuantity: Value(p.stockQuantity),
         isActive: Value(p.isActive),
+        isTaxable: Value(p.isTaxable),
         createdAt: Value(p.createdAt),
         updatedAt: Value(p.updatedAt),
       ));
@@ -123,7 +124,7 @@ class ProductRepositoryImpl implements ProductRepository {
   }) async {
     try {
       final id = DateTime.now().millisecondsSinceEpoch.toString();
-      await database.insertAdjustment(StockAdjustmentsCompanion(
+      await database.insertAdjustment(db.StockAdjustmentsCompanion(
         id: Value(id),
         sku: Value(sku),
         quantity: Value(quantity),
@@ -176,6 +177,7 @@ class ProductRepositoryImpl implements ProductRepository {
       sellPrice: row.sellPrice,
       stockQuantity: row.stockQuantity,
       isActive: row.isActive,
+      isTaxable: row.isTaxable,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );

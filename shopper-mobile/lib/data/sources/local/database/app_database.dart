@@ -36,18 +36,8 @@ class Products extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-class ProductSearch extends VirtualTable {
-  TextColumn get id => text()();
-  TextColumn get nameEn => text()();
-  TextColumn get nameBn => text()();
-  TextColumn get barcode => text()();
-  TextColumn get sku => text()();
-  TextColumn get category => text()();
-  TextColumn get brand => text()();
 
-  @override
-  String get moduleAndArgs => 'fts5(id, nameEn, nameBn, barcode, sku, category, brand, content=products, content_rowid=rowid)';
-}
+
 
 class CartItems extends Table {
   TextColumn get id => text()();
@@ -118,9 +108,10 @@ class StockAdjustments extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Products, ProductSearch, CartItems, Orders, OrderItems, StockAdjustments])
+@DriftDatabase(tables: [Products, CartItems, Orders, OrderItems, StockAdjustments])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
+  AppDatabase.forTesting(super.e);
 
   @override
   int get schemaVersion => 5;
@@ -165,15 +156,13 @@ class AppDatabase extends _$AppDatabase {
   static QueryExecutor _openConnection() {
     return driftDatabase(
       name: 'shopper_mobile_db',
-      native: const DriftNativeOptions(
-        databasePath: _databasePath,
+      web: DriftWebOptions(
+        sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+        driftWorker: Uri.parse('drift_worker.js'),
       ),
     );
   }
 
-  static String get _databasePath {
-    return 'shopper_mobile.db';
-  }
 
   // Product operations
   Future<List<Product>> getAllProducts() => select(products).get();
@@ -200,15 +189,15 @@ class AppDatabase extends _$AppDatabase {
 
   // FTS Search
   Future<List<Product>> searchProducts(String query) async {
-    final searchResults = await (select(productSearch)
-          ..where((tbl) => tbl.anyMatch(query)))
-        .get();
-    
-    final ids = searchResults.map((e) => e.id).toList();
-    
-    if (ids.isEmpty) return [];
-    
-    return (select(products)..where((tbl) => tbl.id.isIn(ids))).get();
+    final likeQuery = '%$query%';
+    return (select(products)
+      ..where((tbl) => 
+        tbl.nameEn.like(likeQuery) | 
+        tbl.nameBn.like(likeQuery) | 
+        tbl.barcode.equals(query) | 
+        tbl.sku.equals(query)
+      )
+    ).get();
   }
 
   // Cart operations

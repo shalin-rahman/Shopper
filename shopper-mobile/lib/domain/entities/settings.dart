@@ -113,12 +113,9 @@ class AppSettings extends Equatable {
     final List<ValidationResult> validations = [];
 
     // Required field validations
-    validations.add(ValidationUtils.validateRequired(themeMode, 'Theme mode'));
-    validations.add(ValidationUtils.validateRequired(language, 'Language'));
-    validations.add(ValidationUtils.validateRequired(syncIntervalMinutes, 'Sync interval minutes'));
-    validations.add(ValidationUtils.validateRequired(backupIntervalDays, 'Backup interval days'));
+    // Other fields are non-nullable and validated below
     validations.add(ValidationUtils.validateRequired(currencySymbol, 'Currency symbol'));
-    validations.add(ValidationUtils.validateRequired(decimalPlaces, 'Decimal places'));
+    // Decimal places is non-nullable and validated below
 
     // Sync interval validation
     if (syncIntervalMinutes < 5) {

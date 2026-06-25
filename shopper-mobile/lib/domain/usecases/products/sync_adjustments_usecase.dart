@@ -1,6 +1,6 @@
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import '../../../../core/error/failures.dart';
-import '../../../../core/usecases/usecase.dart';
+import '../../../../core/usecase/usecase.dart';
 import '../../repositories/product_repository.dart';
 
 class SyncAdjustmentsUseCase implements UseCase<void, NoParams> {

@@ -3,11 +3,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:http/http.dart' as http;
+import '../../domain/repositories/auth_repository.dart';
+import '../../domain/repositories/product_repository.dart';
+import '../../domain/repositories/cart_repository.dart';
+import '../../domain/repositories/order_repository.dart';
+import '../../domain/repositories/settings_repository.dart';
 import '../../data/repositories/auth_repository.dart';
-import '../../data/repositories/product_repository.dart';
-import '../../data/repositories/cart_repository.dart';
-import '../../data/repositories/order_repository.dart';
-import '../../data/repositories/settings_repository.dart';
+import '../../data/repositories/product_repository_impl.dart';
+import '../../data/repositories/cart_repository_impl.dart';
+import '../../data/repositories/order_repository_impl.dart';
+import '../../data/repositories/settings_repository_impl.dart';
 import '../../data/sources/local/database/app_database.dart';
 import '../../data/sources/local/preferences/app_preferences.dart';
 import '../../data/sources/remote/api_client.dart';
@@ -15,6 +20,8 @@ import '../../domain/usecases/auth/login_usecase.dart';
 import '../../domain/usecases/auth/logout_usecase.dart';
 import '../../domain/usecases/products/get_products_usecase.dart';
 import '../../domain/usecases/products/search_products_usecase.dart';
+import '../../domain/usecases/products/adjust_stock_usecase.dart';
+import '../../domain/usecases/products/sync_adjustments_usecase.dart';
 import '../../domain/usecases/cart/add_to_cart_usecase.dart';
 import '../../domain/usecases/cart/get_cart_usecase.dart';
 import '../../domain/usecases/cart/update_cart_item_usecase.dart';
@@ -22,6 +29,7 @@ import '../../domain/usecases/cart/remove_from_cart_usecase.dart';
 import '../../domain/usecases/cart/clear_cart_usecase.dart';
 import '../../domain/usecases/orders/create_order_usecase.dart';
 import '../../domain/usecases/orders/get_orders_usecase.dart';
+import '../../domain/usecases/orders/sync_orders_usecase.dart';
 import '../../domain/usecases/settings/get_settings_usecase.dart';
 import '../../domain/usecases/settings/update_settings_usecase.dart';
 import '../bloc/auth/auth_bloc.dart';
@@ -63,38 +71,29 @@ Future<void> setupDependencyInjection() async {
 
   // Repositories
   getIt.registerLazySingleton<AuthRepository>(
-    () => AuthRepository(
+    () => AuthRepositoryImpl(
       apiClient: getIt<ApiClient>(),
       preferences: getIt<AppPreferences>(),
     ),
   );
 
   getIt.registerLazySingleton<ProductRepository>(
-    () => ProductRepository(
+    () => ProductRepositoryImpl(
       apiClient: getIt<ApiClient>(),
       database: getIt<AppDatabase>(),
-      connectivity: getIt<Connectivity>(),
     ),
   );
 
   getIt.registerLazySingleton<CartRepository>(
-    () => CartRepository(
-      database: getIt<AppDatabase>(),
-    ),
+    () => CartRepositoryImpl(getIt<AppDatabase>()),
   );
 
   getIt.registerLazySingleton<OrderRepository>(
-    () => OrderRepository(
-      apiClient: getIt<ApiClient>(),
-      database: getIt<AppDatabase>(),
-      connectivity: getIt<Connectivity>(),
-    ),
+    () => OrderRepositoryImpl(getIt<AppDatabase>(), getIt<ApiClient>()),
   );
 
   getIt.registerLazySingleton<SettingsRepository>(
-    () => SettingsRepository(
-      preferences: getIt<AppPreferences>(),
-    ),
+    () => SettingsRepositoryImpl(getIt<AppPreferences>()),
   );
 
   // Use Cases
@@ -114,6 +113,14 @@ Future<void> setupDependencyInjection() async {
 
   getIt.registerLazySingleton<SearchProductsUseCase>(
     () => SearchProductsUseCase(getIt<ProductRepository>()),
+  );
+
+  getIt.registerLazySingleton<AdjustStockUseCase>(
+    () => AdjustStockUseCase(getIt<ProductRepository>()),
+  );
+
+  getIt.registerLazySingleton<SyncAdjustmentsUseCase>(
+    () => SyncAdjustmentsUseCase(getIt<ProductRepository>()),
   );
 
   // Cart
@@ -167,6 +174,8 @@ Future<void> setupDependencyInjection() async {
     () => ProductsBloc(
       getProductsUseCase: getIt<GetProductsUseCase>(),
       searchProductsUseCase: getIt<SearchProductsUseCase>(),
+      adjustStockUseCase: getIt<AdjustStockUseCase>(),
+      syncAdjustmentsUseCase: getIt<SyncAdjustmentsUseCase>(),
     ),
   );
 
@@ -184,6 +193,7 @@ Future<void> setupDependencyInjection() async {
     () => OrdersBloc(
       createOrderUseCase: getIt<CreateOrderUseCase>(),
       getOrdersUseCase: getIt<GetOrdersUseCase>(),
+      syncOrdersUseCase: getIt<SyncOrdersUseCase>(),
     ),
   );
 

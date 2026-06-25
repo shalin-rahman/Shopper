@@ -1,16 +1,14 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import '../../../core/error/failures.dart';
 import '../../../domain/entities/user.dart';
 import '../../../domain/entities/auth_token.dart';
 import '../../../domain/entities/product.dart';
 import '../../../domain/entities/order.dart';
-import '../../../domain/entities/cart.dart';
-import '../../../domain/entities/settings.dart';
 import '../../../core/validation/validation.dart';
-import 'local/preferences/app_preferences.dart';
+import '../local/preferences/app_preferences.dart';
 
 class ApiClient {
   final http.Client client;
@@ -59,8 +57,8 @@ class ApiClient {
         final result = fromJson(data);
 
         // Validate the created object if it has validation
-        if (validateResponse && result is dynamic && result.validate is Function) {
-          final validationResult = result.validate();
+        if (validateResponse && (result as dynamic).validate is Function) {
+          final validationResult = (result as dynamic).validate();
           if (!validationResult.isValid) {
             return Left(ValidationFailure(validationResult.errors));
           }
@@ -71,10 +69,10 @@ class ApiClient {
         // Token expired, try to refresh
         final refreshResult = await _refreshTokenIfNeeded();
         if (refreshResult.isLeft()) {
-          return Left(AuthFailure('Authentication failed'));
+          return const Left(AuthFailure('Authentication failed'));
         }
         // Retry the request with new token
-        return Left(ServerFailure('Request failed, please retry'));
+        return const Left(ServerFailure('Request failed, please retry'));
       } else {
         final error = json.decode(response.body);
         final message = error['message'] ?? 'Unknown error occurred';
@@ -90,7 +88,7 @@ class ApiClient {
     final List<ValidationResult> validations = [];
 
     // Common API response validation
-    validations.add(ValidationUtils.validateRequired(data, 'API response data'));
+    validations.add(ValidationUtils.validateRequired(data.toString(), 'API response data'));
 
     // Type-specific validations
     switch (type) {
@@ -213,13 +211,16 @@ class ApiClient {
         return const Right(null);
       }
 
-      final refreshResult = await refreshToken(token.refreshToken);
+      if (token.refreshToken == null) {
+        return const Left(AuthFailure('No refresh token available'));
+      }
+      final refreshResult = await refreshToken(token.refreshToken!);
       return refreshResult.fold(
         (failure) => Left(failure),
         (_) => const Right(null),
       );
     } catch (e) {
-      return Left(AuthFailure('Token refresh failed'));
+      return const Left(AuthFailure('Token refresh failed'));
     }
   }
 
@@ -229,7 +230,7 @@ class ApiClient {
     required String password,
   }) async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -257,7 +258,7 @@ class ApiClient {
 
   Future<Either<Failure, AuthToken>> refreshToken(String refreshToken) async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -284,7 +285,7 @@ class ApiClient {
 
   Future<Either<Failure, User>> getCurrentUser() async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -319,7 +320,7 @@ class ApiClient {
     String? searchQuery,
   }) async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -394,7 +395,7 @@ class ApiClient {
     required Map<String, dynamic> orderData,
   }) async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -442,7 +443,7 @@ class ApiClient {
   // POS Sync endpoints
   Future<Either<Failure, Map<String, dynamic>>> syncPosData() async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -463,7 +464,7 @@ class ApiClient {
 
   Future<Either<Failure, Map<String, dynamic>>> offlinePunchOrders(List<Map<String, dynamic>> orders) async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {
@@ -487,7 +488,7 @@ class ApiClient {
     required Map<String, dynamic> adjustmentData,
   }) async {
     if (!await _isConnected()) {
-      return Left(NetworkFailure('No internet connection'));
+      return const Left(NetworkFailure('No internet connection'));
     }
 
     try {

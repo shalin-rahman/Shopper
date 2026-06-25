@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import '../widgets/index.dart';
+import 'package:shopper_mobile/l10n/app_localizations.dart';
 import '../screens/components_demo.dart';
 import '../screens/products_screen.dart';
 import '../screens/cart_screen.dart';
@@ -23,8 +22,8 @@ class AppRouter {
   static const String inventory = '/inventory';
   static const String componentsDemo = '/components-demo';
 
-  static Route<dynamic> generateRoute(RouteSettings settings) {
-    switch (settings.name) {
+  static Route<dynamic> generateRoute(RouteSettings routeSettings) {
+    switch (routeSettings.name) {
       case home:
         return MaterialPageRoute(builder: (_) => const HomeScreen());
       case products:
@@ -47,7 +46,7 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => Scaffold(
             body: Center(
-              child: Text('No route defined for ${settings.name}'),
+              child: Text('No route defined for ${routeSettings.name}'),
             ),
           ),
         );

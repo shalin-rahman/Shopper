@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'cart.dart';
 import '../../core/validation/validation.dart';
 
 enum OrderStatus {
@@ -80,8 +79,7 @@ class OrderItem extends Equatable {
     validations.add(ValidationUtils.validateRequired(id, 'Order item ID'));
     validations.add(ValidationUtils.validateRequired(productId, 'Product ID'));
     validations.add(ValidationUtils.validateRequired(productName, 'Product name'));
-    validations.add(ValidationUtils.validateRequired(quantity, 'Quantity'));
-    validations.add(ValidationUtils.validateRequired(unitPrice, 'Unit price'));
+    // Fields are non-nullable and validated below
 
     // Length validations
     validations.add(ValidationUtils.validateLengthRange(productName, 1, 200, 'Product name'));
@@ -204,13 +202,7 @@ class Order extends Equatable {
     // Required field validations
     validations.add(ValidationUtils.validateRequired(id, 'Order ID'));
     validations.add(ValidationUtils.validateRequired(orderNumber, 'Order number'));
-    validations.add(ValidationUtils.validateRequired(items, 'Items'));
-    validations.add(ValidationUtils.validateRequired(subtotal, 'Subtotal'));
-    validations.add(ValidationUtils.validateRequired(total, 'Total'));
-    validations.add(ValidationUtils.validateRequired(status, 'Status'));
-    validations.add(ValidationUtils.validateRequired(paymentStatus, 'Payment status'));
-    validations.add(ValidationUtils.validateRequired(createdAt, 'Created at'));
-    validations.add(ValidationUtils.validateRequired(updatedAt, 'Updated at'));
+    // Other fields are non-nullable and validated in business logic
 
     // Order number validation
     final orderNumberRegex = RegExp(r'^ORD-\d{6}$');
@@ -347,11 +339,7 @@ class OrderSummary extends Equatable {
     final List<ValidationResult> validations = [];
 
     // Required field validations
-    validations.add(ValidationUtils.validateRequired(totalOrders, 'Total orders'));
-    validations.add(ValidationUtils.validateRequired(totalRevenue, 'Total revenue'));
-    validations.add(ValidationUtils.validateRequired(pendingOrders, 'Pending orders'));
-    validations.add(ValidationUtils.validateRequired(completedOrders, 'Completed orders'));
-    validations.add(ValidationUtils.validateRequired(date, 'Date'));
+    // Fields are non-nullable and validated below
 
     // Count validations
     if (totalOrders < 0) {

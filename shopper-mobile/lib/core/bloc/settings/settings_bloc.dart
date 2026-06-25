@@ -4,6 +4,7 @@ import '../../../domain/entities/settings.dart';
 import '../../../domain/usecases/settings/get_settings_usecase.dart';
 import '../../../domain/usecases/settings/update_settings_usecase.dart';
 import '../../../core/error/failures.dart';
+import '../../../core/usecase/usecase.dart';
 
 // Events
 abstract class SettingsEvent extends Equatable {
@@ -13,7 +14,7 @@ abstract class SettingsEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class SettingsLoaded extends SettingsEvent {}
+class LoadSettings extends SettingsEvent {}
 
 class SettingsUpdated extends SettingsEvent {
   final AppSettings settings;
@@ -74,13 +75,13 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     required this.getSettingsUseCase,
     required this.updateSettingsUseCase,
   }) : super(SettingsInitial()) {
-    on<SettingsLoaded>(_onSettingsLoaded);
+    on<LoadSettings>(_onSettingsLoaded);
     on<SettingsUpdated>(_onSettingsUpdated);
     on<SettingsReset>(_onSettingsReset);
   }
 
   Future<void> _onSettingsLoaded(
-    SettingsLoaded event,
+    LoadSettings event,
     Emitter<SettingsState> emit,
   ) async {
     emit(SettingsLoading());
@@ -90,7 +91,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(SettingsError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(SettingsError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(SettingsError(failure.message));
         }
@@ -106,13 +107,13 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     emit(SettingsLoading());
 
     final result = await updateSettingsUseCase(
-      UpdateSettingsParams(settings: event.settings),
+      event.settings,
     );
 
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(SettingsError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(SettingsError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(SettingsError(failure.message));
         }
@@ -127,20 +128,20 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   ) async {
     emit(SettingsLoading());
 
-    final defaultSettings = AppSettings();
+    const defaultSettings = AppSettings();
     final result = await updateSettingsUseCase(
-      UpdateSettingsParams(settings: defaultSettings),
+      defaultSettings,
     );
 
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(SettingsError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(SettingsError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(SettingsError(failure.message));
         }
       },
-      (_) => emit(SettingsUpdatedSuccess(defaultSettings)),
+      (_) => emit(const SettingsUpdatedSuccess(defaultSettings)),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shopper_mobile/l10n/app_localizations.dart';
 import '../widgets/index.dart';
+import '../core/design_system.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -39,14 +40,14 @@ class HomeScreen extends StatelessWidget {
       padding: const EdgeInsets.all(kSpacing24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [kPrimaryColor, kPrimaryColor.withOpacity(0.8)],
+          colors: [kPrimaryColor, kPrimaryColor.withValues(alpha: 0.8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(kBorderRadiusLarge * 2),
         boxShadow: [
           BoxShadow(
-            color: kPrimaryColor.withOpacity(0.3),
+            color: kPrimaryColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -66,18 +67,18 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Shopper Enterprise',
-            style: kHeadline3.copyWith(color: Colors.white, fontWeight: FontWeight.black),
+            style: kHeadline3.copyWith(color: Colors.white, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, py: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text(
               'PRO PLAN • ACTIVE',
-              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.black, letterSpacing: 1),
+              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
             ),
           ),
         ],
@@ -114,7 +115,7 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label, style: kBodySmall.copyWith(color: Colors.grey, fontWeight: FontWeight.bold)),
-              Text(value, style: kHeadline6.copyWith(fontWeight: FontWeight.black)),
+              Text(value, style: kHeadline6.copyWith(fontWeight: FontWeight.w900)),
             ],
           ),
         ],
@@ -127,7 +128,7 @@ class HomeScreen extends StatelessWidget {
       spacing: kSpacing12,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('QUICK ACTIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.black, color: Colors.grey, letterSpacing: 1)),
+        const Text('QUICK ACTIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.grey, letterSpacing: 1)),
         Row(
           children: [
             Expanded(
@@ -161,8 +162,12 @@ class HomeScreen extends StatelessWidget {
   Widget _buildActionChip(BuildContext context, String label, IconData icon, Color color, {VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
-      child: ShopperCard(
-        color: color.withOpacity(0.05),
+      child: Container(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(kBorderRadiusLarge),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
+        ),
         padding: const EdgeInsets.all(kSpacing16),
         child: Row(
           children: [
@@ -176,12 +181,12 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildLocalizationSample(BuildContext context) {
-    return ShopperCard(
-      padding: const EdgeInsets.all(kSpacing16),
+    return const ShopperCard(
+      padding: EdgeInsets.all(kSpacing16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const ShopperColumn(
+          ShopperColumn(
             spacing: 4,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -189,7 +194,7 @@ class HomeScreen extends StatelessWidget {
               Text('Active locale: English', style: TextStyle(fontSize: 10, color: Colors.grey)),
             ],
           ),
-          const Text(
+          Text(
             '৳ ১২,৩৪,৫৬৭',
             style: TextStyle(fontFamily: 'Bengali', fontSize: 20, fontWeight: FontWeight.bold, color: kPrimaryColor),
           ),

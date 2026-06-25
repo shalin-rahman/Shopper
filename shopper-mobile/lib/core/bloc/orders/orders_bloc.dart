@@ -1,12 +1,14 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/order.dart';
 import '../../../domain/entities/cart.dart';
 import '../../../domain/usecases/orders/create_order_usecase.dart';
 import '../../../domain/usecases/orders/get_orders_usecase.dart';
 import '../../../domain/usecases/orders/sync_orders_usecase.dart';
-import '../../usecase/usecase.dart';
+
 import '../../../core/error/failures.dart';
+import '../../../core/usecase/usecase.dart';
 
 // Events
 abstract class OrdersEvent extends Equatable {
@@ -141,7 +143,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(OrdersError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(OrdersError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(OrdersError(failure.message));
         }
@@ -170,7 +172,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(OrdersError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(OrdersError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(OrdersError(failure.message));
         }
@@ -192,7 +194,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(OrdersError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(OrdersError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(OrdersError(failure.message));
         }

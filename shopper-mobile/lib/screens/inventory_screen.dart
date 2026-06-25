@@ -1,8 +1,9 @@
+import '../core/design_system.dart';
+import '../widgets/index.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
 import '../core/bloc/products/products_bloc.dart';
-import '../widgets/index.dart';
 
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
@@ -59,13 +60,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(kSpacing24),
             child: ShopperColumn(
-              spacing: kSpacing20,
+              spacing: kSpacing24,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Adjust Stock', style: kHeadline6.copyWith(fontWeight: FontWeight.black)),
+                    Text('Adjust Stock', style: kHeadline6.copyWith(fontWeight: FontWeight.w900)),
                     IconButton(
                       icon: const Icon(Icons.close),
                       onPressed: () => Navigator.pop(context),
@@ -79,7 +80,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 const ShopperDivider(),
                 
                 // Adjustment Type
-                const Text('Adjustment Reason', style: TextStyle(fontSize: 12, fontWeight: FontWeight.black, color: Colors.grey)),
+                const Text('Adjustment Reason', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.grey)),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -103,7 +104,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 Row(
                   children: [
                     const Expanded(
-                      child: Text('Quantity to Deduct', style: TextStyle(fontSize: 12, fontWeight: FontWeight.black, color: Colors.grey)),
+                      child: Text('Quantity to Deduct', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.grey)),
                     ),
                     Row(
                       children: [
@@ -114,7 +115,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(quantity.toInt().toString(), style: kHeadline6),
@@ -129,10 +130,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
 
                 // Notes
-                ShopperTextField(
+                ShopperInputField(
                   label: 'Notes (Optional)',
                   onChanged: (val) => notes = val,
-                  maxLines: 2,
+                  
                 ),
 
                 const SizedBox(height: kSpacing12),
@@ -163,7 +164,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+
 
     return ShopperScreen(
       title: 'Inventory Audit',
@@ -187,8 +188,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 } else if (state is ProductsLoadSuccess) {
                   if (state.products.isEmpty) {
                     return const ShopperEmptyState(
-                      icon: Icons.inventory_2_outlined,
-                      message: 'No items matching search',
+                      title: 'Inventory', icon: Icons.inventory_2_outlined, message: 'No items matching search', action: SizedBox.shrink(),
                     );
                   }
 
@@ -206,7 +206,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                               width: 50,
                               height: 50,
                               decoration: BoxDecoration(
-                                color: kPrimaryColor.withOpacity(0.05),
+                                color: kPrimaryColor.withValues(alpha: 0.05),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Icon(Icons.inventory_2, color: kPrimaryColor),
@@ -232,7 +232,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                             ),
                             ShopperSecondaryButton(
                               text: 'Adjust',
-                              iconOrImage: Icons.edit_note,
+                              
                               onPressed: () => _showAdjustmentDialog(context, product),
                             ),
                           ],
@@ -241,7 +241,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     },
                   );
                 } else if (state is ProductsError) {
-                  return Center(child: ShopperErrorText(state.message));
+                  return Center(child: ShopperErrorText(error: state.message));
                 }
                 return const SizedBox.shrink();
               },

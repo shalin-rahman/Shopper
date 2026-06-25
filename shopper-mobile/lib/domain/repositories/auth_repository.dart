@@ -1,7 +1,7 @@
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import '../../core/error/failures.dart';
 import '../entities/user.dart';
-import '../entities/auth_token.dart';
+import 'package:shopper_mobile/domain/entities/auth_token.dart';
 
 abstract class AuthRepository {
   Future<Either<Failure, AuthToken>> login({

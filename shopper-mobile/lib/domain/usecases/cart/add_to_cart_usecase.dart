@@ -1,4 +1,4 @@
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import 'package:equatable/equatable.dart';
 import '../../../core/error/failures.dart';
 import '../../../core/usecase/usecase.dart';
@@ -25,7 +25,7 @@ class AddToCartParams extends Equatable {
 
     // Required field validations
     validations.add(ValidationUtils.validateRequired(productId, 'Product ID'));
-    validations.add(ValidationUtils.validateRequired(quantity, 'Quantity'));
+    validations.add(ValidationUtils.validateRequired(quantity.toString(), 'Quantity'));
 
     // Quantity validation
     if (quantity <= 0) {
@@ -85,77 +85,5 @@ class AddToCartUseCase implements UseCase<Cart, AddToCartParams> {
   }
 }
 
-class GetCartUseCase implements UseCase<Cart, NoParams> {
-  final CartRepository repository;
 
-  GetCartUseCase(this.repository);
 
-  @override
-  Future<Either<Failure, Cart>> call(NoParams params) async {
-    return await repository.getCart();
-  }
-}
-
-class UpdateCartItemParams extends Equatable {
-  final String cartItemId;
-  final int? quantity;
-  final double? discount;
-  final String? notes;
-
-  const UpdateCartItemParams({
-    required this.cartItemId,
-    this.quantity,
-    this.discount,
-    this.notes,
-  });
-
-  @override
-  List<Object?> get props => [cartItemId, quantity, discount, notes];
-}
-
-class UpdateCartItemUseCase implements UseCase<Cart, UpdateCartItemParams> {
-  final CartRepository repository;
-
-  UpdateCartItemUseCase(this.repository);
-
-  @override
-  Future<Either<Failure, Cart>> call(UpdateCartItemParams params) async {
-    return await repository.updateCartItem(
-      cartItemId: params.cartItemId,
-      quantity: params.quantity,
-      discount: params.discount,
-      notes: params.notes,
-    );
-  }
-}
-
-class RemoveFromCartParams extends Equatable {
-  final String cartItemId;
-
-  const RemoveFromCartParams({required this.cartItemId});
-
-  @override
-  List<Object?> get props => [cartItemId];
-}
-
-class RemoveFromCartUseCase implements UseCase<Cart, RemoveFromCartParams> {
-  final CartRepository repository;
-
-  RemoveFromCartUseCase(this.repository);
-
-  @override
-  Future<Either<Failure, Cart>> call(RemoveFromCartParams params) async {
-    return await repository.removeFromCart(params.cartItemId);
-  }
-}
-
-class ClearCartUseCase implements UseCase<Cart, NoParams> {
-  final CartRepository repository;
-
-  ClearCartUseCase(this.repository);
-
-  @override
-  Future<Either<Failure, Cart>> call(NoParams params) async {
-    return await repository.clearCart();
-  }
-}

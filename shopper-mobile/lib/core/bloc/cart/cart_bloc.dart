@@ -1,3 +1,4 @@
+import '../../../core/usecase/usecase.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/cart.dart';
@@ -126,7 +127,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(CartError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(CartError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(CartError(failure.message));
         }
@@ -153,7 +154,7 @@ class CartBloc extends Bloc<CartEvent, CartState> {
     result.fold(
       (failure) {
         if (failure is ValidationFailure) {
-          emit(CartError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(CartError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(CartError(failure.message));
         }

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
-import 'package:provider/provider.dart';
+import 'package:shopper_mobile/l10n/app_localizations.dart';
 import '../widgets/index.dart';
-import '../core/theme_provider.dart';
+import '../core/design_system.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -27,17 +26,17 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildThemeSection(BuildContext context) {
-    return ShopperCard(
-      padding: const EdgeInsets.all(kSpacing16),
+    return const ShopperCard(
+      padding: EdgeInsets.all(kSpacing16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ShopperSectionHeader(
+          ShopperSectionHeader(
             title: 'Appearance',
             subtitle: 'Customize your look',
           ),
-          const SizedBox(height: kSpacing16),
-          const ShopperThemeSwitcher(),
+          SizedBox(height: kSpacing16),
+          ShopperThemeSwitcher(),
         ],
       ),
     );
@@ -88,7 +87,7 @@ class SettingsScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.black)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w900)),
         ],
       ),
     );

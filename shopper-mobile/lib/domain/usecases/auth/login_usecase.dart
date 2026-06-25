@@ -1,9 +1,9 @@
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import 'package:equatable/equatable.dart';
 import '../../../core/error/failures.dart';
 import '../../../core/usecase/usecase.dart';
 import '../../../core/validation/validation.dart';
-import '../../entities/auth_token.dart';
+import 'package:shopper_mobile/domain/entities/auth_token.dart';
 import '../../repositories/auth_repository.dart';
 
 class LoginParams extends Equatable {
@@ -62,13 +62,4 @@ class LoginUseCase implements UseCase<AuthToken, LoginParams> {
   }
 }
 
-class LogoutUseCase implements UseCase<void, NoParams> {
-  final AuthRepository repository;
 
-  LogoutUseCase(this.repository);
-
-  @override
-  Future<Either<Failure, void>> call(NoParams params) async {
-    return await repository.logout();
-  }
-}

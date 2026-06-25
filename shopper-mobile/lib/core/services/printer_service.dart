@@ -1,5 +1,4 @@
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
-import 'package:flutter/services.dart';
 
 class PrinterService {
   final BlueThermalPrinter _printer = BlueThermalPrinter.instance;

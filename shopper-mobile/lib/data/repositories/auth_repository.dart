@@ -1,4 +1,4 @@
-import 'package:dartz/dartz.dart';
+import 'package:dartz/dartz.dart' hide Order;
 import 'package:rxdart/rxdart.dart';
 import '../../core/error/failures.dart';
 import '../../domain/entities/user.dart';

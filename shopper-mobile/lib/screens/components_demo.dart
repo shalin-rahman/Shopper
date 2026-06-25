@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+
 import '../widgets/index.dart';
+import '../core/design_system.dart';
+import '../core/theme_provider.dart';
 
 // Demo screen showcasing all the reusable components
 class ComponentsDemoScreen extends StatefulWidget {
@@ -14,7 +17,7 @@ class _ComponentsDemoScreenState extends State<ComponentsDemoScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _selectedCategory;
   String? _selectedSort;
-  DateTime? _selectedDate;
+
   int _currentPage = 1;
   final int _totalPages = 5;
   bool _isLoadingMore = false;
@@ -68,7 +71,7 @@ class _ComponentsDemoScreenState extends State<ComponentsDemoScreen> {
     return ShopperColumn(
       spacing: kSpacing16,
       children: [
-        ShopperSectionHeader(title: 'Search & Filters'),
+        const ShopperSectionHeader(title: 'Search & Filters'),
         ShopperSearchBar(
           controller: _searchController,
           hintText: 'Search products...',
@@ -136,7 +139,7 @@ class _ComponentsDemoScreenState extends State<ComponentsDemoScreen> {
     return ShopperColumn(
       spacing: kSpacing16,
       children: [
-        ShopperSectionHeader(title: 'Product Grid'),
+        const ShopperSectionHeader(title: 'Product Grid'),
         ShopperResponsiveGrid(
           children: List.generate(6, (index) => ShopperProductCard(
             name: 'Product ${index + 1}',
@@ -154,15 +157,11 @@ class _ComponentsDemoScreenState extends State<ComponentsDemoScreen> {
     return ShopperColumn(
       spacing: kSpacing16,
       children: [
-        ShopperSectionHeader(title: 'Form Components'),
+        const ShopperSectionHeader(title: 'Form Components'),
         ShopperDatePicker(
           label: 'Select Date',
           initialDate: DateTime.now(),
-          onDateSelected: (date) {
-            setState(() {
-              _selectedDate = date;
-            });
-          },
+          onDateSelected: (date) {},
         ),
         ShopperInputField(
           label: 'Full Name',
@@ -197,7 +196,7 @@ class _ComponentsDemoScreenState extends State<ComponentsDemoScreen> {
     return ShopperColumn(
       spacing: kSpacing16,
       children: [
-        ShopperSectionHeader(title: 'Pagination'),
+        const ShopperSectionHeader(title: 'Pagination'),
         ShopperCardList(
           children: List.generate(5, (index) => ShopperCard(
             child: ListTile(
@@ -224,13 +223,13 @@ class _ComponentsDemoScreenState extends State<ComponentsDemoScreen> {
     return ShopperColumn(
       spacing: kSpacing16,
       children: [
-        ShopperSectionHeader(title: 'Other Components'),
+        const ShopperSectionHeader(title: 'Other Components'),
         ShopperExpandablePanel(
           title: 'Expandable Panel',
           child: ShopperColumn(
             spacing: kSpacing8,
             children: [
-              Text('This is the expanded content.', style: kBodyMedium),
+              const Text('This is the expanded content.', style: kBodyMedium),
               ShopperQuantitySelector(
                 quantity: 2,
                 onChanged: (quantity) {},
@@ -264,19 +263,19 @@ class _ComponentsDemoScreenState extends State<ComponentsDemoScreen> {
                       Expanded(
                         child: ShopperPrimaryButton(
                           text: 'Light',
-                          onPressed: () => themeProvider.setTheme(AppTheme.light),
+                          onPressed: () => themeProvider.setTheme(AppTheme.indigo),
                         ),
                       ),
                       Expanded(
                         child: ShopperPrimaryButton(
                           text: 'Dark',
-                          onPressed: () => themeProvider.setTheme(AppTheme.dark),
+                          onPressed: () => themeProvider.setTheme(AppTheme.midnight),
                         ),
                       ),
                       Expanded(
                         child: ShopperPrimaryButton(
                           text: 'System',
-                          onPressed: () => themeProvider.setTheme(AppTheme.system),
+                          onPressed: () => themeProvider.setTheme(AppTheme.minimalist),
                         ),
                       ),
                     ],

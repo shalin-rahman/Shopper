@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from starlette.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
 from main import app
-from config import get_settings, clear_settings_cache
+from core.config import get_settings, clear_settings_cache
 
 # Must match auth_router.py / deps.py
 _JWT_SECRET = "shopper-dev-secret-change-in-prod"

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/design_system.dart';
+import 'buttons.dart';
+import 'data_display.dart';
 
 // Responsive Layout Builder
 class ShopperResponsiveLayout extends StatelessWidget {
@@ -53,25 +55,25 @@ class ShopperResponsiveGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return ShopperResponsiveLayout(
       mobile: ShopperGrid(
-        children: children,
         crossAxisCount: mobileCrossAxisCount,
         childAspectRatio: childAspectRatio,
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
+        children: children,
       ),
       tablet: ShopperGrid(
-        children: children,
         crossAxisCount: tabletCrossAxisCount,
         childAspectRatio: childAspectRatio,
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
+        children: children,
       ),
       desktop: ShopperGrid(
-        children: children,
         crossAxisCount: desktopCrossAxisCount,
         childAspectRatio: childAspectRatio,
         crossAxisSpacing: spacing,
         mainAxisSpacing: spacing,
+        children: children,
       ),
     );
   }
@@ -187,8 +189,8 @@ class ShopperHorizontalSpacer extends ShopperSpacer {
 class ShopperVerticalSpacer extends ShopperSpacer {
   const ShopperVerticalSpacer({
     super.key,
-    double height = kSpacing16,
-  }) : super(height: height, width: 0);
+    super.height,
+  }) : super(width: 0);
 }
 
 // Divider with custom styling

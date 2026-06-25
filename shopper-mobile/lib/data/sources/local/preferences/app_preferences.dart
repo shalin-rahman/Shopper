@@ -6,7 +6,7 @@ import '../../../../domain/entities/settings.dart';
 
 class AppPreferences {
   static const String _authTokenKey = 'auth_token';
-  static const String _settingsKey = 'app_settings';
+
   static const String _themeModeKey = 'theme_mode';
   static const String _languageKey = 'language';
   static const String _biometricEnabledKey = 'biometric_enabled';
@@ -26,7 +26,7 @@ class AppPreferences {
     final tokenJson = json.encode({
       'access_token': token.accessToken,
       'refresh_token': token.refreshToken,
-      'expires_at': token.expiresAt.toIso8601String(),
+      'expires_at': token.expiresAt?.toIso8601String(),
       'token_type': token.tokenType,
     });
 

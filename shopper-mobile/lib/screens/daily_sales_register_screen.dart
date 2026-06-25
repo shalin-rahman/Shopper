@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
 import '../core/bloc/orders/orders_bloc.dart';
 import '../widgets/index.dart';
+import '../core/design_system.dart';
 
 class DailySalesRegisterScreen extends StatefulWidget {
   const DailySalesRegisterScreen({super.key});
@@ -30,6 +31,7 @@ class _DailySalesRegisterScreenState extends State<DailySalesRegisterScreen> {
             final orders = state.orders;
             if (orders.isEmpty) {
               return const ShopperEmptyState(
+                title: 'No Sales',
                 icon: Icons.receipt_long_outlined,
                 message: 'No sales recorded yet',
               );
@@ -53,7 +55,7 @@ class _DailySalesRegisterScreenState extends State<DailySalesRegisterScreen> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(order.orderNumber, style: kHeadline6.copyWith(fontSize: 16, fontWeight: FontWeight.black)),
+                              Text(order.orderNumber, style: kHeadline6.copyWith(fontSize: 16, fontWeight: FontWeight.w900)),
                               Text(
                                 '${order.createdAt.hour}:${order.createdAt.minute.toString().padLeft(2, '0')} • ${order.items.length} items',
                                 style: kBodySmall.copyWith(color: Colors.grey),
@@ -63,7 +65,7 @@ class _DailySalesRegisterScreenState extends State<DailySalesRegisterScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: isSynced ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                              color: isSynced ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
@@ -82,8 +84,8 @@ class _DailySalesRegisterScreenState extends State<DailySalesRegisterScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total Amount', style: kBodyMedium),
-                          Text('৳${order.total.toStringAsFixed(2)}', style: kHeadline6.copyWith(color: kPrimaryColor, fontWeight: FontWeight.black)),
+                          const Text('Total Amount', style: kBodyMedium),
+                          Text('৳${order.total.toStringAsFixed(2)}', style: kHeadline6.copyWith(color: kPrimaryColor, fontWeight: FontWeight.w900)),
                         ],
                       ),
                     ],
@@ -92,7 +94,7 @@ class _DailySalesRegisterScreenState extends State<DailySalesRegisterScreen> {
               },
             );
           } else if (state is OrdersError) {
-            return Center(child: ShopperErrorText(state.message));
+            return Center(child: ShopperErrorText(error: state.message));
           }
           return const SizedBox.shrink();
         },

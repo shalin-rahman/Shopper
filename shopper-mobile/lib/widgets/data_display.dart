@@ -83,7 +83,7 @@ class ShopperFilterChip extends StatelessWidget {
       onSelected: onSelected,
       avatar: avatar,
       backgroundColor: kSurfaceColor,
-      selectedColor: kPrimaryColor.withOpacity(0.1),
+      selectedColor: kPrimaryColor.withValues(alpha: 0.1),
       checkmarkColor: kPrimaryColor,
       labelStyle: kBodyMedium.copyWith(
         color: selected ? kPrimaryColor : kOnSurfaceColor,
@@ -169,7 +169,7 @@ class ShopperDropdown<T> extends StatelessWidget {
             borderRadius: BorderRadius.circular(kBorderRadiusMedium),
           ),
           child: DropdownButtonFormField<T>(
-            value: value,
+            initialValue: value,
             items: items,
             onChanged: onChanged,
             hint: hint != null ? Text(hint!) : null,
@@ -525,7 +525,7 @@ class ShopperFilterBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              const Text(
                 'Filters',
                 style: kHeadline6,
               ),

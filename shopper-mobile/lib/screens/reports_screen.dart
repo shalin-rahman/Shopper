@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shopper_mobile/l10n/app_localizations.dart';
 import '../widgets/index.dart';
+import '../core/design_system.dart';
 
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
@@ -14,7 +15,7 @@ class ReportsScreen extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(kSpacing16),
         child: ShopperColumn(
-          spacing: kSpacing20,
+          spacing: kSpacing16,
           children: [
             _buildReportCard(context, 'Inventory Summary', 'Detailed valuation of stock', Icons.inventory),
             _buildReportCard(context, 'Sales Register', 'Daily and monthly sales logs', Icons.receipt_long, onTap: () => Navigator.pushNamed(context, '/sales-register')),
@@ -30,7 +31,7 @@ class ReportsScreen extends StatelessWidget {
     return ShopperCard(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: kPrimaryColor.withOpacity(0.1),
+          backgroundColor: kPrimaryColor.withValues(alpha: 0.1),
           child: Icon(icon, color: kPrimaryColor),
         ),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),

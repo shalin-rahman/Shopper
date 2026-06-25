@@ -3,6 +3,7 @@ import 'package:equatable/equatable.dart';
 import '../../../domain/usecases/auth/login_usecase.dart';
 import '../../../domain/usecases/auth/logout_usecase.dart';
 import '../../../core/error/failures.dart';
+import '../../../core/usecase/usecase.dart';
 
 // Events
 abstract class AuthEvent extends Equatable {
@@ -85,7 +86,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       (failure) {
         if (failure is ValidationFailure) {
           // For validation failures, show the first error message
-          emit(AuthError(failure.errors.isNotEmpty ? failure.errors.first : failure.message));
+          emit(AuthError(failure.errors?.isNotEmpty == true ? failure.errors!.first : failure.message));
         } else {
           emit(AuthError(failure.message));
         }

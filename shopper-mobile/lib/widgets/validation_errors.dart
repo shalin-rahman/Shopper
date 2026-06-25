@@ -24,8 +24,8 @@ class ValidationErrorDisplay extends StatelessWidget {
       margin: margin ?? const EdgeInsets.symmetric(vertical: 8.0),
       padding: padding ?? const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
-        color: kErrorColor.withOpacity(0.1),
-        border: Border.all(color: kErrorColor.withOpacity(0.3)),
+        color: kErrorColor.withValues(alpha: 0.1),
+        border: Border.all(color: kErrorColor.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: Column(
@@ -33,7 +33,7 @@ class ValidationErrorDisplay extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.error_outline,
                 color: kErrorColor,
                 size: 20.0,
@@ -41,7 +41,7 @@ class ValidationErrorDisplay extends StatelessWidget {
               const SizedBox(width: 8.0),
               Text(
                 'Validation Error${errors.length > 1 ? 's' : ''}',
-                style: kBodyText2.copyWith(
+                style: kBodySmall.copyWith(
                   color: kErrorColor,
                   fontWeight: FontWeight.w600,
                 ),
@@ -56,12 +56,12 @@ class ValidationErrorDisplay extends StatelessWidget {
                   children: [
                     Text(
                       '• ',
-                      style: kBodyText2.copyWith(color: kErrorColor),
+                      style: kBodySmall.copyWith(color: kErrorColor),
                     ),
                     Expanded(
                       child: Text(
                         error,
-                        style: kBodyText2.copyWith(color: kErrorColor),
+                        style: kBodySmall.copyWith(color: kErrorColor),
                       ),
                     ),
                   ],
@@ -160,23 +160,23 @@ class ValidatedTextFormField extends StatelessWidget {
                 contentPadding: contentPadding ?? const EdgeInsets.all(16.0),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: kOutlineColor),
+                  borderSide: const BorderSide(color: Colors.grey),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: kOutlineColor),
+                  borderSide: const BorderSide(color: Colors.grey),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: kPrimaryColor),
+                  borderSide: const BorderSide(color: kPrimaryColor),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: kErrorColor),
+                  borderSide: const BorderSide(color: kErrorColor),
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0),
-                  borderSide: BorderSide(color: kErrorColor),
+                  borderSide: const BorderSide(color: kErrorColor),
                 ),
               ),
           obscureText: obscureText,

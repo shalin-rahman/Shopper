@@ -1,6 +1,8 @@
+import 'package:shopper_mobile/l10n/app_localizations.dart';
+import '../core/design_system.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+
 import '../core/bloc/cart/cart_bloc.dart';
 import '../core/bloc/orders/orders_bloc.dart';
 import '../widgets/index.dart';
@@ -43,7 +45,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final cartState = context.read<CartBloc>().state;
     if (cartState is CartLoadSuccess) {
       final double amountPaid = double.tryParse(_amountPaidController.text) ?? 0;
-      
       context.read<OrdersBloc>().add(OrderCreated(
         cart: cartState.cart,
         customerName: _nameController.text.isNotEmpty ? _nameController.text : null,
@@ -53,109 +54,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         amountPaid: amountPaid,
       ));
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
-    return BlocListener<OrdersBloc, OrdersState>(
-      listener: (context, state) {
-        if (state is OrderCreatedSuccess) {
-          context.read<CartBloc>().add(CartCleared());
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.orderPlacedSuccess)),
-          );
-          Navigator.pushNamedAndRemoveUntil(context, AppRouter.home, (route) => false);
-        } else if (state is OrdersError) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.message), backgroundColor: Colors.red),
-          );
-        }
-      },
-      child: ShopperScreen(
-        title: l10n.checkout,
-        body: SingleChildScrollView(
-          child: ShopperColumn(
-            spacing: kSpacing24,
-            padding: const EdgeInsets.all(kSpacing16),
-            children: [
-              _buildSummaryCard(),
-              _buildCustomerInfoCard(),
-              _buildPaymentCard(),
-              _buildNotesCard(),
-              
-              BlocBuilder<OrdersBloc, OrdersState>(
-                builder: (context, state) {
-                  return ShopperPrimaryButton(
-                    text: l10n.placeOrder,
-                    isLoading: state is OrdersLoading,
-                    onPressed: _onPlaceOrder,
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard() {
-    return BlocBuilder<CartBloc, CartState>(
-      builder: (context, state) {
-        if (state is CartLoadSuccess) {
-          final cart = state.cart;
-          return ShopperCard(
-            child: ShopperColumn(
-              spacing: kSpacing12,
-              children: [
-                ShopperSectionHeader(title: l10n.orderSummary),
-                ...cart.items.map((item) => Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('${item.productName} x${item.quantity}', style: kBodyMedium),
-                    Text(item.lineTotal.toStringAsFixed(2), style: kBodyMedium),
-                  ],
-                )),
-                const ShopperDivider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(l10n.totalAmount, style: kHeadline6),
-                    Text(cart.total.toStringAsFixed(2), style: kHeadline6.copyWith(color: kPrimaryColor, fontWeight: FontWeight.black)),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
-    );
-  }
-
-  Widget _buildCustomerInfoCard() {
-    final l10n = AppLocalizations.of(context)!;
-    return ShopperCard(
-      child: ShopperColumn(
-        spacing: kSpacing16,
-        children: [
-          ShopperSectionHeader(title: l10n.customerInfo),
-          ShopperInputField(
-            label: l10n.customerName,
-            controller: _nameController,
-            hint: l10n.enterCustomerName,
-          ),
-          ShopperInputField(
-            label: l10n.phoneNumber,
-            controller: _phoneController,
-            hint: l10n.enterPhoneNumber,
-            keyboardType: TextInputType.phone,
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildPaymentCard() {
@@ -172,8 +70,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const ShopperSectionHeader(title: 'Payment Details'),
-          
-          const Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.black, color: Colors.grey)),
+          const Text('Payment Method', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: Colors.grey)),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -183,13 +80,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 label: Text(m['label']! as String),
                 selected: isSelected,
                 avatar: Icon(m['icon']! as IconData, size: 16, color: isSelected ? Colors.white : kPrimaryColor),
-                onSelected: (val) => setState(() => _paymentMethod = m['id']! as String),
+                onSelected: (_) => setState(() => _paymentMethod = m['id']! as String),
                 selectedColor: kPrimaryColor,
                 labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
               );
             }).toList(),
           ),
-
+          const SizedBox(height: kSpacing8),
           ShopperInputField(
             label: 'Amount Collected (৳)',
             controller: _amountPaidController,
@@ -212,9 +109,58 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             label: l10n.notes,
             controller: _notesController,
             hint: l10n.specialInstructions,
-            maxLines: 2,
           ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return BlocListener<OrdersBloc, OrdersState>(
+      listener: (context, state) {
+        if (state is OrderCreatedSuccess) {
+          context.read<CartBloc>().add(CartCleared());
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.orderPlacedSuccess)));
+          Navigator.of(context).pushNamedAndRemoveUntil(AppRouter.home, (route) => false);
+        } else if (state is OrdersError) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(state.message)));
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.checkout),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(kSpacing16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPaymentCard(),
+              const SizedBox(height: kSpacing16),
+              _buildNotesCard(),
+              const SizedBox(height: kSpacing16),
+              BlocBuilder<OrdersBloc, OrdersState>(
+                builder: (context, orderState) {
+                  final isLoading = orderState is OrdersLoading;
+                  return BlocBuilder<CartBloc, CartState>(
+                    builder: (context, cartState) {
+                      if (cartState is CartLoadSuccess) {
+                        return ShopperPrimaryButton(
+                          text: l10n.placeOrder,
+                          isLoading: isLoading,
+                          onPressed: _onPlaceOrder,
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

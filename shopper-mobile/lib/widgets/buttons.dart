@@ -59,7 +59,7 @@ class ShopperPrimaryButton extends StatelessWidget {
           shadowColor: Colors.transparent,
         ),
         child: isLoading
-            ? ShopperLoadingIndicator(color: kOnPrimaryColor)
+            ? const ShopperLoadingIndicator(color: kOnPrimaryColor)
             : Text(
                 text,
                 style: kBodyMedium.copyWith(
@@ -106,7 +106,7 @@ class ShopperSecondaryButton extends StatelessWidget {
           ),
         ),
         child: isLoading
-            ? ShopperLoadingIndicator(color: kPrimaryColor)
+            ? const ShopperLoadingIndicator(color: kPrimaryColor)
             : Text(
                 text,
                 style: kBodyMedium.copyWith(
@@ -149,7 +149,7 @@ class ShopperGhostButton extends StatelessWidget {
           ),
         ),
         child: isLoading
-            ? ShopperLoadingIndicator(color: kPrimaryColor)
+            ? const ShopperLoadingIndicator(color: kPrimaryColor)
             : Text(
                 text,
                 style: kBodyMedium.copyWith(
@@ -294,12 +294,12 @@ class ShopperBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: height,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: kSurfaceColor,
-        borderRadius: const BorderRadius.vertical(
+        borderRadius: BorderRadius.vertical(
           top: Radius.circular(kBorderRadiusXLarge),
         ),
-        boxShadow: const [kElevation4],
+        boxShadow: [kElevation4],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

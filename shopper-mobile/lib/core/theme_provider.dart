@@ -52,8 +52,6 @@ class ThemeProvider extends ChangeNotifier {
         onSecondary: Colors.white,
         error: kErrorColor,
         onError: Colors.white,
-        background: palette.background,
-        onBackground: onBG,
         surface: palette.surface,
         onSurface: onBG,
       ),
@@ -87,7 +85,7 @@ class ThemeProvider extends ChangeNotifier {
         ),
       ),
 
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: palette.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(kBorderRadiusLarge)),

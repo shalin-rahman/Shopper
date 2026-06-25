@@ -129,8 +129,8 @@ class Product extends Equatable {
 
     // Required field validations
     validations.add(ValidationUtils.validateRequired(id, 'Product ID'));
-    validations.add(ValidationUtils.validateRequired(name, 'Product name'));
-    validations.add(ValidationUtils.validateLengthRange(name, 1, 200, 'Product name'));
+    validations.add(ValidationUtils.validateRequired(nameEn, 'Product name'));
+    validations.add(ValidationUtils.validateLengthRange(nameEn, 1, 200, 'Product name'));
 
     // Price validations
     validations.add(ValidationUtils.validatePrice(price, 'Price'));
@@ -164,8 +164,8 @@ class Product extends Equatable {
     }
 
     // Length validations for optional fields
-    if (description != null) {
-      validations.add(ValidationUtils.validateMaxLength(description!, 1000, 'Description'));
+    if (descriptionEn != null) {
+      validations.add(ValidationUtils.validateMaxLength(descriptionEn!, 1000, 'Description'));
     }
 
     if (barcode != null) {
@@ -257,8 +257,8 @@ class Product extends Equatable {
   }) {
     return Product(
       id: id,
-      name: name,
-      description: description,
+      nameEn: name,
+      descriptionEn: description,
       price: price,
       costPrice: costPrice,
       sellPrice: sellPrice,
@@ -294,8 +294,8 @@ class Product extends Equatable {
   }) {
     return Product(
       id: id,
-      name: name,
-      description: description,
+      nameEn: name,
+      descriptionEn: description,
       price: price,
       costPrice: costPrice,
       sellPrice: sellPrice,
@@ -329,8 +329,8 @@ class Product extends Equatable {
   }) {
     return Product(
       id: id,
-      name: name,
-      description: description,
+      nameEn: name,
+      descriptionEn: description,
       price: price,
       costPrice: costPrice,
       sellPrice: sellPrice,

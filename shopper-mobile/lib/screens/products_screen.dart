@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shopper_mobile/l10n/app_localizations.dart';
 import '../core/bloc/products/products_bloc.dart';
-import '../core/bloc/cart/cart_bloc.dart';
 import '../widgets/index.dart';
+import '../core/design_system.dart';
 
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -60,10 +60,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 } else if (state is ProductsLoadSuccess) {
                   if (state.products.isEmpty) {
                     return ShopperEmptyState(
+                      title: l10n.noProductsFound,
                       icon: Icons.inventory_2_outlined,
                       message: l10n.noProductsFound,
-                      actionLabel: l10n.refresh,
-                      onAction: () => context.read<ProductsBloc>().add(const ProductsLoaded()),
+                      action: ShopperPrimaryButton(
+                        text: l10n.refresh,
+                        onPressed: () => context.read<ProductsBloc>().add(const ProductsLoaded()),
+                      ),
                     );
                   }
 
@@ -71,20 +74,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     onRefresh: () async {
                       context.read<ProductsBloc>().add(ProductsRefreshed());
                     },
-                    child: ShopperResponsiveGrid(
+                    child: Padding(
                       padding: const EdgeInsets.all(kSpacing16),
-                      children: state.products.map((product) {
-                        return ShopperProductCard(
-                          name: product.displayName,
-                          price: product.effectivePrice,
-                          imageUrl: product.imageUrl,
-                          onTap: () {
-                            // Show product details
-                          },
-                          // Since ShopperProductCard might not have 'onAddToCart',
-                          // we can wrap it or add a button if the design allows.
-                        );
-                      }).toList(),
+                      child: ShopperResponsiveGrid(
+                        children: state.products.map((product) {
+                          return ShopperProductCard(
+                            name: product.displayName,
+                            price: '৳${product.effectivePrice.toStringAsFixed(2)}',
+                            imageUrl: product.imageUrl,
+                            onTap: () {},
+                          );
+                        }).toList(),
+                      ),
                     ),
                   );
                 } else if (state is ProductsError) {
@@ -92,7 +93,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     child: ShopperColumn(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        ShopperErrorText(state.message),
+                        ShopperErrorText(error: state.message),
                         const SizedBox(height: kSpacing16),
                         ShopperPrimaryButton(
                           text: l10n.retry,

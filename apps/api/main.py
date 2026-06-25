@@ -7,12 +7,12 @@ import asyncpg
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from admin_router import router as admin_router
-from config import get_settings
+from routers.admin import router as admin_router
+from core.config import get_settings
 from redis_client import close_redis, connect_redis
-from customers_router import router as customers_router
-from host_tenant import subdomain_from_host as host_subdomain
-from invoices_router import router as invoices_router
+from routers.customers import router as customers_router
+from core.host_tenant import subdomain_from_host as host_subdomain
+from routers.invoices import router as invoices_router
 
 tenant_id_ctx = contextvars.ContextVar("tenant_id", default="unknown")
 trace_id_ctx = contextvars.ContextVar("trace_id", default="unknown")
@@ -23,23 +23,23 @@ class RequestContextFilter(logging.Filter):
         record.tenant_id = tenant_id_ctx.get()
         record.trace_id = trace_id_ctx.get()
         return True
-from auth_router import router as auth_router
-from payments_router import router as payments_router
-from pos_router import router as pos_router
-from products_router import router as products_router
-from reports_router import router as reports_router
-from receipt_router import router as receipt_router
-from settings_router import router as settings_router
-from storefront_router import router as storefront_router
-from inventory_router import router as inventory_router
-from suppliers_router import router as suppliers_router
-from registration_router import router as registration_router
-from staff_router import router as staff_router
-from expenses_router import router as expenses_router
-from accounts_router import router as accounts_router
-from maintenance_router import router as maintenance_router
-from marketplace_router import router as marketplace_router
-from procurement_router import router as procurement_router
+from routers.auth import router as auth_router
+from routers.payments import router as payments_router
+from routers.pos import router as pos_router
+from routers.products import router as products_router
+from routers.reports import router as reports_router
+from routers.receipts import router as receipt_router
+from routers.settings import router as settings_router
+from routers.storefront import router as storefront_router
+from routers.inventory import router as inventory_router
+from routers.suppliers import router as suppliers_router
+from routers.registration import router as registration_router
+from routers.staff import router as staff_router
+from routers.expenses import router as expenses_router
+from routers.accounts import router as accounts_router
+from routers.maintenance import router as maintenance_router
+from routers.marketplace import router as marketplace_router
+from routers.procurement import router as procurement_router
 
 
 REDIS = None
@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI):
     await close_redis(app.state.redis)
     app.state.redis = None
 
-    from db import close_all_pools
+    from core.db import close_all_pools
     await close_all_pools(app.state)
 
 

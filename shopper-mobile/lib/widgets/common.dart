@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+
 import '../core/design_system.dart';
+import '../core/theme_provider.dart';
+import 'buttons.dart';
+import 'layouts.dart';
 
 // Reusable App Bar
 class ShopperAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -168,7 +172,7 @@ class ShopperThemeSwitcher extends StatelessWidget {
           child: ShopperColumn(
             spacing: kSpacing16,
             children: [
-              ShopperSectionHeader(
+              const ShopperSectionHeader(
                 title: 'Theme',
                 subtitle: 'Choose your preferred theme',
               ),
@@ -178,21 +182,21 @@ class ShopperThemeSwitcher extends StatelessWidget {
                   _buildThemeOption(
                     context,
                     themeProvider,
-                    AppTheme.light,
+                    AppTheme.indigo,
                     'Light',
                     Icons.light_mode,
                   ),
                   _buildThemeOption(
                     context,
                     themeProvider,
-                    AppTheme.dark,
+                    AppTheme.midnight,
                     'Dark',
                     Icons.dark_mode,
                   ),
                   _buildThemeOption(
                     context,
                     themeProvider,
-                    AppTheme.system,
+                    AppTheme.minimalist,
                     'System',
                     Icons.settings_suggest,
                   ),
@@ -221,7 +225,7 @@ class ShopperThemeSwitcher extends StatelessWidget {
         padding: const EdgeInsets.all(kSpacing12),
         decoration: BoxDecoration(
           color: isSelected
-              ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(kBorderRadiusMedium),
           border: Border.all(

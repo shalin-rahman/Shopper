@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shopper_mobile/l10n/app_localizations.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'core/di/injection.dart';
 import 'core/theme_provider.dart';
-import 'widgets/index.dart';
 import 'navigation/app_router.dart';
+import 'core/bloc/auth/auth_bloc.dart';
+import 'core/bloc/products/products_bloc.dart';
+import 'core/bloc/cart/cart_bloc.dart';
+import 'core/bloc/orders/orders_bloc.dart';
+import 'core/bloc/settings/settings_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
