@@ -1,0 +1,30 @@
+- [x] Phase 1: Documentation Reorganization
+  - [x] Create `docs/mobile` directory
+  - [x] Move root documentation (`.txt`, `.docx`, `ARCHITECTURE_MAP.md`, `TODO.md`) to `docs/`
+  - [x] Move `shopper-mobile/*.md` to `docs/mobile/`
+  - [x] Update `README.md` links
+- [x] Phase 2: Pre-requisites & Security Hardening
+  - [x] Redact payment credentials from `TenantSettingsOut`
+  - [x] Verify SHA-256 Hash Chaining
+  - [x] Fix `OrdersBloc` import depth
+- [x] Phase 3: Tenant Context & RLS Isolation
+  - [x] Refactor API routers to use `TenantCtxDep`
+- [ ] Phase 4: Service Layer Extraction & Compliance Logic
+  - [ ] Extract business logic to `services/`
+  - [ ] Add Mushak calculation logic and JSONB localization
+- [ ] Phase 5: POS Validation, Offline-Sync & Fintech Webhooks
+  - [ ] Add `asyncio.Lock` in `db.py`
+  - [ ] Add `OfflinePunchOrder` schema
+  - [ ] Refactor Webhook Idempotency (ACK-First)
+  - [ ] Refactor mobile `ApiClient.baseUrl`
+- [ ] Phase 6: OpenAPI Contract & Frontend Alignment
+  - [ ] Generate `openapi.json`
+  - [ ] Align Angular models & interceptor
+  - [ ] Align Flutter endpoints
+- [ ] Phase 7: Web Frontend Polish
+  - [ ] Resolve `ThemeService` conflict
+  - [ ] Add Route Guards
+- [ ] Phase 8: Mobile App Native Features
+  - [ ] Implement Flutter missing repositories
+  - [ ] Register `SyncOrdersUseCase`
+  - [ ] Implement `SettingsScreen` language switching

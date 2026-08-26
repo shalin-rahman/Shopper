@@ -1,23 +1,20 @@
-from __future__ import annotations
+import logging
 from uuid import UUID
 from typing import Any
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from core.tenant_context import TenantCtxDep
 from core.dependencies import StaffDep
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/tenant/pos", tags=["pos"])
 
 @router.get("/sync")
-async def pos_sync_data(request: Request, _auth: StaffDep):
+async def pos_sync_data(ctx: TenantCtxDep, _auth: StaffDep):
     """
     Returns a consolidated payload of products and categories for local mobile caching.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         categories = await conn.fetch("SELECT id, name_en, name_bn FROM tenant_data.product_categories")
         products = await conn.fetch(
             """
@@ -33,18 +30,14 @@ async def pos_sync_data(request: Request, _auth: StaffDep):
     }
 
 @router.post("/offline-punch")
-async def pos_offline_punch(request: Request, body: list[dict[str, Any]], _auth: StaffDep):
+async def pos_offline_punch(ctx: TenantCtxDep, body: list[dict[str, Any]], _auth: StaffDep):
     """
     Processes a batch of offline-synced orders.
     Orchestrates Invoice -> Stock Transactions -> VAT Register population.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
     synced_ids = []
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         for order_data in body:
             try:
                 # 1. Insert Invoice
@@ -94,7 +87,7 @@ async def pos_offline_punch(request: Request, body: list[dict[str, Any]], _auth:
                             tenant_id, product_id, transaction_type, quantity, reference_type, reference_id, notes
                         ) VALUES ($1, $2, 'out', $3, 'sale', $4, $5)
                         """,
-                        tenant_id,
+                        ctx.tenant_id,
                         item.get("productId"),
                         item.get("quantity"),
                         invoice_id,
@@ -116,7 +109,7 @@ async def pos_offline_punch(request: Request, body: list[dict[str, Any]], _auth:
                             buyer_name_en, description_en, qty, taxable_value, vat_amount, total_amount
                         ) VALUES ($1, '6.3', $2, $3, $4, $5, $6, $7, $8, $9)
                         """,
-                        tenant_id,
+                        ctx.tenant_id,
                         order_data.get("orderNumber"),
                         datetime.now().date(),
                         order_data.get("customerName"),
@@ -129,7 +122,7 @@ async def pos_offline_punch(request: Request, body: list[dict[str, Any]], _auth:
 
                 synced_ids.append(order_data.get("id"))
             except Exception as e:
-                print(f"Error syncing order {order_data.get('id')}: {str(e)}")
+                logger.exception("Error syncing order %s: %s", order_data.get('id'), str(e))
 
     return {
         "synced_count": len(synced_ids),

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Request, Response, Query
+from fastapi import APIRouter, HTTPException, Response, Query
 from core.tenant_context import TenantCtxDep
 from core.dependencies import StaffDep
 
@@ -8,7 +8,7 @@ router = APIRouter(prefix="/v1/tenant/receipts", tags=["pos"])
 
 @router.get("/{invoice_id}")
 async def get_thermal_receipt(
-    request: Request, 
+    ctx: TenantCtxDep, 
     invoice_id: UUID, 
     _auth: StaffDep,
     lang: str = Query("en", pattern="^(en|bn)$")
@@ -16,11 +16,7 @@ async def get_thermal_receipt(
     """
     Generates a bilingual Mushak 6.3 receipt for thermal printers (80mm).
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         inv = await conn.fetchrow(
             """
             SELECT i.*, c.name_en as cust_en, c.name_bn as cust_bn, c.phone as cust_phone
@@ -42,7 +38,7 @@ async def get_thermal_receipt(
             """, 
             invoice_id
         )
-        tenant_settings = await conn.fetchrow("SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", tenant_id)
+        tenant_settings = await conn.fetchrow("SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", ctx.tenant_id)
 
     cols = 42 # 80mm standard
     is_bn = lang == "bn"
@@ -50,7 +46,7 @@ async def get_thermal_receipt(
     
     # 1. Header
     title = (tenant_settings['legal_title_bn' if is_bn else 'legal_title_en'] 
-             or tenant_settings['legal_title_en'] or sub)
+             or tenant_settings['legal_title_en'] or ctx.subdomain)
     res.append(title.center(cols))
     
     if tenant_settings and tenant_settings.get('bin'):
@@ -126,7 +122,7 @@ async def get_thermal_receipt(
 
 @router.get("/{invoice_id}/pdf", responses={200: {"content": {"application/pdf": {}}}})
 async def get_pdf_receipt(
-    request: Request, 
+    ctx: TenantCtxDep, 
     invoice_id: UUID, 
     _auth: StaffDep,
     lang: str = Query("en", pattern="^(en|bn)$")
@@ -139,11 +135,7 @@ async def get_pdf_receipt(
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import inch
     
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         inv = await conn.fetchrow(
             """
             SELECT i.*, c.name_en as cust_en, c.name_bn as cust_bn, c.phone as cust_phone,
@@ -162,7 +154,7 @@ async def get_pdf_receipt(
             "LEFT JOIN tenant_data.products p ON l.product_id = p.id WHERE l.invoice_id = $1",
             invoice_id
         )
-        settings = await conn.fetchrow("SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", tenant_id)
+        settings = await conn.fetchrow("SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", ctx.tenant_id)
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
@@ -170,7 +162,7 @@ async def get_pdf_receipt(
     
     # PDF Header
     c.setFont("Helvetica-Bold", 14)
-    c.drawCentredString(width/2, height - 1*inch, settings['legal_title_en'] if settings else sub)
+    c.drawCentredString(width/2, height - 1*inch, settings['legal_title_en'] if settings else ctx.subdomain)
     c.setFont("Helvetica", 10)
     c.drawCentredString(width/2, height - 1.2*inch, f"BIN: {settings['bin'] if settings else 'N/A'}")
     c.setFont("Helvetica-Bold", 16)

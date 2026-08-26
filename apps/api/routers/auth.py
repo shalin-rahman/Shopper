@@ -4,7 +4,7 @@ import jwt
 from datetime import datetime, timedelta, timezone
 
 import asyncpg
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
@@ -30,29 +30,20 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: Request, body: LoginBody):
+async def login(ctx: TenantCtxDep, body: LoginBody):
     from core.config import get_settings
     settings = get_settings()
-    
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
 
-    if pool is None:
-        if settings.testing:
-            # Allow login in test mode with any valid looking strings
-            token = create_access_token({
-                "uid": "00000000-0000-0000-0000-000000000000",
-                "tid": "00000000-0000-0000-0000-000000000000",
-                "role": "admin"
-            })
-            return {"access_token": token, "token_type": "bearer"}
-        raise HTTPException(status_code=503, detail="Database unavailable")
+    if ctx.dedicated_db is None and settings.testing:
+        # Allow login in test mode with any valid looking strings
+        token = create_access_token({
+            "uid": "00000000-0000-0000-0000-000000000000",
+            "tid": "00000000-0000-0000-0000-000000000000",
+            "role": "admin"
+        })
+        return {"access_token": token, "token_type": "bearer"}
 
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         row = await conn.fetchrow(
             "SELECT id, username, password_hash, role FROM tenant_data.staff WHERE username = $1 AND is_active = true",
             body.username
@@ -63,7 +54,7 @@ async def login(request: Request, body: LoginBody):
 
     token = create_access_token({
         "uid": str(row["id"]),
-        "tid": str(tenant_id),
+        "tid": str(ctx.tenant_id),
         "role": row["role"]
     })
     

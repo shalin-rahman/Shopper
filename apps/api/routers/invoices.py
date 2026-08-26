@@ -8,7 +8,7 @@ import io
 
 import asyncpg
 import qrcode
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
@@ -20,26 +20,12 @@ from core.dependencies import StaffDep
 router = APIRouter(prefix="/v1/tenant/invoices", tags=["invoices"])
 
 
-def _pool(request: Request) -> asyncpg.Pool:
-    if pool is None:
-        raise HTTPException(status_code=503, detail="Database unavailable")
-    return pool
-
-
 @router.post("", response_model=InvoiceOut, status_code=201)
-async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
+async def create_invoice(ctx: TenantCtxDep, body: InvoiceCreate, _auth: StaffDep):
     # 0. Smart Inline Saving of Customer
     customer_id = body.customer_id
     if body.customer_data and not customer_id:
-        async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+        async with ctx.transaction() as conn:
             # Check if customer code already exists to prevent duplicates
             existing = await conn.fetchval(
                 "SELECT id FROM tenant_data.customers WHERE code = $1", 
@@ -94,7 +80,7 @@ async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep)
                 detail="Customer ID is required for high-value invoices (>= 200,000 BDT) for Mushak 6.10 compliance."
             )
         
-        async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+        async with ctx.transaction() as conn:
             customer = await conn.fetchrow(
                 "SELECT tin, nid, bin FROM tenant_data.customers WHERE id = $1", 
                 customer_id
@@ -105,7 +91,7 @@ async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep)
                     detail="Customer must have a valid TIN, NID, or BIN for high-value invoices per Mushak 6.10 requirements."
                 )
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         # Create Invoice
         invoice_row = await conn.fetchrow(
             """
@@ -149,17 +135,12 @@ async def create_invoice(request: Request, body: InvoiceCreate, _auth: StaffDep)
 
 
 @router.post("/returns", response_model=CreditNoteOut, status_code=201)
-async def create_sales_return(request: Request, body: SalesReturnCreate, _auth: StaffDep):
+async def create_sales_return(ctx: TenantCtxDep, body: SalesReturnCreate, _auth: StaffDep):
     """
     Creates a Sales Return (Mushak 6.7) and generates a Credit Note.
     Decreases the invoice's balance_due and records stock reversal.
     """
-    sub = subdomain_from_request(request)
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         # 1. Fetch original invoice
         invoice = await conn.fetchrow(
             "SELECT * FROM tenant_data.invoices WHERE id = $1", body.invoice_id
@@ -194,7 +175,7 @@ async def create_sales_return(request: Request, body: SalesReturnCreate, _auth: 
             ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             """,
-            tenant_id, body.invoice_id, note_no, body.reason,
+            ctx.tenant_id, body.invoice_id, note_no, body.reason,
             total_taxable, total_vat, total_adjustment
         )
 
@@ -219,7 +200,7 @@ async def create_sales_return(request: Request, body: SalesReturnCreate, _auth: 
                     reference_type, reference_id, notes
                 ) VALUES ($1, $2, 'in', $3, 'return', $4, $5)
                 """,
-                tenant_id, item["product_id"], item["qty"], 
+                ctx.tenant_id, item["product_id"], item["qty"], 
                 cn_row["id"], f"Sales Return: {note_no}"
             )
              
@@ -233,20 +214,12 @@ async def create_sales_return(request: Request, body: SalesReturnCreate, _auth: 
 
 @router.get("", response_model=list[InvoiceOut])
 async def list_invoices(
-    request: Request,
+    ctx: TenantCtxDep,
     _auth: StaffDep,
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0)
 ):
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """
             SELECT * FROM tenant_data.invoices
@@ -261,16 +234,8 @@ async def list_invoices(
 
 
 @router.get("/{id}", response_model=InvoiceOut)
-async def get_invoice(request: Request, id: UUID, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def get_invoice(ctx: TenantCtxDep, id: UUID, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         invoice_row = await conn.fetchrow(
             "SELECT * FROM tenant_data.invoices WHERE id = $1", id
         )
@@ -285,16 +250,8 @@ async def get_invoice(request: Request, id: UUID, _auth: StaffDep):
 
 
 @router.get("/{id}/qr", responses={200: {"content": {"image/png": {}}}})
-async def get_invoice_qr(request: Request, id: UUID, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def get_invoice_qr(ctx: TenantCtxDep, id: UUID, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         invoice_row = await conn.fetchrow(
             "SELECT invoice_no, total_amount FROM tenant_data.invoices WHERE id = $1", id
         )
@@ -304,11 +261,11 @@ async def get_invoice_qr(request: Request, id: UUID, _auth: StaffDep):
         # Retrieve merchant IDs from settings to include in QR as per requirements
         settings_row = await conn.fetchrow(
             "SELECT bkash_app_key, nagad_merchant_id FROM platform.tenant_settings WHERE tenant_id = $1",
-            tenant_id
+            ctx.tenant_id
         )
 
-    settings = getattr(request.app.state, "settings", None)
-    base_url = (settings.storefront_public_base_url if settings else None) or f"https://{sub}.shopper.com"
+    settings = getattr(ctx.request.app.state, "settings", None)
+    base_url = (settings.storefront_public_base_url if settings else None) or f"https://{ctx.subdomain}.shopper.com"
     amount = Decimal(str(invoice_row["total_amount"]))
     invoice_no = invoice_row["invoice_no"]
     
@@ -335,16 +292,8 @@ async def get_invoice_qr(request: Request, id: UUID, _auth: StaffDep):
 
 
 @router.get("/{id}/mushak", responses={200: {"content": {"application/pdf": {}}}})
-async def get_invoice_mushak_pdf(request: Request, id: UUID, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def get_invoice_mushak_pdf(ctx: TenantCtxDep, id: UUID, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         invoice_row = await conn.fetchrow(
             "SELECT * FROM tenant_data.invoices WHERE id = $1", id
         )
@@ -356,7 +305,7 @@ async def get_invoice_mushak_pdf(request: Request, id: UUID, _auth: StaffDep):
         )
         
         tenant_settings = await conn.fetchrow(
-            "SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", tenant_id
+            "SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", ctx.tenant_id
         )
 
     buf = io.BytesIO()
@@ -370,7 +319,7 @@ async def get_invoice_mushak_pdf(request: Request, id: UUID, _auth: StaffDep):
     c.setFont("Helvetica", 12)
     c.drawString(1 * inch, height - 1.5 * inch, f"Invoice No: {invoice_row['invoice_no']}")
     
-    tenant_name = tenant_settings['legal_title_en'] if tenant_settings and tenant_settings.get('legal_title_en') else sub
+    tenant_name = tenant_settings['legal_title_en'] if tenant_settings and tenant_settings.get('legal_title_en') else ctx.subdomain
     c.drawString(1 * inch, height - 1.7 * inch, f"Tenant: {tenant_name}")
     
     bin_num = tenant_settings['bin'] if tenant_settings and tenant_settings.get('bin') else "N/A"

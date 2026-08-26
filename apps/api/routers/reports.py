@@ -3,7 +3,7 @@ from collections import Counter
 from datetime import date
 from decimal import Decimal
 import asyncpg
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 import io
 import openpyxl
@@ -18,19 +18,11 @@ from core.dependencies import AccountantDep
 
 router = APIRouter(prefix="/v1/tenant/reports", tags=["reports"])
 
-def _pool(request: Request) -> asyncpg.Pool:
-    if pool is None: raise HTTPException(status_code=503, detail="Database unavailable")
-    return pool
-
 @router.get("/inventory-aging", response_model=InventoryAgingReportOut)
-async def inventory_aging_report(request: Request, _auth: AccountantDep, as_of: date | None = None):
-    sub = subdomain_from_request(request)
+async def inventory_aging_report(ctx: TenantCtxDep, _auth: AccountantDep, as_of: date | None = None):
     as_of_d = as_of or date.today()
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """
             WITH last_stock AS (
@@ -69,16 +61,11 @@ async def inventory_aging_report(request: Request, _auth: AccountantDep, as_of: 
     )
 
 @router.get("/stock-valuation", response_model=StockValuationReportOut)
-async def stock_valuation_report(request: Request, _auth: AccountantDep):
+async def stock_valuation_report(ctx: TenantCtxDep, _auth: AccountantDep):
     """
     Returns inventory value based on Weighted Average Cost (WAC).
     """
-    sub = subdomain_from_request(request)
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """
             SELECT sku, name_en, name_bn, stock_quantity, wac_cost,
@@ -106,7 +93,7 @@ async def stock_valuation_report(request: Request, _auth: AccountantDep):
 
 @router.get("/vat-register", response_model=VatRegisterReportOut)
 async def vat_register_report(
-    request: Request, 
+    ctx: TenantCtxDep, 
     _auth: AccountantDep,
     start_date: date = Query(...),
     end_date: date = Query(...)
@@ -114,19 +101,14 @@ async def vat_register_report(
     """
     Summarized Mushak 6.3 VAT Sales Register.
     """
-    sub = subdomain_from_request(request)
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """
             SELECT invoice_no, invoice_date, buyer_name_en, 
-                   SUM(qty) as total_qty, 
-                   SUM(taxable_value) as total_taxable, 
-                   SUM(vat_amount) as total_vat, 
-                   SUM(total_amount) as total_gross
+                    SUM(qty) as total_qty, 
+                    SUM(taxable_value) as total_taxable, 
+                    SUM(vat_amount) as total_vat, 
+                    SUM(total_amount) as total_gross
             FROM tenant_data.vat_sales_register_lines
             WHERE invoice_date BETWEEN $1 AND $2
             GROUP BY invoice_no, invoice_date, buyer_name_en
@@ -160,16 +142,11 @@ async def vat_register_report(
     )
 
 @router.get("/business-analytics", response_model=BusinessAnalyticsOut)
-async def business_analytics_report(request: Request, _auth: AccountantDep):
+async def business_analytics_report(ctx: TenantCtxDep, _auth: AccountantDep):
     """
     Calculates Inventory Turnover Ratio (ITR) and Economic Order Quantity (EOQ).
     """
-    sub = subdomain_from_request(request)
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         # COGS calculation (sum of cost of sold items in last 30 days, annualized)
         cogs_30d = await conn.fetchval(
             """
@@ -220,7 +197,7 @@ async def business_analytics_report(request: Request, _auth: AccountantDep):
 
 @router.get("/vat-register/export/excel")
 async def vat_register_excel_export(
-    request: Request, 
+    ctx: TenantCtxDep, 
     _auth: AccountantDep,
     start_date: date = Query(...),
     end_date: date = Query(...)
@@ -228,12 +205,7 @@ async def vat_register_excel_export(
     """
     Exports Mushak 6.3 Register to Excel.
     """
-    sub = subdomain_from_request(request)
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             "SELECT * FROM tenant_data.vat_sales_register_lines WHERE invoice_date BETWEEN $1 AND $2 ORDER BY invoice_date",
             start_date, end_date
@@ -269,7 +241,7 @@ async def vat_register_excel_export(
 
 @router.get("/mushak-6-10", response_model=VatRegisterReportOut)
 async def mushak_6_10_report(
-    request: Request, 
+    ctx: TenantCtxDep, 
     _auth: AccountantDep,
     month: int = Query(..., ge=1, le=12),
     year: int = Query(..., ge=2000)
@@ -277,26 +249,21 @@ async def mushak_6_10_report(
     """
     NBR Mushak 6.10: Monthly report for transactions >= BDT 200,000.
     """
-    sub = subdomain_from_request(request)
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """
             SELECT i.invoice_no, i.created_at::date as invoice_date, 
-                   c.name_en as buyer_name_en, 
-                   SUM(l.qty) as total_qty, 
-                   i.subtotal as total_taxable, 
-                   i.total_vat as total_vat, 
-                   i.total_amount as total_gross
+                    c.name_en as buyer_name_en, 
+                    SUM(l.qty) as total_qty, 
+                    i.subtotal as total_taxable, 
+                    i.total_vat as total_vat, 
+                    i.total_amount as total_gross
             FROM tenant_data.invoices i
             JOIN tenant_data.customers c ON i.customer_id = c.id
             JOIN tenant_data.invoice_lines l ON l.invoice_id = i.id
             WHERE EXTRACT(MONTH FROM i.created_at) = $1 
-              AND EXTRACT(YEAR FROM i.created_at) = $2
-              AND i.total_amount >= 200000
+                AND EXTRACT(YEAR FROM i.created_at) = $2
+                AND i.total_amount >= 200000
             GROUP BY i.id, i.invoice_no, i.created_at, c.name_en, i.subtotal, i.total_vat, i.total_amount
             ORDER BY i.created_at DESC
             """,
@@ -326,7 +293,7 @@ async def mushak_6_10_report(
 
 @router.get("/mushak-6-1", response_model=VatRegisterReportOut)
 async def mushak_6_1_report(
-    request: Request, 
+    ctx: TenantCtxDep, 
     _auth: AccountantDep,
     start_date: date = Query(...),
     end_date: date = Query(...)
@@ -334,20 +301,15 @@ async def mushak_6_1_report(
     """
     NBR Mushak 6.1: Monthly Purchase Register.
     """
-    sub = subdomain_from_request(request)
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """
             SELECT po.po_no as invoice_no, po.created_at::date as invoice_date, 
-                   s.name_en as buyer_name_en, 
-                   SUM(l.qty) as total_qty, 
-                   SUM(l.line_total) as total_taxable, 
-                   0 as total_vat, 
-                   SUM(l.line_total) as total_gross
+                    s.name_en as buyer_name_en, 
+                    SUM(l.qty) as total_qty, 
+                    SUM(l.line_total) as total_taxable, 
+                    0 as total_vat, 
+                    SUM(l.line_total) as total_gross
             FROM tenant_data.purchase_orders po
             JOIN tenant_data.suppliers s ON po.supplier_id = s.id
             JOIN tenant_data.po_lines l ON l.po_id = po.id

@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 import io
 import asyncpg
-from fastapi import APIRouter, HTTPException, Query, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
@@ -14,14 +14,10 @@ from core.dependencies import StaffDep
 router = APIRouter(prefix="/v1/tenant/inventory", tags=["inventory"])
 
 @router.post("/receive", status_code=201)
-async def stock_receive(request: Request, body: dict, _auth: StaffDep):
+async def stock_receive(ctx: TenantCtxDep, body: dict, _auth: StaffDep):
     """
     Increases stock. Reasons: purchase, gift_in, return_in.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
     sku = body.get("sku")
     qty = Decimal(str(body.get("qty", 0)))
     tx_type = body.get("type", "receive") # receive, gift_in, return_in
@@ -30,7 +26,7 @@ async def stock_receive(request: Request, body: dict, _auth: StaffDep):
     if not sku or qty <= 0:
         raise HTTPException(status_code=400, detail="Missing required SKU or Qty")
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         tx = await conn.fetchrow(
             """
             INSERT INTO tenant_data.stock_transactions (
@@ -47,14 +43,10 @@ async def stock_receive(request: Request, body: dict, _auth: StaffDep):
         return {"id": tx["id"], "type": tx_type, "status": "recorded"}
 
 @router.post("/adjust", status_code=201)
-async def stock_adjust(request: Request, body: dict, _auth: StaffDep):
+async def stock_adjust(ctx: TenantCtxDep, body: dict, _auth: StaffDep):
     """
     Decreases stock. Reasons: damage, return_out, gift_out, expired.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
     sku = body.get("sku")
     qty = Decimal(str(body.get("qty", 0)))
     tx_type = body.get("type", "damage") # damage, return_out, gift_out, expired
@@ -62,7 +54,7 @@ async def stock_adjust(request: Request, body: dict, _auth: StaffDep):
     if not sku or qty <= 0:
         raise HTTPException(status_code=400, detail="Missing required SKU or Qty")
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         tx = await conn.fetchrow(
             """
             INSERT INTO tenant_data.stock_transactions (
@@ -79,14 +71,10 @@ async def stock_adjust(request: Request, body: dict, _auth: StaffDep):
         return {"id": tx["id"], "type": tx_type, "status": "recorded"}
 
 @router.post("/transfer", status_code=201)
-async def create_stock_transfer(request: Request, body: dict, _auth: StaffDep):
+async def create_stock_transfer(ctx: TenantCtxDep, body: dict, _auth: StaffDep):
     """
     Records a stock transfer between branches and returns Mushak 6.5 info.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
     sku = body.get("sku")
     qty = Decimal(str(body.get("qty", 0)))
     from_loc = body.get("from_location", "Main Warehouse")
@@ -95,7 +83,7 @@ async def create_stock_transfer(request: Request, body: dict, _auth: StaffDep):
     if not sku or qty <= 0 or not to_loc:
         raise HTTPException(status_code=400, detail="Missing required transfer fields")
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         tx = await conn.fetchrow(
             """
             INSERT INTO tenant_data.stock_transactions (
@@ -114,12 +102,8 @@ async def create_stock_transfer(request: Request, body: dict, _auth: StaffDep):
         return {"id": tx["id"], "mushak_form": "6.5", "status": "recorded"}
 
 @router.get("/transfer/{tx_id}/mushak-6-5", responses={200: {"content": {"application/pdf": {}}}})
-async def get_mushak_6_5_pdf(request: Request, tx_id: UUID, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def get_mushak_6_5_pdf(ctx: TenantCtxDep, tx_id: UUID, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         tx = await conn.fetchrow(
             """
             SELECT tx.*, p.name_en, p.sku, p.unit
@@ -132,7 +116,7 @@ async def get_mushak_6_5_pdf(request: Request, tx_id: UUID, _auth: StaffDep):
         if not tx:
             raise HTTPException(status_code=404, detail="Transaction not found")
             
-        settings = await conn.fetchrow("SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", tenant_id)
+        settings = await conn.fetchrow("SELECT * FROM platform.tenant_settings WHERE tenant_id = $1", ctx.tenant_id)
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
@@ -149,7 +133,7 @@ async def get_mushak_6_5_pdf(request: Request, tx_id: UUID, _auth: StaffDep):
     c.setFont("Helvetica", 10)
     c.drawRightString(width - 1*inch, height - 2*inch, f"Date: {tx['created_at'].strftime('%Y-%m-%d')}")
     c.drawString(1*inch, height - 2*inch, f"BIN: {settings['bin'] if settings else 'N/A'}")
-    c.drawString(1*inch, height - 2.2*inch, f"Registered Name: {settings['legal_title_en'] if settings else sub}")
+    c.drawString(1*inch, height - 2.2*inch, f"Registered Name: {settings['legal_title_en'] if settings else ctx.subdomain}")
 
     # Transfer Details
     c.rect(1*inch, height - 4*inch, width - 2*inch, 1.5*inch)
@@ -168,15 +152,11 @@ async def get_mushak_6_5_pdf(request: Request, tx_id: UUID, _auth: StaffDep):
     return Response(content=buf.getvalue(), media_type="application/pdf")
 
 @router.get("/history", status_code=200)
-async def get_inventory_history(request: Request, _auth: StaffDep):
+async def get_inventory_history(ctx: TenantCtxDep, _auth: StaffDep):
     """
     Returns full history of stock transactions for auditing.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """
             SELECT tx.*, p.sku, p.name_en, p.name_bn

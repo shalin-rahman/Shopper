@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 import asyncpg
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query
 
 from core.config import Settings
 from core.dependencies import SettingsDep
@@ -15,31 +15,17 @@ from services.payment_gateway import get_gateway, get_tenant_settings, payment_r
 router = APIRouter(prefix="/v1/storefront", tags=["storefront"])
 
 
-def _pool(request: Request) -> asyncpg.Pool:
-    if pool is None:
-        raise HTTPException(status_code=503, detail="Database unavailable")
-    return pool
-
-
 @router.get("/products", response_model=StorefrontProductListResponse)
 async def storefront_products(
-    request: Request,
+    ctx: TenantCtxDep,
     q: str | None = Query(default=None, max_length=128, description="Filter by SKU or name (substring, case-insensitive)"),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0, le=50_000),
 ):
     """Active products for the resolved tenant (public catalog; no buy_price)."""
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
     pattern = f"%{q}%" if q and q.strip() else None
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         total = await conn.fetchval(
             """
             SELECT count(*)::int
@@ -75,21 +61,13 @@ async def storefront_products(
         )
 
     products = [_storefront_row(r) for r in rows]
-    return StorefrontProductListResponse(tenant=sub, products=products, total=int(total or 0))
+    return StorefrontProductListResponse(tenant=ctx.subdomain, products=products, total=int(total or 0))
 
 
 @router.get("/checkout/{invoice_id}", response_model=InvoiceOut)
-async def storefront_invoice_details(request: Request, invoice_id: UUID):
+async def storefront_invoice_details(ctx: TenantCtxDep, invoice_id: UUID):
     """Public view of an invoice (e.g. for customer payment)."""
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         row = await conn.fetchrow(
             """
             SELECT i.*
@@ -115,22 +93,15 @@ async def storefront_invoice_details(request: Request, invoice_id: UUID):
 
 @router.post("/checkout/{invoice_id}/pay", response_model=PaymentOut, status_code=201)
 async def storefront_initiate_payment(
-    request: Request, 
+    ctx: TenantCtxDep, 
     invoice_id: UUID, 
     body: PaymentCreate, 
     settings: SettingsDep
 ):
     """Start a payment session for a specific invoice."""
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
+    tenant_settings = await get_tenant_settings(ctx.request, ctx.tenant_id)
 
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-    tenant_settings = await get_tenant_settings(request, tenant_id)
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         # 1. Verify invoice exists and has balance
         inv = await conn.fetchrow(
             "SELECT total_amount, balance_due FROM tenant_data.invoices WHERE id = $1",
@@ -147,7 +118,7 @@ async def storefront_initiate_payment(
 
         # 2. Initiate gateway
         gateway = get_gateway(body.gateway, settings)
-        init_data = await gateway.initiate_payment(body, sub, settings, tenant_settings)
+        init_data = await gateway.initiate_payment(body, ctx.subdomain, settings, tenant_settings)
         gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
 
         # 3. Record pending payment

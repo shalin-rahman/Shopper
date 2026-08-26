@@ -60,10 +60,7 @@ async def get_tenant_settings(ctx: TenantCtxDep, _auth: ManagerDep):
             """
             SELECT tenant_id, theme_id, default_language, logo_url,
                    legal_title_en, legal_title_bn, bin, default_vat_rate_pct,
-                   module_access, created_at, updated_at,
-                   sslcommerz_store_id, sslcommerz_store_password,
-                   bkash_app_key, bkash_app_secret, bkash_username, bkash_password,
-                   nagad_merchant_id, nagad_public_key, nagad_private_key
+                   module_access, created_at, updated_at
             FROM platform.tenant_settings
             WHERE ctx.tenant_id = $1
             """,

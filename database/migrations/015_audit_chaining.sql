@@ -1,6 +1,8 @@
 -- database/migrations/015_audit_chaining.sql
 -- Tamper-evident hash chaining for audit log.
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 ALTER TABLE tenant_data.audit_log ADD COLUMN IF NOT EXISTS previous_hash TEXT;
 ALTER TABLE tenant_data.audit_log ADD COLUMN IF NOT EXISTS current_hash TEXT;
 

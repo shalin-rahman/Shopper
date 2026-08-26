@@ -58,23 +58,16 @@ def _ipn_refs(gateway: PaymentGateway, data: dict[str, Any]) -> tuple[str, str]:
 
 
 @router.post("", response_model=PaymentOut, status_code=201)
-async def create_payment(request: Request, body: PaymentCreate, settings: SettingsDep, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    if not sub:
-        raise HTTPException(status_code=400, detail="Tenant subdomain required")
-
-    pool = _pool(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-    tenant_settings = await get_tenant_settings(request, tenant_id)
+async def create_payment(ctx: TenantCtxDep, body: PaymentCreate, settings: SettingsDep, _auth: StaffDep):
+    tenant_settings = await get_tenant_settings(ctx.request, ctx.tenant_id)
 
     gateway = get_gateway(body.gateway, settings)
-    init_data = await gateway.initiate_payment(body, sub, settings, tenant_settings)
+    init_data = await gateway.initiate_payment(body, ctx.subdomain, settings, tenant_settings)
 
     # Use gateway_transaction_id if returned (bKash returns paymentID here)
     gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         row = await conn.fetchrow(
             """
             INSERT INTO tenant_data.payments (

@@ -148,7 +148,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           emit(OrdersError(failure.message));
         }
       },
-      (orders) => emit(OrdersLoadSuccess(orders: orders)),
+      (orders) => emit(OrdersLoadSuccess(orders: (orders as List).cast<Order>())),
     );
   }
 
@@ -199,7 +199,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           emit(OrdersError(failure.message));
         }
       },
-      (orders) => emit(OrdersLoadSuccess(orders: orders)),
+      (orders) => emit(OrdersLoadSuccess(orders: (orders as List).cast<Order>())),
     );
   }
 

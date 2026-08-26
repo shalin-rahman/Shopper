@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException
 from schemas import PurchaseReturnCreate, DebitNoteOut
 from core.tenant_context import TenantCtxDep
 from core.dependencies import StaffDep
@@ -9,9 +9,8 @@ from core.dependencies import StaffDep
 router = APIRouter(prefix="/v1/tenant/suppliers", tags=["procurement"])
 
 @router.get("")
-async def list_suppliers(request: Request, _auth: StaffDep):
+async def list_suppliers(ctx: TenantCtxDep, _auth: StaffDep):
     from core.config import get_settings
-    from datetime import datetime
     settings = get_settings()
 
     if ctx.dedicated_db is None and settings.testing:  # mocked
@@ -25,44 +24,32 @@ async def list_suppliers(request: Request, _auth: StaffDep):
             }
         ]}
 
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT * FROM tenant_data.suppliers ORDER BY name_en")
     return {"items": [dict(r) for r in rows]}
 
 @router.post("", status_code=201)
-async def create_supplier(request: Request, body: dict, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def create_supplier(ctx: TenantCtxDep, body: dict, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         row = await conn.fetchrow(
             """
             INSERT INTO tenant_data.suppliers (tenant_id, code, name_en, name_bn, phone, email, address)
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING id, code, name_en
             """,
-            tenant_id, body.get("code"), body.get("name_en"), body.get("name_bn"),
+            ctx.tenant_id, body.get("code"), body.get("name_en"), body.get("name_bn"),
             body.get("phone"), body.get("email"), body.get("address")
         )
     return dict(row)
 
 
 @router.post("/returns", response_model=DebitNoteOut, status_code=201)
-async def create_purchase_return(request: Request, body: PurchaseReturnCreate, _auth: StaffDep):
+async def create_purchase_return(ctx: TenantCtxDep, body: PurchaseReturnCreate, _auth: StaffDep):
     """
     Creates a Purchase Return (Mushak 6.8) and generates a Debit Note.
     Decreases the stock and potentially adjusts the general ledger.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         # 1. Fetch original PO
         po = await conn.fetchrow(
             "SELECT * FROM tenant_data.purchase_orders WHERE id = $1", body.po_id
@@ -78,7 +65,7 @@ async def create_purchase_return(request: Request, body: PurchaseReturnCreate, _
             prod = await conn.fetchrow("SELECT buy_price, vat_rate_pct FROM tenant_data.products WHERE id = $1", item["product_id"])
             if prod:
                 cost = Decimal(str(item["qty"])) * Decimal(str(prod["buy_price"]))
-                # Include VAT in adjustment if applicable ( Mushak 6.8 logic)
+                # Include VAT in adjustment if applicable (Mushak 6.8 logic)
                 vat = (cost * Decimal(str(prod["vat_rate_pct"]))) / Decimal("100")
                 total_taxable += cost
                 total_vat += vat
@@ -95,7 +82,7 @@ async def create_purchase_return(request: Request, body: PurchaseReturnCreate, _
             ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             """,
-            tenant_id, body.po_id, note_no, body.reason,
+            ctx.tenant_id, body.po_id, note_no, body.reason,
             total_taxable, total_vat, total_adjustment
         )
 
@@ -108,7 +95,7 @@ async def create_purchase_return(request: Request, body: PurchaseReturnCreate, _
                     reference_type, reference_id, notes
                 ) VALUES ($1, $2, 'out', $3, 'purchase_return', $4, $5)
                 """,
-                tenant_id, item["product_id"], -item["qty"], 
+                ctx.tenant_id, item["product_id"], -item["qty"], 
                 dn_row["id"], f"Purchase Return: {note_no}"
             )
              

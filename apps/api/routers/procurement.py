@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 from datetime import datetime
 import asyncpg
-from fastapi import APIRouter, HTTPException, Request, Query
+from fastapi import APIRouter, HTTPException, Query
 from core.dependencies import StaffDep
 from schemas import (
     POCreate, POOut, POLineOut, 
@@ -15,14 +15,10 @@ from core.tenant_context import TenantCtxDep
 router = APIRouter(prefix="/v1/tenant/procurement", tags=["procurement"])
 
 @router.post("/po", response_model=POOut, status_code=201)
-async def create_purchase_order(request: Request, body: POCreate, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
+async def create_purchase_order(ctx: TenantCtxDep, body: POCreate, _auth: StaffDep):
     total_amount = sum(line.qty * line.unit_cost for line in body.lines)
 
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         # Create PO
         po_row = await conn.fetchrow(
             """
@@ -31,7 +27,7 @@ async def create_purchase_order(request: Request, body: POCreate, _auth: StaffDe
             ) VALUES ($1, $2, $3, $4, $4, 'draft')
             RETURNING *
             """,
-            tenant_id, body.supplier_id, body.po_no, total_amount
+            ctx.tenant_id, body.supplier_id, body.po_no, total_amount
         )
         
         po_id = po_row["id"]
@@ -50,15 +46,11 @@ async def create_purchase_order(request: Request, body: POCreate, _auth: StaffDe
     return _po_row_to_out(po_row, line_rows)
 
 @router.post("/po/{po_id}/receive", status_code=200)
-async def receive_po(request: Request, po_id: UUID, _auth: StaffDep):
+async def receive_po(ctx: TenantCtxDep, po_id: UUID, _auth: StaffDep):
     """
     Finalizes a PO and increases stock for all items.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         po = await conn.fetchrow("SELECT status FROM tenant_data.purchase_orders WHERE id = $1", po_id)
         if not po: raise HTTPException(status_code=404, detail="PO not found")
         if po["status"] == "received": raise HTTPException(status_code=400, detail="PO already received")
@@ -85,7 +77,7 @@ async def receive_po(request: Request, po_id: UUID, _auth: StaffDep):
                     tenant_id, product_id, transaction_type, quantity, unit_cost, reference_type, reference_id, notes
                 ) VALUES ($1, $2, 'in', $3, $4, 'po', $5, $6)
                 """,
-                tenant_id, line["product_id"], line["qty"], line["unit_cost"], po_id, f"Received PO: {po_id}"
+                ctx.tenant_id, line["product_id"], line["qty"], line["unit_cost"], po_id, f"Received PO: {po_id}"
             )
 
         await conn.execute("UPDATE tenant_data.purchase_orders SET status = 'received', updated_at = now() WHERE id = $1", po_id)
@@ -93,12 +85,8 @@ async def receive_po(request: Request, po_id: UUID, _auth: StaffDep):
     return {"status": "success", "message": "Inventory updated"}
 
 @router.post("/payments", response_model=SupplierPaymentOut, status_code=201)
-async def record_supplier_payment(request: Request, body: SupplierPaymentCreate, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def record_supplier_payment(ctx: TenantCtxDep, body: SupplierPaymentCreate, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         row = await conn.fetchrow(
             """
             INSERT INTO tenant_data.supplier_payments (
@@ -106,7 +94,7 @@ async def record_supplier_payment(request: Request, body: SupplierPaymentCreate,
             ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             """,
-            tenant_id, body.supplier_id, body.po_id, body.payment_no, body.amount, body.payment_method, body.ref_no
+            ctx.tenant_id, body.supplier_id, body.po_id, body.payment_no, body.amount, body.payment_method, body.ref_no
         )
 
         if body.po_id:
@@ -124,15 +112,11 @@ async def record_supplier_payment(request: Request, body: SupplierPaymentCreate,
     return SupplierPaymentOut(**dict(row))
 
 @router.post("/returns", response_model=DebitNoteOut, status_code=201)
-async def create_purchase_return(request: Request, body: PurchaseReturnCreate, _auth: StaffDep):
+async def create_purchase_return(ctx: TenantCtxDep, body: PurchaseReturnCreate, _auth: StaffDep):
     """
     Mushak 6.8 - Debit Note. Returning goods to supplier.
     """
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+    async with ctx.transaction() as conn:
         po = await conn.fetchrow("SELECT supplier_id FROM tenant_data.purchase_orders WHERE id = $1", body.po_id)
         if not po: raise HTTPException(status_code=404, detail="PO not found")
 
@@ -156,7 +140,7 @@ async def create_purchase_return(request: Request, body: PurchaseReturnCreate, _
             ) VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *
             """,
-            tenant_id, po["supplier_id"], body.po_id, note_no, body.reason, total_adj
+            ctx.tenant_id, po["supplier_id"], body.po_id, note_no, body.reason, total_adj
         )
 
         # Reduce PO balance
@@ -175,12 +159,8 @@ async def create_purchase_return(request: Request, body: PurchaseReturnCreate, _
     )
 
 @router.get("/po", response_model=list[POOut])
-async def list_purchase_orders(request: Request, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def list_purchase_orders(ctx: TenantCtxDep, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT * FROM tenant_data.purchase_orders ORDER BY created_at DESC")
         results = []
         for r in rows:
@@ -189,22 +169,14 @@ async def list_purchase_orders(request: Request, _auth: StaffDep):
         return results
 
 @router.get("/payments", response_model=list[SupplierPaymentOut])
-async def list_supplier_payments(request: Request, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def list_supplier_payments(ctx: TenantCtxDep, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT * FROM tenant_data.supplier_payments ORDER BY created_at DESC")
         return [SupplierPaymentOut(**dict(r)) for r in rows]
 
 @router.get("/returns", response_model=list[DebitNoteOut])
-async def list_purchase_returns(request: Request, _auth: StaffDep):
-    sub = subdomain_from_request(request)
-    tenant = await resolve_tenant_id(pool, sub)
-    tenant_id = tenant["id"]
-
-    async with tenant_transaction(request, tenant_id, tenant["dedicated_database_name"]) as conn:
+async def list_purchase_returns(ctx: TenantCtxDep, _auth: StaffDep):
+    async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT * FROM tenant_data.debit_notes ORDER BY created_at DESC")
         return [
             DebitNoteOut(
