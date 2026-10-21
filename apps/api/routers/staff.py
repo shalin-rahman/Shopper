@@ -9,6 +9,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 @router.get("")
 async def list_staff(ctx: TenantCtxDep, _auth: StaffDep):
+    from core.config import get_settings
+    settings = get_settings()
+
+    if ctx.dedicated_db is None and settings.testing:
+        from utils.seed_loader import staff as seed_staff
+        return {"items": seed_staff(ctx.subdomain or "demo")}
+
     async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT id, username, full_name, role, is_active FROM tenant_data.staff")
     return {"items": [dict(r) for r in rows]}

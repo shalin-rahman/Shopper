@@ -1,4 +1,6 @@
-# Shopper Platform — Comprehensive Implementation & Refactoring Plan
+# Shopper Platform — Historical Implementation & Refactoring Plan (Superseded)
+
+> Historical plan: the current requirements and task sequence live in [`.specify/specs/shopper-platform`](../.specify/specs/shopper-platform). Provider and settlement status is updated below; unverified integrations are not considered complete.
 
 ## Goal Description
 
@@ -69,8 +71,8 @@ Below is the status and execution strategy, mapping the technical refactoring ph
 #### Phase 4: POS Validation, Offline-Sync & Fintech Webhooks
 *Addressing: Offline-first Mobile Sync, bKash/Nagad Webhooks (IPN Idempotency)*
 - [ ] **Pending:** Introduce `asyncio.Lock` around `DEDICATED_POOLS` in `core/db.py` to prevent race conditions during tenant DB provisioning.
-- [ ] **Pending:** Create strict Pydantic schemas (`OfflinePunchOrder`) for `pos.py` to replace unvalidated `list[dict]` inputs coming from the offline-first Flutter mobile POS.
-- [ ] **Pending:** Implement the "ACK-First" Webhook Idempotency pattern (Redis-backed queue, UUID validation) for SSLCommerz, bKash, and Nagad IPN listeners.
+- [x] **Implemented:** Validate offline POS payloads with strict Pydantic schemas and reject invalid orders with per-order errors.
+- [ ] **Release gate:** bKash/Nagad initiation and callbacks fail closed until approved provider verification contracts are available and implemented. SSLCommerz validation remains bound to the matching local order, amount, currency, and transaction.
 - [ ] **Pending:** Refactor mobile `ApiClient.baseUrl` from a hardcoded string to a configurable environment variable.
 
 #### Phase 5: OpenAPI Contract & Frontend Alignment

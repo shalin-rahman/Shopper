@@ -20,6 +20,7 @@ async def test_stock_transfer_and_mushak_6_5(async_client, auth_headers):
         "name_en": "Transfer Item",
         "name_bn": "স্থানান্তর পণ্য",
         "unit": "pcs",
+        "stock_quantity": 50,
         "sell_price": 100,
         "vat_rate_pct": 5
     }, headers=auth_headers)

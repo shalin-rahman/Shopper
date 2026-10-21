@@ -1,9 +1,10 @@
 from __future__ import annotations
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 import io
-import asyncpg
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Response
+from pydantic import BaseModel, Field
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
@@ -13,92 +14,133 @@ from core.dependencies import StaffDep
 
 router = APIRouter(prefix="/v1/tenant/inventory", tags=["inventory"])
 
+
+class StockReceiveRequest(BaseModel):
+    sku: str = Field(..., min_length=1)
+    qty: Decimal = Field(..., gt=0)
+    type: Literal["in", "receive", "return_in", "gift_in"] = "receive"
+    unit_cost: Decimal | None = Field(default=None, ge=0)
+    notes: str | None = None
+    reason_code: str | None = None
+
+
+class StockAdjustRequest(BaseModel):
+    sku: str = Field(..., min_length=1)
+    qty: Decimal = Field(..., gt=0)
+    type: Literal["out", "damage", "return_out", "gift_out", "expired"] = "damage"
+    notes: str | None = None
+    reason_code: str | None = None
+
+
+class StockTransferRequest(BaseModel):
+    sku: str = Field(..., min_length=1)
+    qty: Decimal = Field(..., gt=0)
+    to_location: str = Field(..., min_length=1)
+    from_location: str = Field(default="Main Warehouse", min_length=1)
+
+
 @router.post("/receive", status_code=201)
-async def stock_receive(ctx: TenantCtxDep, body: dict, _auth: StaffDep):
+async def stock_receive(ctx: TenantCtxDep, body: StockReceiveRequest, _auth: StaffDep):
     """
     Increases stock. Reasons: purchase, gift_in, return_in.
     """
-    sku = body.get("sku")
-    qty = Decimal(str(body.get("qty", 0)))
-    tx_type = body.get("type", "receive") # receive, gift_in, return_in
-    unit_cost = body.get("unit_cost")
-    
-    if not sku or qty <= 0:
-        raise HTTPException(status_code=400, detail="Missing required SKU or Qty")
-
     async with ctx.transaction() as conn:
+        product = await conn.fetchrow(
+            "SELECT id FROM tenant_data.products WHERE sku = $1 AND is_active = true FOR UPDATE",
+            body.sku.strip(),
+        )
+        if not product:
+            raise HTTPException(status_code=404, detail="Product SKU not found")
+
         tx = await conn.fetchrow(
             """
             INSERT INTO tenant_data.stock_transactions (
-                product_id, transaction_type, quantity, unit_cost, notes, reason_code
-            ) 
-            SELECT id, $1, $2, $3, $4, $5 
-            FROM tenant_data.products WHERE sku = $6
+                tenant_id, product_id, transaction_type, quantity, unit_cost,
+                reference_type, notes, reason_code
+            ) VALUES ($1, $2, 'in', $3, $4, 'manual', $5, $6)
             RETURNING *
             """,
-            tx_type, qty, unit_cost, body.get("notes"), body.get("reason_code"), sku
+            ctx.tenant_id,
+            product["id"],
+            body.qty,
+            body.unit_cost,
+            body.notes,
+            body.reason_code or body.type,
         )
-        if not tx:
-            raise HTTPException(status_code=404, detail="Product SKU not found")
-        return {"id": tx["id"], "type": tx_type, "status": "recorded"}
+        await conn.execute(
+            "UPDATE tenant_data.products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
+            body.qty,
+            product["id"],
+        )
+        return {"id": tx["id"], "type": body.type, "status": "recorded"}
 
 @router.post("/adjust", status_code=201)
-async def stock_adjust(ctx: TenantCtxDep, body: dict, _auth: StaffDep):
+async def stock_adjust(ctx: TenantCtxDep, body: StockAdjustRequest, _auth: StaffDep):
     """
     Decreases stock. Reasons: damage, return_out, gift_out, expired.
     """
-    sku = body.get("sku")
-    qty = Decimal(str(body.get("qty", 0)))
-    tx_type = body.get("type", "damage") # damage, return_out, gift_out, expired
-    
-    if not sku or qty <= 0:
-        raise HTTPException(status_code=400, detail="Missing required SKU or Qty")
-
     async with ctx.transaction() as conn:
+        product = await conn.fetchrow(
+            "SELECT id, stock_quantity FROM tenant_data.products WHERE sku = $1 AND is_active = true FOR UPDATE",
+            body.sku.strip(),
+        )
+        if not product:
+            raise HTTPException(status_code=404, detail="Product SKU not found")
+        if Decimal(str(product["stock_quantity"])) < body.qty:
+            raise HTTPException(status_code=409, detail="Insufficient stock for this adjustment")
+
         tx = await conn.fetchrow(
             """
             INSERT INTO tenant_data.stock_transactions (
-                product_id, transaction_type, quantity, notes, reason_code
-            ) 
-            SELECT id, $1, $2, $3, $4 
-            FROM tenant_data.products WHERE sku = $5
+                tenant_id, product_id, transaction_type, quantity, reference_type, notes, reason_code
+            ) VALUES ($1, $2, 'out', $3, 'manual', $4, $5)
             RETURNING *
             """,
-            tx_type, -qty, body.get("notes"), body.get("reason_code"), sku
+            ctx.tenant_id,
+            product["id"],
+            body.qty,
+            body.notes,
+            body.reason_code or body.type,
         )
-        if not tx:
-            raise HTTPException(status_code=404, detail="Product SKU not found")
-        return {"id": tx["id"], "type": tx_type, "status": "recorded"}
+        await conn.execute(
+            "UPDATE tenant_data.products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+            body.qty,
+            product["id"],
+        )
+        return {"id": tx["id"], "type": body.type, "status": "recorded"}
 
 @router.post("/transfer", status_code=201)
-async def create_stock_transfer(ctx: TenantCtxDep, body: dict, _auth: StaffDep):
+async def create_stock_transfer(ctx: TenantCtxDep, body: StockTransferRequest, _auth: StaffDep):
     """
     Records a stock transfer between branches and returns Mushak 6.5 info.
     """
-    sku = body.get("sku")
-    qty = Decimal(str(body.get("qty", 0)))
-    from_loc = body.get("from_location", "Main Warehouse")
-    to_loc = body.get("to_location")
-    
-    if not sku or qty <= 0 or not to_loc:
-        raise HTTPException(status_code=400, detail="Missing required transfer fields")
-
     async with ctx.transaction() as conn:
+        product = await conn.fetchrow(
+            "SELECT id, stock_quantity FROM tenant_data.products WHERE sku = $1 AND is_active = true FOR UPDATE",
+            body.sku.strip(),
+        )
+        if not product:
+            raise HTTPException(status_code=404, detail="Product SKU not found")
+        if Decimal(str(product["stock_quantity"])) < body.qty:
+            raise HTTPException(status_code=409, detail="Insufficient stock for this transfer")
+
         tx = await conn.fetchrow(
             """
             INSERT INTO tenant_data.stock_transactions (
-                product_id, transaction_type, quantity, reference_id, notes
-            ) 
-            SELECT id, 'out', $1, NULL, $2 
-            FROM tenant_data.products WHERE sku = $3
+                tenant_id, product_id, transaction_type, quantity, reference_type, notes, reason_code
+            ) VALUES ($1, $2, 'out', $3, 'transfer', $4, 'branch_transfer')
             RETURNING *
             """,
-            -qty,
-            f"Transfer to {to_loc}",
-            sku
+            ctx.tenant_id,
+            product["id"],
+            body.qty,
+            f"Transfer from {body.from_location} to {body.to_location}",
         )
-        if not tx:
-            raise HTTPException(status_code=404, detail="Product SKU not found")
+        await conn.execute(
+            "UPDATE tenant_data.products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
+            body.qty,
+            product["id"],
+        )
         return {"id": tx["id"], "mushak_form": "6.5", "status": "recorded"}
 
 @router.get("/transfer/{tx_id}/mushak-6-5", responses={200: {"content": {"application/pdf": {}}}})
@@ -139,9 +181,8 @@ async def get_mushak_6_5_pdf(ctx: TenantCtxDep, tx_id: UUID, _auth: StaffDep):
     c.rect(1*inch, height - 4*inch, width - 2*inch, 1.5*inch)
     c.drawString(1.2*inch, height - 2.8*inch, f"Product SKU: {tx['sku']}")
     c.drawString(1.2*inch, height - 3.0*inch, f"Description: {tx['name_en']}")
-    c.drawString(1.2*inch, height - 3.2*inch, f"Quantity: {abs(tx['qty'])} {tx['unit']}")
-    c.drawString(1.2*inch, height - 3.4*inch, f"Source: Main Warehouse")
-    c.drawString(1.2*inch, height - 3.6*inch, f"Destination: {tx['notes']}")
+    c.drawString(1.2*inch, height - 3.2*inch, f"Quantity: {abs(tx['quantity'])} {tx['unit']}")
+    c.drawString(1.2*inch, height - 3.4*inch, f"Movement: {str(tx['notes'])[:70]}")
 
     c.drawString(1*inch, height - 4.5*inch, "Signature of Issuing Officer:")
     c.line(1*inch, height - 5*inch, 3*inch, height - 5*inch)

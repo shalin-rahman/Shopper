@@ -1,80 +1,364 @@
-1. Core Business Context
-•	Target Market: Bangladesh-based businesses (Retail, Warehouse, E-commerce).
-•	Business Model: A SaaS platform provided by a "Platform Service Provider" that hosts multiple independent business profiles.
-•	Platform Monetization: The provider charges business profiles using either a transaction-based fee (per sale) or a subscription-based fee (monthly/yearly).
-•	Administrative Roles: A Super Admin role for the service provider to manage all profiles, settings, and billing.
-2. Functional Requirements for Business Profiles
-•	Core Modules: Management of Products, Sales, Purchases, Stock In (Receive), Stock Out (Delivery), and Inventory.
-•	Account Management: Full general accounts management, including tracking customer and supplier payments.
-•	Payment Flexibility: Support for multiple installment payments for a single sales or purchase transaction.
-•	Frictionless Entry: "Smart" saving of customer and supplier details before or during a purchase/sale transaction.
-•	Autonomous Tools: Profiles must be able to:
-o	Generate unique Product Codes (SKUs).
-o	Manage Buy and Sell prices (including cost tracking).
-o	Generate and print scannable Barcodes (1D) and QR codes (2D) for items.
-•	Localized Compliance: Automatic generation of Bangladesh VAT forms (Mushak 6.3, 6.1, 6.2, etc.) and MRP compliance.
-3. Public Portal & Online Storefronts
-•	Global Aggregator: A public site (publicportal.org) that shows products from all participating businesses.
-•	Individual Storefronts: Path-based URLs for specific businesses (e.g., publicportal.org/profile1).
-•	Professional Themes: Business owners must select from at least 10 high-quality professional online sales themes during initial setup.
-•	Localized Checkout: Integration of Bangladeshi payment methods (bKash, Nagad, Rocket, SSLCommerz) where each profile sets up its own specific gateway credentials.
-4. Technical Architecture & Data Security
-•	Deployment Model: A Single-Tenant Silo model where each business profile has its own dedicated database/schema to ensure data is "hidden and strongly secured" from others.
-•	Routing Logic: Business management consoles must work under unique subdomains (e.g., business1.platform.org).
-•	Mobile Ecosystem: A native-feel mobile application (Flutter) for profile owners to manage all features, optimized for high-speed Barcode and QR code scanning at checkout.
-•	Bi-lingual Support: The entire system—UI, database, and reports—must support both English and Bengali (Bangla).
-5. Technology Stack & Infrastructure Feedback
-•	Backend:.NET 8 (Web API) or Python (FastAPI/Django).
-•	Database: PostgreSQL (utilizing Row-Level Security as a safety net).
-•	Frontend: Angular 17+ combined with Tailwind CSS.
-•	Mobile App: Flutter (for native hardware access to the camera/scanner).
-•	Infrastructure Strategy: A low-cost approach using Dockerized services deployed on a high-performance VPS (like Hetzner or DigitalOcean) with an Nginx/OpenResty reverse proxy to handle wildcard subdomains and automated SSL.
-6. Reporting and Output
-•	White-Labeling: All generated invoices and reports must include the specific business's own logo, title, and address.
-•	Date-Wise Analytics: Detailed reports for buy/sell patterns and inventory aging.
-•	Export Formats: One-click export functionality for both Excel (.xlsx) and PDF formats.
+Shopper Platform — Authoritative Business and Functional Specification
 
+Status: repository-aware draft specification
+Last reviewed: 2026-10-20
 
+This document is the primary source of truth for intended business behavior in this repository. It is intentionally aligned to repository evidence and separates intended behavior from current implementation status.
 
-Technical and Functional Specifications for a Localized Single-Tenant Silo Platform with Aggregated Commerce
-This specification outlines a high-security, low-cost "Single-Tenant feel" architecture where each business profile is physically isolated on its own subdomain. It is designed specifically for the Bangladeshi market, providing integrated ERP, POS, and digital commerce features with full Bi-lingual support (English & Bengali) to accommodate diverse users from corporate managers to local retail staff.
-1. Architectural Strategy: Subdomain Silo with i18n
-The platform uses a Silo (Database-per-Tenant) model on a high-performance VPS using Docker Compose to minimize infrastructure costs while maintaining rigorous security.
-Physical Data Isolation & Routing
-•	Logical vs. Physical: While sharing a codebase, each business is provisioned with a dedicated schema/database. Data from "Business A" is unreachable by "Business B".
-•	OpenResty Routing: OpenResty (Nginx + Lua) manages wildcard subdomains (*.platform.org). It handles automated SSL generation via Let's Encrypt for each new business profile.
-•	Bi-lingual Metadata: The database is designed to store localized attributes (e.g., product_name_en and product_name_bn) using PostgreSQL JSONB or specific translation tables.
-2. Bi-lingual (Bangla & English) Implementation
-The platform provides a seamless toggle between English and Bengali for all system touchpoints.
-•	UI Framework: The Angular frontend uses the @angular/localize or Transloco library to manage static text strings. All menus, buttons, and system messages are translated.
-•	Locale-Aware Formatting: The system automatically adapts number formatting (Lakh/Crore vs. Million/Billion), date formats, and the Bangladeshi Taka symbol (৳).
-•	Database Localization: Every tenant-scoped table for master data (Products, Suppliers, Customers) includes fields for both languages to ensure the public portal and invoices can be rendered in the user's preferred language.
-3. ERP & Operations: Smart Bi-lingual Workflows
-Master Data & Inventory
-•	Inline Creation: Business owners can save Suppliers and Customers "on-the-fly" during a purchase or sale using bi-lingual modals.
-•	Product ID & Codes: Configurable engine for unique SKU/Product code generation. The system generates 1D Barcodes for labels and 2D Product QR codes that link to the profile's storefront.
-•	Stock In/Out: Full lifecycle management from PO-driven receiving to sales-driven delivery with automated stock reservation to prevent overselling.
-Bangladesh VAT & Accounting (Mushak Compliance)
-The accounting module is localized for NBR (National Board of Revenue) requirements, automating mandatory Mushak forms :
-•	Mushak 6.3 (Tax Invoice): Generated in bi-lingual format as per NBR standards.
-•	Automated Registers: Real-time generation of Mushak 6.1 (Purchase), 6.2 (Sales), and 6.6 (VDS) in either English or Bangla.
-•	Installment Tracking: Ledger handles multiple partial payments per invoice, maintaining a live "Amount Due" calculated as $Total - \sum Payments$.
-4. Mobile POS & QR Scanning Workflow
-The Flutter mobile app is optimized for high-speed retail environments with native hardware access.
-1.	Fast Scan: Cashier scans 1D/2D codes using the smartphone camera with <0.05s latency.
-2.	Bi-lingual Interface: Sales staff can operate the POS in Bangla, while reports for management remain in English or both.
-3.	Dynamic QR Payment: POS generates a Dynamic Bangla QR code containing the exact bill amount and Merchant ID.
-4.	Instant Notification: Upon customer payment via bKash, Nagad, or Rocket, the system receives an IPN (Instant Payment Notification) and deducts inventory immediately.
-5. Localized Payment & Theme Engine
-Merchant-Specific Credentials
-Each business profile manages its own payment settings in their private silo :
-•	SSLCommerz & MFS: Profiles input their own Store ID and API keys. The system supports direct API integration for bKash Tokenized Checkout and Nagad, which includes specific fields for Bangla field labels (additionalFieldNameBN).
-•	Theme Selection: During setup, businesses choose from 10 niche themes (e.g., Fashion, Grocery, Electronics). Themes apply to the individual storefront at publicportal.org/business1.
-6. Super Admin & SaaS Billing
-The Platform Super Admin manages the global ecosystem and monetization :
-•	Tenant Management: Approve, suspend, or delete business profiles.
-•	Monetization: Flexible engine for Subscription billing (fixed fees) or Transaction billing (percentage/flat fee per sale).
-•	Branded Output: All PDF/Excel reports and invoices are white-labeled, injecting the business's own logo, title, and address in the chosen language.
+1. Mission and scope
+
+The Shopper platform is a multi-tenant ERP and POS system for Bangladeshi businesses. The product supports product, sales, purchase, inventory, customer and supplier management, financial reconciliation, billing, reporting, and public storefront capabilities. It is designed for a SaaS provider hosting multiple business profiles under one platform while preserving tenant separation and localized compliance.
+
+The platform is intended to support English and Bengali interfaces, Bangladesh-specific VAT and reporting requirements, and integration with local payment methods and marketplaces.
+
+2. Repository evidence and decision log
+
+This specification resolves contradictions between multiple planning documents and the current codebase.
+
+Evidence reviewed:
+- apps/api/main.py: defines global platform-level and tenant-scoped routes, health checks, and request-level tenant context.
+- apps/api/core/tenant_context.py: resolves tenant subdomain and injects TenantCtxDep for per-tenant access.
+- apps/api/routers/pos.py: implements POS sync and offline order punch processing.
+- docs/AI_PROJECT_STATUS.md: states the project is “in progress” and names remaining work.
+- docs/TODO.md: lists high-priority gaps and document contradictions.
+- README.md: previously claimed production-ready status, which is not supported by the current repository evidence.
+
+Business decision taken:
+- The authoritative architecture is hybrid multi-tenancy: a platform layer plus tenant subdomains, optional dedicated database routing, and shared RLS-based protection. This matches the implemented code more closely than the older single-silo wording of some docs.
+- The project remains a work in progress and should not be treated as production-ready based on the current repository evidence.
+
+3. Business context
+
+3.1 Actors
+- Platform service provider / super admin: manages tenant provisioning, platform settings, and billing.
+- Tenant admin / business owner: manages profile configuration, users, settings, and core operations.
+- Staff / cashier: handles sales, stock movements, and daily operations.
+- Accountant / financial user: reconciles payments, VAT, and ledger activity.
+- Customer / supplier: external parties appearing in sales, purchases, and payment events.
+
+3.2 Business model
+- The platform hosts multiple independent business profiles.
+- Business profiles are monetized by subscription, transaction fees, or both.
+- Each tenant can operate under its own subdomain, branding, payment configuration, and reporting settings.
+
+3.3 Key domain concepts
+- Tenant: a business profile or client organization within the SaaS platform.
+- Product: sellable item with SKU, pricing, localization metadata, and stock information.
+- Customer and supplier: financial counterparties for transactions.
+- Invoice: issued document for sale or purchase activity.
+- Stock movement: stock-in and stock-out events affecting valuation and inventory health.
+- Payment: local or gateway payment event attached to an invoice or purchase.
+- Audit record: tamper-evident system event supporting traceability.
+
+4. Functional requirements
+
+REQ-BR-001: Tenant model and routing
+- The platform shall support multiple business profiles, each associated with a tenant identity and a tenant-specific subdomain.
+- Tenant resolution shall be based on the request host or an explicit tenant header when present.
+- Unknown or inactive tenants must be rejected with an explicit error response.
+- Platform-level endpoints shall remain accessible without tenant context when explicitly allowed.
+
+Acceptance criteria:
+- A request with a valid tenant subdomain resolves to a tenant record and scope is applied for the request.
+- A request for an unknown tenant is rejected with 400/403/404 semantics and no silent cross-tenant access.
+- The platform allows non-tenant global endpoints without leaking tenant data.
+
+Repository evidence:
+- apps/api/main.py tenant_context middleware
+- apps/api/core/tenant_context.py resolve_tenant_ctx
+
+Implementation status: IMPLEMENTED_UNVERIFIED
+
+REQ-BR-002: Tenant isolation and access control
+- Tenant data shall be isolated so that one tenant cannot access another tenant’s records.
+- Access control shall enforce tenant-specific scoping through transaction-local settings or equivalent isolation controls.
+- Dedicated database routing and shared-RLS strategies are both acceptable implementation paths as long as the observable behavior enforces isolation.
+
+Acceptance criteria:
+- Records from Tenant A are not returned in queries for Tenant B.
+- Tenant-scoped transaction context is set before data access.
+- Invalidation or routing errors fail closed.
+
+Repository evidence:
+- apps/api/core/tenant_context.py uses transaction-local set_config('app.tenant_id', ...) and dedicated database configuration; missing pool state fails closed.
+- apps/api/core/dependencies.py now checks the JWT tenant claim against the resolved request tenant and restricts the no-token development bypass to testing mode.
+- database/init/01_schema_rls.sql explicitly prevents shopper_app from being superuser or bypassing RLS; tenant-owned tables have tenant policies.
+- apps/api/tests/integration/test_rls_isolation.py covers product isolation and invoice-settlement visibility under shopper_app.
+
+Implementation status: PARTIALLY_IMPLEMENTED (RLS integration tests require a configured PostgreSQL app-role connection and were skipped in this environment)
+
+REQ-BR-003: Product catalog management
+- The system shall allow a tenant to create, read, update, deactivate, and search products.
+- Each product shall have a unique or tenant-scoped product code/SKU, pricing fields, and stock state.
+- Product metadata shall support bilingual names and descriptions where required.
+- Product stock quantity must exist in the deployed schema, remain non-negative, and not be changed by a sale beyond available quantity.
+- Product category references must belong to the same tenant.
+
+Acceptance criteria:
+- A tenant can create a product with a valid SKU and stock quantity.
+- Product search returns only tenant-owned records.
+- Deactivated products are excluded from active sales flows.
+- Checked-in initialization and migrations support every product field used by API routes.
+- Cross-tenant category references are rejected by database constraints.
+
+Repository evidence:
+- apps/api/routers/products.py and product schemas enforce non-negative pricing/stock values and record initial/manual stock movements.
+- apps/api/routers/pos.py returns active products for POS sync.
+
+Implementation status: PARTIALLY_IMPLEMENTED (database-backed lifecycle and tenant-scope integration tests remain pending)
+
+REQ-BR-004: Sales and invoice lifecycle
+- The system shall create invoices, attach line items, compute subtotal, discount, VAT, and total values, and maintain invoice status.
+- Sales workflows shall support customer information, payment tracking, balance due, and settlement.
+- The system shall allow multiple installment or partial payments against a single invoice where applicable.
+- A finalized offline sale may be unpaid, partially paid, or fully paid; only the amount actually collected is a settlement.
+
+Acceptance criteria:
+- Invoice totals reconcile to line-item sums and taxes.
+- A partially paid invoice shows remaining balance due.
+- An unpaid finalized sale is distinguishable from a draft invoice and retains its full balance due.
+- An omitted offline `amount_paid` is treated as zero; an explicit amount is recorded exactly and cannot exceed the invoice total.
+- VAT and payment calculations are auditable.
+
+Repository evidence:
+- apps/api/routers/invoices.py calculates line totals, VAT, discounts, and balance due; invoice lines and inline customer creation are persisted atomically.
+- Draft invoice creation does not change stock; finalized offline POS sales release stock and create VAT register entries.
+- Sales returns use original invoice-line pricing, persist returned quantities, and cap returns at the remaining sold quantity.
+- VAT register reporting and Mushak export include invoice discounts.
+
+Implementation status: PARTIALLY_IMPLEMENTED (database-backed invoice, payment, and return reconciliation tests remain pending)
+
+REQ-BR-005: Inventory control and stock movement
+- The system shall manage stock receipts, stock releases, and inventory adjustments.
+- Stock movements shall update ledger or stock records and support valuation methods such as WAC/FIFO where implemented.
+- Outbound sales should reduce stock and preserve audit evidence.
+
+Acceptance criteria:
+- A stock-in event increases inventory quantity and traces to source records.
+- A stock-out event decreases inventory quantity and updates relevant valuation tables.
+- POS sync rejects a sale when aggregate demand for any product exceeds its available stock at sync time.
+- Rejections or failed transaction steps are rolled back.
+
+Repository evidence:
+- apps/api/routers/pos.py writes invoice lines and stock movements, updates product quantities, and records VAT sales rows in one per-order transaction.
+- apps/api/routers/invoices.py records sales-return stock-in movements and credit-note line details.
+- apps/api/routers/inventory.py records tenant-scoped receipts, adjustments, and transfers while updating on-hand quantities.
+- database/migrations/013_inventory_valuation.sql applies WAC/FIFO valuation when stock movements are inserted.
+
+Implementation status: PARTIALLY_IMPLEMENTED (database-backed stock valuation and rollback tests remain pending)
+
+Known limitation:
+- Product stock is currently tenant-wide. A branch transfer records an outbound movement and reduces that quantity, but destination-location balances are not modeled yet.
+
+REQ-BR-006: Offline POS sync and offline punch
+- The system shall support mobile or offline sales capture and later synchronization to the tenant data store.
+- Offline-punched orders shall be validated before insertion and shall include customer, item, quantity, pricing, and VAT data.
+- Offline tender values must match the server contract: cash, bKash, Nagad, Rocket, card/bank as applicable, or credit.
+- Credit orders must have zero collected amount; no settlement row is created for a zero collection.
+- Failed synchronizations must be reportable with per-order error information rather than silent success.
+
+Acceptance criteria:
+- A valid offline order is saved as a sale and stock movement.
+- The invoice balance and settlement ledger reflect the actual collected amount; omitted amount means unpaid.
+- Each selectable mobile tender value is accepted by the API, or is not offered by the client.
+- Invalid item or pricing payloads are rejected with a clear error.
+- The API returns accurate counts of successful versus failed local ids.
+
+Repository evidence:
+- apps/api/routers/pos.py defines `/v1/tenant/pos/sync` and `/v1/tenant/pos/offline-punch`.
+- Offline order and line payloads are validated with Pydantic models; invalid entries receive per-order errors.
+- Successfully synced local order IDs are persisted as idempotency keys; each order uses a savepoint so a failed order rolls back without blocking later orders.
+
+Implementation status: PARTIALLY_IMPLEMENTED (database-backed replay, rollback, and sync acceptance tests remain pending)
+
+Verification note:
+- Unit tests cover payload validation, replay handling, stock-write rollback, and invoice arithmetic. Run the database-backed integration suite before treating this requirement as complete.
+
+REQ-BR-007: Payments and gateways
+- The platform shall support local payment methods and third-party gateways relevant to Bangladesh, including bKash, Nagad, Rocket, and SSLCommerz.
+- Payment callbacks must be verified and idempotent to prevent duplicate processing.
+- Payment status must reconcile with invoice balance and inventory release.
+- A gateway callback must be verified against provider-authenticated transaction details for the matching order, amount, currency, and terminal status.
+- When approved provider verification details are unavailable, the gateway callback must fail closed and must not settle the invoice.
+
+Acceptance criteria:
+- A valid payment callback is accepted once only.
+- Unverified or mismatched callbacks cannot mark a payment complete.
+- Duplicate callbacks are rejected or ignored without double-charging or double-posting.
+- Invoice state and ledger state remain consistent.
+
+Repository evidence:
+- apps/api/routers/payments.py and apps/api/routers/storefront.py reserve against pending and completed installments before creating gateway sessions.
+- apps/api/services/payment_settlement.py centralizes invoice balance reservation; migration 025 derives invoice status and balances from completed gateway and POS settlement records.
+- apps/api/routers/pos.py writes finalized offline sales to the settlement ledger; legacy payloads without paymentMethod are treated as cash.
+- Successful callbacks validate their amount, lock the payment row, and rely on database status for idempotency and the balance trigger for invoice reconciliation.
+- bKash/Nagad verification must fail closed until approved provider contracts and credentials are configured; callback claims alone are not proof of payment.
+- Rocket is declared in the payment enum but has no gateway implementation and currently returns HTTP 501.
+
+Implementation status: PARTIALLY_IMPLEMENTED (provider verification, migration application, and database-backed reconciliation tests remain pending; Rocket gateway support remains incomplete)
+
+REQ-BR-008: Reporting and compliance
+- The platform shall generate tenant-specific financial and operational reports, including inventory valuation, stock age, sales, and purchase analytics.
+- Bangladesh-specific reporting such as Mushak forms shall be supported for taxable transactions.
+- Reporting output shall support digital export and branding appropriate to the tenant.
+
+Acceptance criteria:
+- Reports reflect tenant-owned records only.
+- Tax and invoice data match underlying transaction records.
+- Inventory turnover COGS is calculated from recorded inventory cost, not invoice selling price.
+- Output formats support PDF and spreadsheet export where implemented.
+
+Repository evidence:
+- database/migrations include VAT and invoice-related schemas.
+- apps/api/routers/reports.py exists.
+
+Implementation status: PARTIALLY_IMPLEMENTED
+
+REQ-BR-009: Public storefront and marketplace
+- The system shall support a public storefront or marketplace showing products from participating businesses.
+- Each tenant may have a public-facing storefront with a tenant-specific path or domain.
+- Public storefront behavior shall preserve tenant branding and theme selection.
+- Marketplace products are public only when a tenant explicitly opts each product into marketplace listing.
+
+Acceptance criteria:
+- Public marketplace search returns only approved public items.
+- Marketplace search executes through an explicitly authorized, constrained public-data path that does not grant general tenant-data access to the application role.
+- Storefronts are scoped to a tenant and cannot mix another tenant’s products.
+
+Repository evidence:
+- apps/api/routers/storefront.py and marketplace.py exist.
+- Requirements docs call for themes and global aggregation.
+
+Implementation status: PARTIALLY_IMPLEMENTED
+
+REQ-BR-010: Admin and platform controls
+- A super admin shall manage tenant lifecycle, platform configuration, billing, and platform-wide settings.
+- Tenant lifecycle states shall include at least active, suspended, and inactive.
+- The platform shall support onboarding, admin review, and rollback or suspension actions.
+
+Acceptance criteria:
+- Only platform-level users can manage global tenant records.
+- Suspended tenants cannot process new live transactions.
+- Audit evidence exists for all admin state changes.
+
+Repository evidence:
+- apps/api/routers/admin.py and registration flow exist.
+- apps/api/main.py allows /v1/admin and platform routes.
+
+Implementation status: PARTIALLY_IMPLEMENTED
+
+5. Security, privacy, and compliance requirements
+
+REQ-NFR-001: Security by default
+- The platform shall fail closed when tenant identification fails.
+- Authorization checks shall be enforced before access to tenant-scoped operations.
+- Secrets and payment credentials shall be protected from exposure in normal API responses.
+
+Repository evidence:
+- docs/TODO.md flags redaction of payment credentials and config hardening as required.
+- README and planning docs mention secret extraction and security hardening.
+
+Implementation status: PARTIALLY_IMPLEMENTED
+
+REQ-NFR-002: Auditability
+- Sensitive business changes shall generate audit evidence and preserve traceability.
+- Audit records shall be immutable or tamper-evident where implemented.
+
+Repository evidence:
+- database/migrations and architecture docs mention SHA-256 chaining for audit logs.
+
+Implementation status: PARTIALLY_IMPLEMENTED
+
+REQ-NFR-003: Localization and data quality
+- The system shall support English and Bengali for user interfaces, data labels, and reports when required.
+- Numeric and date formatting shall be locale-aware.
+
+Implementation status: PARTIALLY_IMPLEMENTED
+
+REQ-NFR-004: Operational quality
+- The platform shall provide structured logging, health endpoints, and clear error semantics.
+- The API shall support safe retries, partial failure handling, and explicit status reporting.
+
+Repository evidence:
+- apps/api/main.py defines /health and structured logging filter.
+
+Implementation status: PARTIALLY_IMPLEMENTED
+
+6. Required cross-cutting architecture
+
+The intended architecture is:
+- API and domain logic: FastAPI application with modular routers and services.
+- Tenant routing: request host plus tenant-context dependency injection.
+- Data persistence: PostgreSQL with tenant-scoped access and optional dedicated database operations.
+- Background and async concerns: Redis-backed idempotency, queue-like patterns, or callback handling.
+- Web and mobile clients: Angular web dashboard and Flutter mobile POS/client apps.
+
+The current repository structure reflects this architecture but not all layers are fully aligned. The architecture is acceptable as a target, but not all requirements are complete or validated.
+
+7. Verification matrix
+
+This section aligns business requirements with verification methods and current evidence.
+
+REQ-BR-001: backend route testing, request-level tenant verification, integration tests.
+REQ-BR-002: tenant isolation tests, DB-level security assertions, negative authorization tests.
+REQ-BR-003: product CRUD tests and access-scope tests.
+REQ-BR-004: invoice math and partial payment tests.
+REQ-BR-005: stock movement and rollback tests.
+REQ-BR-006: offline POS validation tests using valid and invalid payloads.
+REQ-BR-007: payment callback idempotency tests and duplicate IPN checks.
+REQ-BR-008: reporting and VAT tests against generated totals.
+REQ-BR-009: public storefront tenant scoping checks.
+REQ-BR-010: admin authorization and tenant lifecycle tests.
+
+Minimum test set required before release:
+- product tenant isolation tests
+- invoice VAT and payment reconciliation tests
+- offline-punch validation tests
+- payment callback replay protection tests
+- admin authorization tests
+- data retention and audit tests
+
+8. Known conflicts and unresolved items
+
+Priority 1 unresolved items:
+- The README states the project is production-ready, but repository evidence and planning docs classify the work as in progress.
+- Some docs describe a single-tenant silo model, while code and architecture review docs describe hybrid multi-tenancy with RLS and optional dedicated DBs.
+- docs/TODO.md cites pending work in auth guards, POS validation, mobile DI, and web alignment.
+
+Priority 2 unresolved items:
+- Payment callback idempotency is not fully evidenced in the repo.
+- OpenAPI and frontend contract alignment remains incomplete.
+- Mobile and web apps require additional validation before release claim.
+
+9. Implementation status summary
+
+Current repository status by major capability:
+- Tenant routing and request-scoped context: IMPLEMENTED_UNVERIFIED
+- Product and stock management: PARTIALLY_IMPLEMENTED
+- Sales and invoice processing: PARTIALLY_IMPLEMENTED
+- Offline POS sync: PARTIALLY_IMPLEMENTED
+- Payment gateway processing: PARTIALLY_IMPLEMENTED
+- Public storefront and marketplace: PARTIALLY_IMPLEMENTED
+- Admin controls: PARTIALLY_IMPLEMENTED
+- Reporting and compliance: PARTIALLY_IMPLEMENTED
+- Security and audit hardening: PARTIALLY_IMPLEMENTED
+- Web and mobile client alignment: NOT_IMPLEMENTED or PARTIALLY_IMPLEMENTED depending on specific feature area
+
+This document intentionally avoids labeling the platform as production-ready until the required tests and contract alignment are complete.
+
+10. Release decision
+
+The current evidence supports using this repository as a development codebase with defined target business behavior, not as a verified production release. The platform may proceed toward release only after the implementation status gaps are resolved and the required verification matrix is executed.en language.
+
+## 11. Approved implementation decisions (2026-10-20)
+
+- Offline POS settlement: `amount_paid` is the amount actually collected and must not exceed the invoice total. If it is omitted, treat the sale as unpaid. A zero collection creates no settlement ledger row. The selected POS tender is retained on the invoice; credit tender is valid only with a zero collection. A finalized unpaid sale is an issued invoice, not a draft.
+- Mobile MFS tender contract: offer bKash, Nagad, and Rocket as separate choices rather than a generic `mfs` value. Rocket gateway initiation remains unavailable until implemented; selecting a local tender does not imply a verified online gateway transaction.
+- Marketplace visibility: products are excluded by default and are returned globally only after explicit product-level opt-in and while the product and tenant are active.
+- Provider APIs: provider verification documentation was not available during this implementation. bKash and Nagad callbacks must fail closed until their approved server-to-server verification contracts are implemented. This does not count as completing gateway integration.
+- Stock availability: POS sync checks aggregate product demand while holding product row locks, and the database enforces non-negative stock.
+- Tenant category ownership: product-category references are tenant-qualified at the database boundary.
+- ITR: COGS uses the recorded cost basis for sold quantities, not retail selling prices.en language.
 7. Technical Metrics & Logic
 1. Outstanding Balance ($B_o$):
 $$B_o = I_{total} - \sum_{i=1}^{n} P_i$$
@@ -507,4 +791,3 @@ Looking toward the 2026 horizon, several emerging trends will likely dominate th
 2.	Predictive Payment Recovery: Leveraging AI to optimize retry windows based on a user's geographical and behavioral payment history.
 3.	Privacy-Preserving Multi-Tenancy: The use of Always Encrypted or Trusted Execution Environments (TEEs) to ensure that not even the database administrator can view sensitive tenant data.
 In conclusion, for professionals tasked with building and maintaining these systems, the priority must be the creation of an integrated stack where compliance, security, and financial operations are treated as a unified engineering challenge. By building platforms that are compliant by design, organizations can navigate the complexities of the modern digital economy with the agility required for sustained global growth.
-

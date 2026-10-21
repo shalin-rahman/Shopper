@@ -19,6 +19,7 @@ BEGIN
 END
 $$;
 
+ALTER ROLE shopper_app NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
 ALTER ROLE shopper_migrate BYPASSRLS;
 
 -- ---------------------------------------------------------------------------
@@ -84,6 +85,9 @@ CREATE TABLE tenant_data.product_categories (
     UNIQUE (tenant_id, slug)
 );
 
+CREATE UNIQUE INDEX idx_product_categories_tenant_id_id
+    ON tenant_data.product_categories (tenant_id, id);
+
 CREATE TABLE tenant_data.products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES platform.tenants (id) ON DELETE CASCADE,
@@ -98,13 +102,21 @@ CREATE TABLE tenant_data.products (
     sell_price NUMERIC(18, 4),
     mrp NUMERIC(18, 4),
     vat_rate_pct NUMERIC(5, 2) NOT NULL DEFAULT 0,
+    stock_quantity NUMERIC(18, 4) NOT NULL DEFAULT 0,
+    marketplace_enabled BOOLEAN NOT NULL DEFAULT false,
     barcode TEXT,
     qr_payload TEXT,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (tenant_id, sku)
+    UNIQUE (tenant_id, sku),
+    CONSTRAINT products_stock_quantity_nonnegative CHECK (stock_quantity >= 0)
 );
+
+ALTER TABLE tenant_data.products
+    ADD CONSTRAINT products_category_tenant_fk
+    FOREIGN KEY (tenant_id, category_id)
+    REFERENCES tenant_data.product_categories (tenant_id, id);
 
 CREATE INDEX idx_products_tenant ON tenant_data.products (tenant_id);
 CREATE INDEX idx_products_tenant_active ON tenant_data.products (tenant_id) WHERE is_active;

@@ -13,16 +13,9 @@ async def list_suppliers(ctx: TenantCtxDep, _auth: StaffDep):
     from core.config import get_settings
     settings = get_settings()
 
-    if ctx.dedicated_db is None and settings.testing:  # mocked
-        return {"items": [
-            {
-                "id": "11111111-1111-1111-1111-111111111111",
-                "name_en": "Mock Electronics Distro",
-                "name_bn": "মক ইলেকট্রনিক্স ডিস্ট্রো",
-                "phone": "01900000000",
-                "is_active": True
-            }
-        ]}
+    if ctx.dedicated_db is None and settings.testing:
+        from utils.seed_loader import suppliers as seed_suppliers
+        return {"items": seed_suppliers(ctx.subdomain or "demo")}
 
     async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT * FROM tenant_data.suppliers ORDER BY name_en")

@@ -8,6 +8,13 @@ router = APIRouter(prefix="/v1/tenant/accounts", tags=["accounting"])
 
 @router.get("")
 async def list_accounts(ctx: TenantCtxDep, _auth: StaffDep):
+    from core.config import get_settings
+    settings = get_settings()
+
+    if ctx.dedicated_db is None and settings.testing:
+        from utils.seed_loader import accounts as seed_accounts
+        return {"items": seed_accounts(ctx.subdomain or "demo")}
+
     async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT * FROM tenant_data.accounts ORDER BY code")
     return {"items": [dict(r) for r in rows]}

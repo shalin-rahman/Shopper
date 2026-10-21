@@ -16,6 +16,7 @@ class StorefrontProductOut(BaseModel):
     vat_rate_pct: Decimal
     barcode: str | None = None
     qr_payload: str | None = None
+    tenant_subdomain: str | None = None
 
 class StorefrontProductListResponse(BaseModel):
     tenant: str

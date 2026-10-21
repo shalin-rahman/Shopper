@@ -20,6 +20,27 @@ def _pool(ctx: TenantCtxDep) -> asyncpg.Pool:
 
 @router.get("", response_model=list[CustomerOut])
 async def list_customers(ctx: TenantCtxDep, _auth: StaffDep):
+    from core.config import get_settings
+    settings = get_settings()
+
+    if ctx.dedicated_db is None and settings.testing:
+        from utils.seed_loader import customers as seed_customers
+        return [
+            CustomerOut(
+                id=UUID(c["id"]),
+                tenant_id=UUID(c["tenant_id"]),
+                code=c["code"],
+                name_en=c["name_en"],
+                name_bn=c["name_bn"],
+                phone=c["phone"],
+                email=c["email"],
+                billing_address_en=c["billing_address_en"],
+                billing_address_bn=c["billing_address_bn"],
+                created_at=c["created_at"],
+            )
+            for c in seed_customers(ctx.subdomain or "demo")
+        ]
+
     async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """

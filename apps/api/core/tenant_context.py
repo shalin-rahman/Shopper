@@ -69,20 +69,33 @@ class TenantCtx:
             yield conn
 
 async def resolve_tenant_ctx(request: Request, settings: SettingsDep) -> TenantCtx:
+    cached = getattr(request.state, "tenant_context", None)
+    if cached is not None:
+        return cached
+
     sub = subdomain_from_request(request)
     if not sub:
         raise HTTPException(status_code=400, detail="Tenant subdomain required")
-    pool = request.app.state.db_pool
+    pool = getattr(request.app.state, "db_pool", None)
     if pool is None:
         if settings.testing:
-            return TenantCtx(tenant_id=UUID(int=0), subdomain=sub, dedicated_db=None, request=request)
+            context = TenantCtx(
+                tenant_id=UUID(int=0),
+                subdomain=sub,
+                dedicated_db=None,
+                request=request,
+            )
+            request.state.tenant_context = context
+            return context
         raise HTTPException(status_code=503, detail="Database unavailable")
     tenant = await resolve_tenant_id(pool, sub)
-    return TenantCtx(
+    context = TenantCtx(
         tenant_id=tenant["id"],
         subdomain=sub,
         dedicated_db=tenant.get("dedicated_database_name"),
         request=request,
     )
+    request.state.tenant_context = context
+    return context
 
 TenantCtxDep = Annotated[TenantCtx, Depends(resolve_tenant_ctx)]

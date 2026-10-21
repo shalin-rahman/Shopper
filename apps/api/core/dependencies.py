@@ -25,21 +25,25 @@ auth_scheme = HTTPBearer(auto_error=False)
 
 
 def has_role(allowed_roles: list[str]):
-    async def dependency(request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(auth_scheme)) -> dict[str, Any]:
-        from core.tenant_context import resolve_tenant_id, subdomain_from_request
+    async def dependency(
+        request: Request,
+        credentials: HTTPAuthorizationCredentials | None = Depends(auth_scheme),
+    ) -> dict[str, Any]:
         from core.config import get_settings
+        from core.tenant_context import resolve_tenant_ctx, subdomain_from_request
+
         settings = get_settings()
         
-        # ─── DEVELOPMENT AUTH BYPASS ───
-        # Automatically authenticate as a manager for the 'demo' tenant in non-prod
-        # This ensures the platform is "ready-to-explore" upon launch.
         if not credentials:
             sub = subdomain_from_request(request)
-            if sub == "demo" or "localhost" in request.headers.get("host", ""):
+            if settings.testing and (
+                sub == "demo" or "localhost" in request.headers.get("host", "")
+            ):
+                ctx = await resolve_tenant_ctx(request, settings)
                 return {
                     "sub": "dev-guest",
                     "role": "admin",
-                    "tenant_id": "00000000-0000-0000-0000-000000000000"
+                    "tenant_id": str(ctx.tenant_id),
                 }
             raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -52,6 +56,12 @@ def has_role(allowed_roles: list[str]):
             role = payload.get("role")
             if role not in allowed_roles:
                 raise HTTPException(status_code=403, detail="Insufficient permissions")
+            ctx = await resolve_tenant_ctx(request, settings)
+            if str(payload.get("tid") or "") != str(ctx.tenant_id):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Token tenant does not match the requested tenant",
+                )
             return payload
         except jwt.PyJWTError:
             raise HTTPException(status_code=401, detail="Invalid token")

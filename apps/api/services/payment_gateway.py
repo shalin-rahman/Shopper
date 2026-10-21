@@ -1,18 +1,11 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 import asyncpg
 from fastapi import HTTPException, Request
-import base64
-import json
-import time
 import httpx
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding as asymmetric_padding
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import padding as symmetric_padding
 from core.config import Settings
 from schemas import PaymentCreate, PaymentGateway, PaymentOut, TenantSettingsInternalOut
 from core.tenant_context import tenant_transaction
@@ -34,11 +27,11 @@ class PaymentGatewayInterface(ABC):
         ipn_data: dict[str, Any],
         settings: Settings,
         tenant_settings: TenantSettingsInternalOut,
-    ) -> bool:
+    ) -> dict[str, Any] | None:
         pass
 
     def ipn_payment_status(self, ipn_data: dict[str, Any]) -> str:
-        return "completed"
+        return "pending"
 
 class SSLCommerzGateway(PaymentGatewayInterface):
     def __init__(self, settings: Settings):
@@ -73,132 +66,113 @@ class SSLCommerzGateway(PaymentGatewayInterface):
             raise HTTPException(status_code=502, detail=f"SSLCommerz error: {data.get('failedreason', 'Unknown error')}")
         return {"gateway_url": data["GatewayPageURL"], "sessionkey": data["sessionkey"]}
 
-    async def verify_ipn(self, ipn_data: dict[str, Any], settings: Settings, tenant_settings: TenantSettingsInternalOut) -> bool:
+    async def verify_ipn(
+        self,
+        ipn_data: dict[str, Any],
+        settings: Settings,
+        tenant_settings: TenantSettingsInternalOut,
+    ) -> dict[str, Any] | None:
         store_id = tenant_settings.sslcommerz_store_id or settings.sslcommerz_store_id
         store_pass = tenant_settings.sslcommerz_store_password or settings.sslcommerz_store_password
-        if store_id:
-            if str(ipn_data.get("store_id") or "").strip() != str(store_id).strip(): return False
+        if not store_id or not store_pass:
+            return None
+        if str(ipn_data.get("store_id") or "").strip() != str(store_id).strip():
+            return None
         val_id = ipn_data.get("val_id")
-        if not val_id or not store_id or not store_pass: return False
+        if not val_id:
+            return None
         is_sandbox = str(store_id).lower().startswith("test")
         base_url = "https://sandbox.sslcommerz.com" if is_sandbox else "https://securepay.sslcommerz.com"
         api_url = f"{base_url}/validator/api/validationserverAPI.php"
         params = {"val_id": val_id, "store_id": store_id, "store_passwd": store_pass, "format": "json"}
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(api_url, params=params)
-            if resp.status_code != 200: return False
-            data = resp.json()
-            if data.get("status") not in ("VALID", "VALIDATED"): return False
-        return True
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(api_url, params=params)
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail="SSLCommerz verification service is unavailable",
+            ) from exc
+
+        if not isinstance(data, dict) or data.get("status") not in ("VALID", "VALIDATED"):
+            return None
+
+        provider_order_id = str(data.get("tran_id") or "").strip()
+        provider_transaction_id = str(data.get("val_id") or "").strip()
+        provider_currency = str(data.get("currency") or "").strip().upper()
+        try:
+            provider_amount = Decimal(str(data.get("amount")))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+
+        if (
+            not provider_order_id
+            or not provider_transaction_id
+            or not provider_currency
+            or not provider_amount.is_finite()
+            or provider_amount <= 0
+        ):
+            return None
+
+        callback_order_id = str(ipn_data.get("tran_id") or "").strip()
+        callback_amount = ipn_data.get("amount")
+        callback_currency = str(ipn_data.get("currency") or "").strip().upper()
+        if callback_order_id and callback_order_id != provider_order_id:
+            return None
+        if callback_amount not in (None, ""):
+            try:
+                if Decimal(str(callback_amount)) != provider_amount:
+                    return None
+            except (InvalidOperation, TypeError, ValueError):
+                return None
+        if callback_currency and callback_currency != provider_currency:
+            return None
+
+        return {
+            "tran_id": provider_order_id,
+            "val_id": provider_transaction_id,
+            "amount": provider_amount,
+            "currency": provider_currency,
+            "status": "VALIDATED",
+        }
 
     def ipn_payment_status(self, ipn_data: dict[str, Any]) -> str:
         st = str(ipn_data.get("status") or "").strip().upper()
-        return "completed" if st == "VALID" else "failed"
+        return "completed" if st in ("VALID", "VALIDATED") else "failed"
 
 class BKashGateway(PaymentGatewayInterface):
     def __init__(self, settings: Settings):
         self.settings = settings
 
     async def initiate_payment(self, payment: PaymentCreate, tenant_subdomain: str, settings: Settings, tenant_settings: TenantSettingsInternalOut) -> dict[str, Any]:
-        app_key, app_secret, username, password = tenant_settings.bkash_app_key, tenant_settings.bkash_app_secret, tenant_settings.bkash_username, tenant_settings.bkash_password
-        if not all([app_key, app_secret, username, password]):
-            raise HTTPException(status_code=400, detail=f"bKash credentials not configured for tenant {tenant_subdomain}")
-        is_sandbox = self.settings.testing or not tenant_subdomain.startswith("prod")
-        base_url = "https://tokenized.sandbox.bka.sh/v1.2.0-beta" if is_sandbox else "https://tokenized.pay.bka.sh/v1.2.0-beta"
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            token_resp = await client.post(f"{base_url}/tokenized/checkout/token/grant", json={"app_key": app_key, "app_secret": app_secret}, headers={"username": username, "password": password})
-            token_resp.raise_for_status()
-            id_token = token_resp.json().get("id_token")
-            if not id_token: raise HTTPException(status_code=502, detail="Failed to grant bKash token")
-            storefront_url = settings.storefront_public_base_url or f"https://{tenant_subdomain}.shopper.com"
-            create_resp = await client.post(f"{base_url}/tokenized/checkout/payment/create", json={"mode": "0011", "payerReference": payment.order_id or "Order", "callbackURL": f"{storefront_url}/checkout/bkash/callback", "amount": f"{payment.amount:.2f}", "currency": payment.currency, "intent": "sale", "merchantInvoiceNumber": payment.order_id or str(UUID(int=0))}, headers={"Authorization": id_token, "X-APP-Key": app_key})
-            create_resp.raise_for_status()
-            create_data = create_resp.json()
-        if create_data.get("statusCode") != "0000":
-            raise HTTPException(status_code=502, detail=f"bKash error: {create_data.get('statusMessage', 'Unknown error')}")
-        return {"gateway_url": create_data["bkashURL"], "paymentID": create_data["paymentID"]}
+        raise HTTPException(
+            status_code=503,
+            detail="bKash payments are unavailable until provider verification is configured",
+        )
 
-    async def verify_ipn(self, ipn_data: dict[str, Any], settings: Settings, tenant_settings: TenantSettingsInternalOut) -> bool:
-        return True
+    async def verify_ipn(self, ipn_data: dict[str, Any], settings: Settings, tenant_settings: TenantSettingsInternalOut) -> dict[str, Any] | None:
+        raise HTTPException(
+            status_code=503,
+            detail="bKash payments are unavailable until provider verification is configured",
+        )
 
 class NagadGateway(PaymentGatewayInterface):
     def __init__(self, settings: Settings):
         self.settings = settings
 
-    def _encrypt_rsa(self, data: str, public_key_pem: str) -> str:
-        pub_key = serialization.load_pem_public_key(public_key_pem.encode())
-        encrypted = pub_key.encrypt(data.encode(), asymmetric_padding.PKCS1v15())
-        return base64.b64encode(encrypted).decode()
-
-    def _sign_rsa(self, data: str, private_key_pem: str) -> str:
-        priv_key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
-        # Using SHA1 as specifically requested in requirements for Nagad hardened service
-        signature = priv_key.sign(data.encode(), asymmetric_padding.PKCS1v15(), hashes.SHA1())
-        return base64.b64encode(signature).decode()
-
-    def _encrypt_aes(self, data: str, key: str) -> str:
-        """AES/CBC/PKCS5Padding implementation."""
-        padder = symmetric_padding.PKCS7(128).padder()
-        padded_data = padder.update(data.encode()) + padder.finalize()
-        iv = b'\x00' * 16  # Nagad usually uses zero IV or specific derived IV
-        cipher = Cipher(algorithms.AES(key.encode()[:32]), modes.CBC(iv))
-        encryptor = cipher.encryptor()
-        encrypted = encryptor.update(padded_data) + encryptor.finalize()
-        return base64.b64encode(encrypted).decode()
-
     async def initiate_payment(self, payment: PaymentCreate, tenant_subdomain: str, settings: Settings, tenant_settings: TenantSettingsInternalOut) -> dict[str, Any]:
-        merchant_id, pub_key_pem, priv_key_pem = tenant_settings.nagad_merchant_id, tenant_settings.nagad_public_key, tenant_settings.nagad_private_key
-        if not all([merchant_id, pub_key_pem, priv_key_pem]):
-            raise HTTPException(status_code=400, detail=f"Nagad credentials not configured for tenant {tenant_subdomain}")
-        
-        is_sandbox = self.settings.testing or not tenant_subdomain.startswith("prod")
-        base_url = "https://sandbox.mynagad.com:10080/remote-payment-gateway-1.0" if is_sandbox else "https://api.mynagad.com/remote-payment-gateway-1.0"
-        
-        order_id = payment.order_id or str(int(time.time() * 1000))
-        datetime_str = time.strftime("%Y%m%d%H%M%S")
-        
-        # Step 1: Initial Handshake (Get Public Key and Challenge)
-        # In a real Nagad flow, we might need to call /initialize first.
-        # But for this hardened implementation, we use the provided keys to build the payload.
-        
-        sensitive_json = json.dumps({
-            "merchantId": merchant_id, 
-            "datetime": datetime_str, 
-            "orderId": order_id, 
-            "amount": f"{payment.amount:.2f}",
-            "challenge": "hardened_session_challenge" # Usually provided by /initialize
-        })
-        
-        # RSA-SHA1 Signing + RSA Encryption as required
-        payload = {
-            "accountNumber": "01700000000", # Example payer
-            "datetime": datetime_str,
-            "sensitiveData": self._encrypt_rsa(sensitive_json, pub_key_pem),
-            "signature": self._sign_rsa(sensitive_json, priv_key_pem)
-        }
+        raise HTTPException(
+            status_code=503,
+            detail="Nagad payments are unavailable until provider verification is configured",
+        )
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{base_url}/api/dfs/check-out/v2/{merchant_id}/{order_id}", 
-                json=payload,
-                headers={
-                    "X-KM-Api-Version": "v-0.2",
-                    "X-KM-IP-V4": "127.0.0.1",
-                    "X-KM-Client-Type": "PC_WEB",
-                    "Content-Type": "application/json"
-                }
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            
-        if data.get("reason") or not data.get("callBackURL"):
-            raise HTTPException(status_code=502, detail=f"Nagad error: {data.get('message', data.get('reason', 'Handshake failed'))}")
-            
-        return {"gateway_url": data["callBackURL"], "gateway_transaction_id": data.get("paymentReferenceId")}
-
-    async def verify_ipn(self, ipn_data: dict[str, Any], settings: Settings, tenant_settings: TenantSettingsInternalOut) -> bool:
-        # Nagad IPN verification usually involves decrypting the response with the merchant's private key
-        return bool(ipn_data.get("payment_ref_id") or ipn_data.get("order_id"))
+    async def verify_ipn(self, ipn_data: dict[str, Any], settings: Settings, tenant_settings: TenantSettingsInternalOut) -> dict[str, Any] | None:
+        raise HTTPException(
+            status_code=503,
+            detail="Nagad payments are unavailable until provider verification is configured",
+        )
 
 def get_gateway(gateway: PaymentGateway, settings: Settings) -> PaymentGatewayInterface:
     if gateway == PaymentGateway.sslcommerz: return SSLCommerzGateway(settings)

@@ -1,6 +1,8 @@
-# Shopper Platform — Project Status Report
+# Shopper Platform — Historical Project Status Report (Superseded)
 
 > **Generated:** 2026-08-26
+>
+> This snapshot is outdated and is not a current status source. The current requirements, plan, tasks, and verified release status are maintained in [the platform SDD](../.specify/specs/shopper-platform) and [README.md](../README.md).
 
 ---
 

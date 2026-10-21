@@ -59,7 +59,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Widget _buildPaymentCard() {
     final methods = [
       {'id': 'cash', 'label': 'Cash', 'icon': Icons.payments_outlined},
-      {'id': 'mfs', 'label': 'MFS (bKash/Nagad)', 'icon': Icons.smartphone_outlined},
+      {'id': 'bkash', 'label': 'bKash', 'icon': Icons.smartphone_outlined},
+      {'id': 'nagad', 'label': 'Nagad', 'icon': Icons.smartphone_outlined},
+      {'id': 'rocket', 'label': 'Rocket', 'icon': Icons.smartphone_outlined},
       {'id': 'card', 'label': 'Bank Card', 'icon': Icons.credit_card_outlined},
       {'id': 'credit', 'label': 'On Credit', 'icon': Icons.history_edu_outlined},
     ];
@@ -80,7 +82,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 label: Text(m['label']! as String),
                 selected: isSelected,
                 avatar: Icon(m['icon']! as IconData, size: 16, color: isSelected ? Colors.white : kPrimaryColor),
-                onSelected: (_) => setState(() => _paymentMethod = m['id']! as String),
+                onSelected: (_) => setState(() {
+                  _paymentMethod = m['id']! as String;
+                  if (_paymentMethod == 'credit') {
+                    _amountPaidController.text = '0.00';
+                  }
+                }),
                 selectedColor: kPrimaryColor,
                 labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
               );

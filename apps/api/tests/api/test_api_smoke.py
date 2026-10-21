@@ -1,8 +1,14 @@
 import os
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
+import jwt
 import pytest
+from fastapi import HTTPException
 from starlette.testclient import TestClient
 
+from core.config import get_settings
+from core.dependencies import has_role
 from main import app
 
 
@@ -12,6 +18,16 @@ def test_health(client: TestClient):
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["status"] == "ok"
+
+
+def test_unknown_tenant_host_returns_explicit_forbidden_response(client: TestClient):
+    response = client.get(
+        "/v1/tenant/products",
+        headers={"Host": "unknown.example.invalid"},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Unknown tenant subdomain"}
 
 
 def test_products_returns_mock_in_testing_mode(client: TestClient, auth_headers: dict):
@@ -83,6 +99,54 @@ def test_ipn_accepts_form_urlencoded_without_db(client: TestClient):
         },
     )
     assert r.status_code == 503
+
+
+def test_tenant_token_cannot_be_reused_for_another_tenant(client: TestClient):
+    settings = get_settings()
+    token = jwt.encode(
+        {
+            "uid": "staff-a",
+            "tid": "11111111-1111-4111-8111-111111111111",
+            "role": "admin",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        },
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    response = client.get(
+        "/v1/tenant/products",
+        headers={
+            "X-Shopper-Tenant": "demo",
+            "Authorization": f"Bearer {token}",
+        },
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_development_auth_bypass_is_disabled_outside_testing(monkeypatch):
+    import core.config
+
+    monkeypatch.setattr(
+        core.config,
+        "get_settings",
+        lambda: SimpleNamespace(testing=False),
+    )
+    dependency = has_role(["admin"])
+    request = SimpleNamespace(
+        headers={"host": "demo"},
+        state=SimpleNamespace(tenant_subdomain="demo"),
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await dependency(
+            request,
+            credentials=None,
+        )
+
+    assert exc.value.status_code == 401
 
 
 def test_sslcommerz_ipn_rejects_wrong_store_when_configured():

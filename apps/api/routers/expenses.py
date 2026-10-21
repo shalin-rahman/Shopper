@@ -8,12 +8,31 @@ router = APIRouter(prefix="/v1/tenant/expenses", tags=["finance"])
 
 @router.get("/categories")
 async def list_categories(ctx: TenantCtxDep, _auth: StaffDep):
+    from core.config import get_settings
+    settings = get_settings()
+
+    if ctx.dedicated_db is None and settings.testing:
+        from utils.seed_loader import _tenant
+        cats = _tenant(ctx.subdomain or "demo").get("accounting", {}).get("expenses", [])
+        seen = list({e["category"] for e in cats})
+        return {"items": [
+            {"id": f"cat-{i}", "name_en": c, "name_bn": c, "code": c[:4].upper()}
+            for i, c in enumerate(seen, start=1)
+        ]}
+
     async with ctx.transaction() as conn:
         rows = await conn.fetch("SELECT * FROM tenant_data.expense_categories ORDER BY name_en")
     return {"items": [dict(r) for r in rows]}
 
 @router.get("")
 async def list_expenses(ctx: TenantCtxDep, _auth: StaffDep):
+    from core.config import get_settings
+    settings = get_settings()
+
+    if ctx.dedicated_db is None and settings.testing:
+        from utils.seed_loader import expenses as seed_expenses
+        return {"items": seed_expenses(ctx.subdomain or "demo")}
+
     async with ctx.transaction() as conn:
         rows = await conn.fetch(
             """

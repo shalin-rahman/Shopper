@@ -7,7 +7,7 @@ from schemas.customer import (
 )
 from schemas.invoice import (
     InvoiceLineBase, InvoiceLineCreate, InvoiceLineOut,
-    InvoiceCreate, InvoiceOut, SalesReturnCreate, CreditNoteOut,
+    InvoiceCreate, InvoiceOut, SalesReturnCreate, SalesReturnLineCreate, CreditNoteOut,
 )
 from schemas.payment import PaymentGateway, PaymentCreate, PaymentOut
 from schemas.report import (
@@ -31,7 +31,7 @@ __all__ = [
     "CustomerBase", "CustomerCreate", "CustomerUpdate", "CustomerOut",
     "CustomerCollectionCreate", "CustomerCollectionOut",
     "InvoiceLineBase", "InvoiceLineCreate", "InvoiceLineOut",
-    "InvoiceCreate", "InvoiceOut", "SalesReturnCreate", "CreditNoteOut",
+    "InvoiceCreate", "InvoiceOut", "SalesReturnCreate", "SalesReturnLineCreate", "CreditNoteOut",
     "PaymentGateway", "PaymentCreate", "PaymentOut",
     "InventoryAgingBucket", "InventoryAgingItem", "InventoryAgingReportOut",
     "StockValuationItem", "StockValuationReportOut",

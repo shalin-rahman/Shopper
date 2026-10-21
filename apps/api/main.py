@@ -4,8 +4,9 @@ import logging
 import json
 
 import asyncpg
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from routers.admin import router as admin_router
 from core.config import get_settings
@@ -130,7 +131,10 @@ async def tenant_context(request: Request, call_next):
         if request.url.path == "/health" or request.url.path.startswith(("/v1/admin", "/v1/marketplace", "/v1/register", "/docs", "/openapi.json")):
             sub = "global"
         else:
-            raise HTTPException(status_code=403, detail="Unknown tenant subdomain")
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Unknown tenant subdomain"},
+            )
     tenant_id_ctx.set(sub)
     request.state.trace_id = trace_id
     request.state.tenant_subdomain = sub

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Query
@@ -11,6 +11,7 @@ from core.dependencies import SettingsDep
 from schemas import StorefrontProductListResponse, StorefrontProductOut, InvoiceOut, InvoiceLineOut, PaymentCreate, PaymentOut
 from core.tenant_context import TenantCtxDep
 from services.payment_gateway import get_gateway, get_tenant_settings, payment_row_to_out
+from services.payment_settlement import reserve_invoice_payment
 
 router = APIRouter(prefix="/v1/storefront", tags=["storefront"])
 
@@ -99,41 +100,46 @@ async def storefront_initiate_payment(
     settings: SettingsDep
 ):
     """Start a payment session for a specific invoice."""
+    if body.invoice_id is not None and body.invoice_id != invoice_id:
+        raise HTTPException(status_code=400, detail="Payment invoice does not match the checkout invoice")
+
     tenant_settings = await get_tenant_settings(ctx.request, ctx.tenant_id)
+    gateway = get_gateway(body.gateway, settings)
+    order_id = body.order_id or str(uuid4())
+    gateway_body = body.model_copy(
+        update={"invoice_id": invoice_id, "order_id": order_id}
+    )
 
     async with ctx.transaction() as conn:
-        # 1. Verify invoice exists and has balance
-        inv = await conn.fetchrow(
-            "SELECT total_amount, balance_due FROM tenant_data.invoices WHERE id = $1",
+        await reserve_invoice_payment(
+            conn,
             invoice_id,
+            body.amount,
+            body.currency,
         )
-        if not inv:
-            raise HTTPException(status_code=404, detail="Invoice not found")
-        
-        if inv["balance_due"] <= 0:
-            raise HTTPException(status_code=400, detail="Invoice is already fully paid")
-        
-        if body.amount > inv["balance_due"]:
-             raise HTTPException(status_code=400, detail="Payment amount exceeds remaining balance")
 
-        # 2. Initiate gateway
-        gateway = get_gateway(body.gateway, settings)
-        init_data = await gateway.initiate_payment(body, ctx.subdomain, settings, tenant_settings)
+        init_data = await gateway.initiate_payment(
+            gateway_body,
+            ctx.subdomain,
+            settings,
+            tenant_settings,
+        )
         gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
 
-        # 3. Record pending payment
         row = await conn.fetchrow(
             """
             INSERT INTO tenant_data.payments (
-                gateway, amount, currency, status, description, order_id, gateway_transaction_id, invoice_id
-            ) VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7)
+                tenant_id, gateway, amount, currency, status, description, order_id,
+                gateway_transaction_id, invoice_id
+            ) VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
             RETURNING id, gateway, amount, currency, status, gateway_transaction_id, created_at, updated_at
             """,
+            ctx.tenant_id,
             body.gateway.value,
             body.amount,
             body.currency,
             body.description,
-            body.order_id, # Could be null if not using POS order ref
+            order_id,
             gw_txn_id,
             invoice_id,
         )

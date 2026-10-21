@@ -108,6 +108,7 @@ async def vat_register_report(
                     SUM(qty) as total_qty, 
                     SUM(taxable_value) as total_taxable, 
                     SUM(vat_amount) as total_vat, 
+                    SUM(discount_amount) as total_discount,
                     SUM(total_amount) as total_gross
             FROM tenant_data.vat_sales_register_lines
             WHERE invoice_date BETWEEN $1 AND $2
@@ -120,6 +121,7 @@ async def vat_register_report(
     lines = []
     grand_taxable = Decimal("0")
     grand_vat = Decimal("0")
+    grand_discount = Decimal("0")
     for r in rows:
         lines.append(VatRegisterLineOut(
             invoice_no=r['invoice_no'],
@@ -128,16 +130,19 @@ async def vat_register_report(
             qty=Decimal(str(r['total_qty'])),
             taxable_value=Decimal(str(r['total_taxable'])),
             vat_amount=Decimal(str(r['total_vat'])),
+            discount_amount=Decimal(str(r['total_discount'])),
             total_amount=Decimal(str(r['total_gross']))
         ))
         grand_taxable += Decimal(str(r['total_taxable']))
         grand_vat += Decimal(str(r['total_vat']))
+        grand_discount += Decimal(str(r['total_discount']))
 
     return VatRegisterReportOut(
         start_date=start_date,
         end_date=end_date,
         total_taxable_value=grand_taxable,
         total_vat_amount=grand_vat,
+        total_discount_amount=grand_discount,
         lines=lines
     )
 
@@ -147,13 +152,14 @@ async def business_analytics_report(ctx: TenantCtxDep, _auth: AccountantDep):
     Calculates Inventory Turnover Ratio (ITR) and Economic Order Quantity (EOQ).
     """
     async with ctx.transaction() as conn:
-        # COGS calculation (sum of cost of sold items in last 30 days, annualized)
+        # Outbound sale movement costs are assigned by the FIFO valuation trigger.
         cogs_30d = await conn.fetchval(
             """
-            SELECT COALESCE(SUM(l.qty * l.unit_price), 0)
-            FROM tenant_data.invoice_lines l
-            JOIN tenant_data.invoices i ON i.id = l.invoice_id
-            WHERE i.status = 'paid' AND i.created_at > now() - interval '30 days'
+            SELECT COALESCE(SUM(quantity * COALESCE(unit_cost, 0)), 0)
+            FROM tenant_data.stock_transactions
+            WHERE transaction_type = 'out'
+              AND reference_type = 'sale'
+              AND created_at > now() - interval '30 days'
             """
         )
         cogs_annual = Decimal(str(cogs_30d)) * 12
@@ -170,9 +176,13 @@ async def business_analytics_report(ctx: TenantCtxDep, _auth: AccountantDep):
         # D = Annual Demand, S = BDT 500 (fixed order cost), H = 15% of WAC cost (holding cost)
         product_demand = await conn.fetch(
             """
-            SELECT p.sku, p.wac_cost, COALESCE(SUM(l.qty), 0) as demand_30d
+            SELECT p.sku, p.wac_cost, COALESCE(SUM(st.quantity), 0) as demand_30d
             FROM tenant_data.products p
-            LEFT JOIN tenant_data.invoice_lines l ON l.description_en = p.name_en
+            LEFT JOIN tenant_data.stock_transactions st
+              ON st.product_id = p.id
+             AND st.transaction_type = 'out'
+             AND st.reference_type = 'sale'
+             AND st.created_at > now() - interval '30 days'
             GROUP BY p.sku, p.wac_cost
             ORDER BY demand_30d DESC LIMIT 5
             """
@@ -216,7 +226,7 @@ async def vat_register_excel_export(
     ws.title = "Mushak 6.3 Register"
 
     # Header
-    headers = ["Invoice No", "Date", "Buyer Name", "TIN", "Description", "Qty", "Taxable Value", "VAT", "Total"]
+    headers = ["Invoice No", "Date", "Buyer Name", "TIN", "Description", "Qty", "Taxable Value", "VAT", "Discount", "Total"]
     ws.append(headers)
 
     # Data
@@ -224,7 +234,7 @@ async def vat_register_excel_export(
         ws.append([
             r['invoice_no'], r['invoice_date'], r['buyer_name_en'], r['tin'], 
             r['description_en'], float(r['qty']), float(r['taxable_value']), 
-            float(r['vat_amount']), float(r['total_amount'])
+            float(r['vat_amount']), float(r['discount_amount']), float(r['total_amount'])
         ])
 
     output = io.BytesIO()
@@ -257,6 +267,7 @@ async def mushak_6_10_report(
                     SUM(l.qty) as total_qty, 
                     i.subtotal as total_taxable, 
                     i.total_vat as total_vat, 
+                    i.discount as total_discount,
                     i.total_amount as total_gross
             FROM tenant_data.invoices i
             JOIN tenant_data.customers c ON i.customer_id = c.id
@@ -264,7 +275,7 @@ async def mushak_6_10_report(
             WHERE EXTRACT(MONTH FROM i.created_at) = $1 
                 AND EXTRACT(YEAR FROM i.created_at) = $2
                 AND i.total_amount >= 200000
-            GROUP BY i.id, i.invoice_no, i.created_at, c.name_en, i.subtotal, i.total_vat, i.total_amount
+            GROUP BY i.id, i.invoice_no, i.created_at, c.name_en, i.subtotal, i.total_vat, i.discount, i.total_amount
             ORDER BY i.created_at DESC
             """,
             month, year
@@ -278,6 +289,7 @@ async def mushak_6_10_report(
             qty=Decimal(str(r['total_qty'])),
             taxable_value=Decimal(str(r['total_taxable'])),
             vat_amount=Decimal(str(r['total_vat'])),
+            discount_amount=Decimal(str(r['total_discount'])),
             total_amount=Decimal(str(r['total_gross']))
         ) for r in rows
     ]
@@ -287,6 +299,7 @@ async def mushak_6_10_report(
         end_date=date(year, month, 28), # Approximated for model response
         total_taxable_value=sum(l.taxable_value for l in lines) if lines else Decimal("0"),
         total_vat_amount=sum(l.vat_amount for l in lines) if lines else Decimal("0"),
+        total_discount_amount=sum(l.discount_amount for l in lines) if lines else Decimal("0"),
         lines=lines
     )
 

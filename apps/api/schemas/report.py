@@ -40,6 +40,7 @@ class VatRegisterLineOut(BaseModel):
     qty: Decimal
     taxable_value: Decimal
     vat_amount: Decimal
+    discount_amount: Decimal = Decimal("0")
     total_amount: Decimal
 
 class VatRegisterReportOut(BaseModel):
@@ -47,6 +48,7 @@ class VatRegisterReportOut(BaseModel):
     end_date: FormattedDate
     total_taxable_value: Decimal
     total_vat_amount: Decimal
+    total_discount_amount: Decimal = Decimal("0")
     lines: list[VatRegisterLineOut]
 
 class BusinessAnalyticsOut(BaseModel):

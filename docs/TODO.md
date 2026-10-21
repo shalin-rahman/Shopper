@@ -1,6 +1,6 @@
-# Shopper Platform — Master Task List
+# Shopper Platform — Historical Task List (Superseded)
 
-Based on the architectural and code review (`docs/Shopper-Refactor-Plan.md`), here is the consolidated, prioritized task list to be executed. Tasks are grouped by priority (Critical/High/Medium/Low).
+> This is an outdated backlog snapshot, not the active task list. Use [the platform SDD tasks](../.specify/specs/shopper-platform/tasks.md), which tracks current implementation and verification evidence against the authoritative requirements.
 
 ### Priority 1: Critical (Immediate Fixes)
 - [ ] **API:** Extract duplicated JWT `SECRET_KEY` from `deps.py` and `auth_router.py` into `config.py` as `Settings.jwt_secret_key`. (Phase 0)

@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum
 from uuid import UUID
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class PaymentGateway(str, Enum):
     sslcommerz = "sslcommerz"
@@ -13,10 +13,11 @@ class PaymentGateway(str, Enum):
 
 class PaymentCreate(BaseModel):
     gateway: PaymentGateway
-    amount: Decimal
+    amount: Decimal = Field(..., gt=0, max_digits=18, decimal_places=2)
     currency: str = "BDT"
     description: str | None = None
     order_id: str | None = None
+    invoice_id: UUID | None = None
 
 class PaymentOut(BaseModel):
     id: UUID

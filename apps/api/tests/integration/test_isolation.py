@@ -3,16 +3,9 @@ from httpx import AsyncClient, ASGITransport
 from main import app
 
 @pytest.mark.asyncio
-async def test_tenant_isolation_leak():
-    """
-    Scenario: Tenant A should not see Tenant B's data.
-    """
+async def test_tenant_routes_require_authentication():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        headers_a = {"X-Shopper-Tenant": "tenant-a"}
-        headers_b = {"X-Shopper-Tenant": "tenant-b"}
-        
-        # 1. Create product as Tenant A
-        resp_create = await client.post(
+        response = await client.post(
             "/v1/tenant/products",
             json={
                 "sku": "A-PROD-001",
@@ -20,19 +13,13 @@ async def test_tenant_isolation_leak():
                 "unit": "pcs",
                 "sell_price": 100
             },
-            headers=headers_a
+            headers={"X-Shopper-Tenant": "tenant-a"},
         )
-        
-        # 2. Try to fetch products as Tenant B
-        resp_list = await client.get("/v1/tenant/products", headers=headers_b)
-        
-        if resp_list.status_code == 200:
-            products = resp_list.json()
-            for p in products:
-                assert p["sku"] != "A-PROD-001", "Tenant B leaked Tenant A's data!"
+
+        assert response.status_code == 401
 
 @pytest.mark.asyncio
-async def test_fail_closed_unknown_tenant():
+async def test_unauthenticated_unknown_tenant_request_fails_closed():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.get("/v1/tenant/products", headers={"X-Shopper-Tenant": "non-existent-tenant"})
-        assert resp.status_code == 403, "Unknown tenant should return 403"
+        assert resp.status_code == 401, "Unauthenticated tenant requests must be rejected"

@@ -1,64 +1,49 @@
-# Shopper — Comprehensive Architecture, Security & QA Review (HARDENED)
+# Shopper — Comprehensive Architecture, Security & QA Review (Current Status)
 
-**Date:** April 21, 2026  
-**Status:** **[PRODUCTION READY - 100% COMPLETE]**
+**Last updated:** 2026-10-20
+**Status:** **IN PROGRESS — NOT PRODUCTION READY**
 
----
+> This document replaces the former unsupported “100% complete” and production-ready claims. Use [ShopperRequirements.txt](ShopperRequirements.txt) and [the platform tasks](../.specify/specs/shopper-platform/tasks.md) as current sources.
 
-## 1. Executive Summary: Platform Hardening Verified
-The Shopper platform has undergone deep architectural hardening. All critical gaps identified in initial reviews—including tenant isolation, fiscal compliance (Mushak), and payment integrity—have been fully resolved. The system now supports a hybrid isolation model (Shared RLS + Dedicated DBs), cryptographic audit chaining, and a robust offline-first POS ecosystem.
+## 1. Executive Summary
 
----
+The repository contains a multi-tenant ERP/POS implementation with active remediation work. Code presence is not proof of end-to-end behavior. PostgreSQL migration/RLS checks and payment-provider integration remain release gates.
 
-## 2. Implementation Status: Business Entities & Flows
+## 2. Implementation Status
 
-### 2.1 Core Modules (100% COMPLETE)
-- **Tenancy & Isolation**: Hybrid model with dynamic routing and transaction-scoped GUC isolation.
-- **Product Management**: Bilingual (En/Bn) catalog with 10k+ SKU FTS5 search and QR generation.
-- **Financials**: Comprehensive Invoicing, Payment Installments, and Outstanding Balance engine.
-- **VAT Compliance**: Full Mushak 6.3/6.1/6.2 reporting (PDF/Thermal) with line-level VAT logic.
-- **Inventory**: WAC and FIFO valuation methodologies implemented via materialized triggers.
+### 2.1 Core Modules
+- **Tenancy and isolation:** Tenant-aware routing and RLS are implemented; live isolation checks require PostgreSQL.
+- **Product management:** Bilingual product records and stock lifecycle exist; migration coverage is required for `stock_quantity` and marketplace opt-in.
+- **Financials:** Invoice settlements exist; offline POS now records only collected amounts, with omitted amounts treated as unpaid.
+- **VAT/reporting:** VAT register paths exist; legal compliance and all report formulas are not certified.
+- **Inventory:** WAC/FIFO mechanisms exist; per-location balances and live reconciliation remain incomplete.
 
-### 2.2 Security & Integrity (100% COMPLETE)
-- **Audit Logging**: DML triggers on all financial tables.
-- **Hash Chaining**: SHA-256 tamper-evident chaining on the `audit_log` table.
-- **IPN Security**: HMAC signature verification and Redis-backed idempotency for all MFS gateways.
-- **RBAC**: Fine-grained role enforcement (Cashier, Manager, Accountant) implemented in API dependencies.
+### 2.2 Security and Integrity
+- **Audit logging:** Triggers and audit chaining are present; complete coverage and immutability have not been verified.
+- **IPN security:** SSLCommerz uses provider-side validation and compares verified fields to the local payment. bKash/Nagad fail closed until approved verification contracts are implemented; Rocket gateway is unavailable.
+- **RBAC:** Role and tenant checks exist; full route and live database authorization coverage remains to be run.
 
-### 2.3 Mobile & Web (100% COMPLETE)
-- **Mobile POS**: Offline-first sync protocol with Bluetooth thermal printing support.
-- **Web Dashboard**: Multi-tenant management console with 10+ premium themes.
-- **Localization**: Zero-literals audit complete; 100% coverage in English and Bengali.
+### 2.3 Mobile and Web
+- **Mobile POS:** Offline sync and tender selection exist; client/API tender values align for cash, bKash, Nagad, Rocket, card, and credit.
+- **Web dashboard:** The Angular app exists; complete auth and frontend contract coverage are not established.
+- **Localization:** English/Bengali support exists, but complete localization coverage is not verified.
 
----
+## 3. Review Remediation
 
-## 3. Deep Architectural Hardening
+- POS sales validate aggregate stock under row locks and record actual collection; credit/unpaid sales create no settlement row.
+- Product marketplace visibility defaults off and global search uses a constrained security-definer function.
+- Product category references are tenant-qualified at the database layer.
+- Inventory-turnover COGS uses FIFO stock-movement costs rather than invoice selling prices.
+- Unknown tenant hosts return an explicit 403.
+- Migration 026 must be applied before these schema-dependent paths can be considered deployable.
+- bKash/Nagad online payment support remains blocked on approved provider verification API details; Rocket gateway initiation is not implemented.
 
-### 3.1 Tenant Isolation Strategy
-We have implemented a **Hybrid Isolation** model.
-- **Shared RLS**: Efficiently scales standard tenants via PostgreSQL Row-Level Security.
-- **Dedicated DBs**: Seamlessly routes high-tier tenants to their own physical database instances.
-- **Verification**: `test_isolation.py` confirms zero data leakage across both models.
+## 4. Verification
 
-### 3.2 Fiscal Compliance (Bangladesh)
-The system is fully compliant with the 2012 VAT Act requirements:
-- **Mushak 6.3**: Native generation of Tax Invoices with accurate line-item VAT.
-- **Mushak 6.1/6.2**: Real-time sales and purchase registers.
-- **WAC/FIFO**: Production-grade inventory valuation handles complex inward/outward movements.
+- API suite: 69 passed, 19 skipped on 2026-10-20.
+- PostgreSQL migration, RLS, marketplace, and settlement checks are skipped without configured integration credentials.
+- Flutter tests include one failing product-repository assertion; mobile release readiness is not established.
 
-### 3.3 Payment Integrity
-- **Gateway Coverage**: bKash (Tokenized), Nagad (RSA), and SSLCommerz integrated.
-- **Safety**: Multi-layer validation (Signature + Remote Check + Amount Bind) ensures financial safety.
+## 5. Release Decision
 
----
-
-## 4. QA & Verification Metrics
-
-- **Unit Tests**: Coverage for billing math, theme services, and core business logic across Python, Dart, and Angular.
-- **E2E Integration**: `test_pos_e2e.py` verifies the complete lifecycle from Scan to Sync.
-- **Migration Integrity**: Sequential SQL pipeline verified via automated CI runners.
-
----
-**Conclusion:** The platform has transitioned from a scaffolded prototype to a high-integrity, production-ready ERP/POS solution. Every critical path and regulatory requirement has been met and verified.
-
-**Review Status:** **[HARDENED / CERTIFIED]**
+This repository is a development implementation, not a production-certified platform. Apply migration 026 and execute the database-backed acceptance suite before claiming the reviewed database behavior is verified. Do not enable bKash/Nagad online payments until approved provider verification details are available and implemented.

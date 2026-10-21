@@ -1,39 +1,39 @@
-# Shopper — Architecture, Security & QA Review (Post-Hardening)
+# Shopper — Architecture, Security & QA Review (Historical; Superseded)
 
-**Context:** Multi-tenant ERP + digital commerce for Bangladesh (bilingual, Mushak 6.3/6.1 compliant, hardened multi-tenant isolation).
+**Review note (2026-10-20):** This document's previous "hardened and verified" statements were unsupported and are withdrawn. Current requirements and evidence are in [ShopperRequirements.txt](ShopperRequirements.txt) and [the platform tasks](../.specify/specs/shopper-platform/tasks.md).
 
 ---
 
-## 1. Executive Summary (Hardening Phase Complete)
+## 1. Current Evidence Summary
 
-All critical architectural and security gaps identified in the April 2026 review have been addressed. The platform now features robust multi-tenant isolation, compliant fiscal reporting, and tamper-evident auditing.
+The worktree contains implementation across these areas, but repository code and tests do not establish production readiness. Current remediation adds safeguards for offline settlement, stock availability, public marketplace exposure, category tenancy, and callback verification.
 
-| Area | Status | Resolution |
-|------|:---:|:---|
-| **Tenant Isolation** | **STABLE** | Implemented dynamic routing supporting both Shared RLS and Dedicated Database schemas. |
-| **Fail-Closed Safety**| **STABLE** | Subdomain resolution returns 404/401 proactively; RLS enforced at transaction level. |
-| **Mushak / VAT** | **STABLE** | Full Mushak 6.3/6.1 bilingual support (Thermal & PDF) for Invoices and Sales Registers. |
-| **Payments** | **STABLE** | Integrated SSLCommerz, bKash, and Nagad with remote validation and IPN idempotency. |
-| **Inventory** | **STABLE** | WAC and FIFO cost layering implemented via materialized `wac_cost` and `cost_layers`. |
-| **Security Audit** | **STABLE** | SHA-256 hash chaining of audit logs for complete tamper-evidence. |
-| **POS Offline** | **STABLE** | High-performance sync protocol with FTS5 search (10k+ SKUs) and conflict resolution. |
+| Area | Current status |
+|------|:---|
+| Tenant isolation | Partially implemented; PostgreSQL RLS and migration integration checks remain unverified here. |
+| Tenant error handling | Unknown-host requests return an explicit 403 response; route-level tenant resolution still needs database-backed verification. |
+| Payments | SSLCommerz IPNs use provider-verified order/transaction/amount/currency. bKash/Nagad initiation and callbacks fail closed pending approved API contracts; Rocket gateway is not implemented. |
+| Inventory/POS | Offline sales validate aggregate stock under row locks; schema migration and live rollback behavior remain unverified without PostgreSQL. |
+| Marketplace | Product-level opt-in and a constrained database function are implemented; live RLS behavior remains unverified. |
+| Reporting | Inventory-turnover COGS uses FIFO stock-movement costs; other report calculations require domain-specific verification. |
+| API tests | Latest run: 69 passed, 19 skipped. |
 
 ---
 
 ## 2. Security Hardening & Isolation
 
 ### 2.1 Multi-Tenant Safety
-- **RLS Enforced**: Every table in `tenant_data` uses `FORCE ROW LEVEL SECURITY`.
-- **GUC Scope**: Tenant context is strictly bound to `app.tenant_id` within a `SET LOCAL` transaction block.
-- **Dedicated DB**: High-performance tenants can be routed to dedicated PostgreSQL instances via `dedicated_database_name` routing.
+- Tenant context and RLS policies are present in the schema and application paths; complete table coverage and runtime enforcement have not been independently verified.
+- The API establishes transaction-scoped tenant context; database-backed isolation tests remain a release gate.
+- Dedicated database routing code exists, but production routing behavior is not certified by the current test evidence.
 
 ### 2.2 Tamper-Evident Auditing
-- **Audit Chain**: `015_audit_chaining.sql` implements a cryptographic chain where each audit record contains a hash of its content + the previous record's hash (SHA-256).
-- **Immutable Log**: Triggers ensure that any change to critical tables (Products, Stock, Payments) is logged with a verifiable hash.
+- Migration `015_audit_chaining.sql` defines hash chaining. Deployment state, complete trigger coverage, and tamper resistance have not been verified against a live database.
 
-### 2.3 Webhook Security (HMAC/IPN)
-- **Signature Verification**: Gateway callbacks (bKash/Nagad/SSLCommerz) are validated via remote API checks and local HMAC signature verification.
-- **Idempotency**: Redis-backed suppression prevents replay attacks on financial triggers.
+### 2.3 Webhook Security
+- SSLCommerz callback claims are not trusted alone: server-side validation must return matching order, transaction, amount, and currency before settlement.
+- bKash and Nagad callbacks are rejected with an unavailable response until provider-authenticated verification is implemented from approved provider documentation.
+- Payment-row locking and database-derived balances remain the idempotency/reconciliation controls; they do not substitute for provider verification.
 
 ---
 
@@ -51,9 +51,9 @@ All critical architectural and security gaps identified in the April 2026 review
 
 ## 4. Verification & QA
 
-- **Isolation Suite**: `test_isolation.py` proves zero leakage between tenant data sets.
-- **Full Flow Test**: `test_pos_e2e.py` verifies the entire lifecycle from scan/punch to fiscal sync.
-- **Unit Test Coverage**: Cross-platform tests for billing math, theme services, and core logic.
+- The API suite reported 69 passed and 19 skipped on 2026-10-20.
+- PostgreSQL migration, RLS, marketplace, and settlement checks are skipped without configured integration database credentials.
+- Flutter tests currently include one failing product-repository assertion; the app is not release-verified.
 
 ---
-**Review Status:** **[HARDENED & VERIFIED]**
+**Review Status:** **IN PROGRESS — NOT PRODUCTION CERTIFIED**

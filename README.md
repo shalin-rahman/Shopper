@@ -1,65 +1,37 @@
-# Shopper Multi-Tenant ERP Platform (Hardened)
+# Shopper Repository
 
-A production-grade SaaS ERP platform for Bangladesh with bilingual support (English/Bengali), deep multi-tenancy isolation via RLS and Dedicated Databases, and hardened financial infrastructure.
+This repository is a multi-tenant ERP/POS platform in active implementation. It is not a single completed production release. The authoritative business specification is maintained in [docs/ShopperRequirements.txt](docs/ShopperRequirements.txt).
 
-## 🚀 Architecture
+## What the repository currently contains
 
-- **Backend**: FastAPI (Python 3.11+) with PostgreSQL (AsyncPG), Redis (IPN Idempotency), and Pydantic.
-- **Frontend**: Angular 17+ (Web Dashboard) + Flutter (Mobile POS).
-- **Database**: Advanced PostgreSQL schema with SHA-256 Audit Chaining and Row-Level Security (RLS).
-- **Isolation**: Dynamic resolving of shared RLS or Dedicated Database instances per tenant.
-- **Payments**: Integrated SSLCommerz, bKash, and Nagad core with IPN validation.
-- **Reporting**: Mushak 6.3/6.1 compliant bilingual invoicing and stock valuation (WAC/FIFO).
+- FastAPI backend under [apps/api](apps/api)
+- Angular frontend under [apps/shopper-web](apps/shopper-web)
+- Flutter mobile prototype under [shopper-mobile](shopper-mobile)
+- PostgreSQL and migration assets under [database](database)
+- Supporting architecture, refactor, and status documents under [docs](docs)
 
-## ✨ Key Features
+## Current repo status
 
-- **Hardened Multi-Tenancy**: Zero-leakage verified isolation with automatic subdomain-to-tenant mapping.
-- **Offline-First POS**: High-performance mobile sync protocol with FTS5 search (10k+ SKUs) and Bluetooth thermal printing.
-- **Bilingual Invoicing**: Full English/Bengali support for Tax Invoices (PDF) and POS Receipts (ESC/POS).
-- **Inventory Intelligence**: Weighted Average Cost (WAC) and FIFO layering with stock aging and valuation reports.
-- **Tamper-Evident Audit**: SHA-256 hash-chaining of all DML operations for financial integrity.
-- **Multi-Theme Engine**: 10+ premium palettes (Cyberpunk, Emerald, etc.) across Mobile and Web platforms.
-- **SaaS Lifecycle & Dunning**: Automated 14-day grace period enforcement and database lockdown routines.
-- **Global Data Aggregation**: Cross-tenant marketplace API for `publicportal.org` discovery features.
-- **Hardware Integrations**: POS ESC/POS receipt printing + PDF 1D Thermal Barcode sticker generation (Code128).
+The codebase includes substantial ERP domain logic, tenant-aware routing, and initial POS flows, but the project still contains incomplete or unverified areas. Several plan and status documents describe a future state that is not yet fully reflected in code or tests.
 
-## 🛠️ Quick Start
+This repo is best understood as an in-progress implementation with a documented target architecture, rather than a production-ready deployment.
 
-1. **Setup Environment**:
-   ```bash
-   cp .env.example .env
-   # Configure DATABASE_URL, REDIS_URL, and Gateway credentials
-   ```
+## Primary sources of truth
 
-2. **Deploy with Docker**:
-   ```bash
-   docker compose up --build
-   ```
+- Business and functional requirements: [docs/ShopperRequirements.txt](docs/ShopperRequirements.txt)
+- Current specification, plan, and remediation tasks: [.specify/specs/shopper-platform](.specify/specs/shopper-platform)
+- Historical status/review documents may contain superseded claims; use the current requirements and verification evidence.
 
-3. **Verify Installation**:
-   - Backend: `GET http://localhost:8000/health`
-   - Master Roadmap: View [tasks.txt](./tasks.txt) for 100% completion status.
+## Immediate evidence from the codebase
 
-## 🧪 Testing & QA
+- Tenant-aware routing is implemented in [apps/api/main.py](apps/api/main.py) and [apps/api/core/tenant_context.py](apps/api/core/tenant_context.py).
+- POS sync and offline punch flows are implemented in [apps/api/routers/pos.py](apps/api/routers/pos.py).
+- The current task list tracks unresolved items such as auth guards, OpenAPI alignment, and mobile DI gaps in [.specify/specs/shopper-platform/tasks.md](.specify/specs/shopper-platform/tasks.md).
 
-| Component | Command | Target |
-|-----------|---------|---------|
-| **API** | `cd apps/api && pytest` | Unit & Integration (Isolation, Billing, E2E POS) |
-| **Mobile** | `cd shopper-mobile && flutter test` | Core Units (Theme, Logic) |
-| **Web** | `cd apps/shopper-web && ng test --watch=false` | Core Services (Theme, I18n) |
+## Verification status
 
-## 🛡️ Security
+The latest API suite run completed with 69 passed and 19 skipped. Database-backed migration/RLS tests are skipped without PostgreSQL integration configuration. The Flutter suite currently has one failing product-repository test unrelated to the latest checkout tender changes; mobile release readiness is not established.
 
-- **RLS Safety**: transaction-scoped `app.tenant_id` and `app.changed_by` GUCs.
-- **Audit Chaining**: Verifiable hash-chain on `tenant_data.audit_log`.
-- **RBAC**: Multi-role enforcement (Staff, Accountant, Manager) on all management routes.
-- **HMAC**: Mandatory signature verification for external gateway webhooks.
+## Recommended interpretation
 
-## 📊 Documentation
-
-Detailed technical documentation and implementation plans are available in the artifact reports.
-- **Final Report**: [final_project_report.md](./final_project_report.md)
-- **Roadmap**: [tasks.txt](./tasks.txt)
-
----
-**Status:** **[PRODUCTION READY]**
+Treat the program as a refactor-and-hardening project in progress, with the specification in [docs/ShopperRequirements.txt](docs/ShopperRequirements.txt) describing the intended business behavior while implementation status remains partially complete.

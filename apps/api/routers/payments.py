@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
-from uuid import UUID
+from uuid import uuid4
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from core.config import Settings
 from core.dependencies import SettingsDep, StaffDep
-from redis_client import build_ipn_idempotency_key, ipn_already_processed, ipn_record_processed
 from schemas import PaymentCreate, PaymentGateway, PaymentOut
-from core.tenant_context import TenantCtxDep
-from services.payment_gateway import get_gateway, get_tenant_settings, payment_row_to_out, PaymentGatewayInterface
+from core.tenant_context import TenantCtxDep, resolve_tenant_id, tenant_transaction
+from services.payment_gateway import get_gateway, get_tenant_settings, payment_row_to_out
+from services.payment_settlement import reserve_invoice_payment
 
 router = APIRouter(prefix="/v1/tenant/payments", tags=["payments"])
 
 def _pool(request: Request) -> asyncpg.Pool:
+    pool = getattr(request.app.state, "db_pool", None)
     if pool is None:
         raise HTTPException(status_code=503, detail="Database unavailable")
     return pool
@@ -26,9 +27,10 @@ def _decimal_or_none(value: Any) -> Decimal | None:
     if value is None or value == "":
         return None
     try:
-        return Decimal(str(value))
-    except Exception:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
         return None
+    return amount if amount.is_finite() else None
 
 
 async def _ipn_payload_dict(request: Request) -> dict[str, Any]:
@@ -47,10 +49,17 @@ def _ipn_refs(gateway: PaymentGateway, data: dict[str, Any]) -> tuple[str, str]:
     if gateway == PaymentGateway.sslcommerz:
         return str(data.get("tran_id") or "").strip(), str(data.get("val_id") or "").strip()
     return (
-        str(data.get("order_id") or data.get("merchantInvoiceNumber") or "").strip(),
+        str(
+            data.get("order_id")
+            or data.get("orderId")
+            or data.get("merchantInvoiceNumber")
+            or ""
+        ).strip(),
         str(
             data.get("transaction_id")
             or data.get("paymentID")
+            or data.get("payment_ref_id")
+            or data.get("paymentReferenceId")
             or data.get("val_id")
             or ""
         ).strip(),
@@ -60,27 +69,43 @@ def _ipn_refs(gateway: PaymentGateway, data: dict[str, Any]) -> tuple[str, str]:
 @router.post("", response_model=PaymentOut, status_code=201)
 async def create_payment(ctx: TenantCtxDep, body: PaymentCreate, settings: SettingsDep, _auth: StaffDep):
     tenant_settings = await get_tenant_settings(ctx.request, ctx.tenant_id)
-
     gateway = get_gateway(body.gateway, settings)
-    init_data = await gateway.initiate_payment(body, ctx.subdomain, settings, tenant_settings)
+    order_id = body.order_id or str(uuid4())
+    gateway_body = body.model_copy(update={"order_id": order_id})
 
     # Use gateway_transaction_id if returned (bKash returns paymentID here)
-    gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
-
     async with ctx.transaction() as conn:
+        if body.invoice_id:
+            await reserve_invoice_payment(
+                conn,
+                body.invoice_id,
+                body.amount,
+                body.currency,
+            )
+
+        init_data = await gateway.initiate_payment(
+            gateway_body,
+            ctx.subdomain,
+            settings,
+            tenant_settings,
+        )
+        gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
         row = await conn.fetchrow(
             """
             INSERT INTO tenant_data.payments (
-                gateway, amount, currency, status, description, order_id, gateway_transaction_id
-            ) VALUES ($1, $2, $3, 'pending', $4, $5, $6)
+                tenant_id, gateway, amount, currency, status, description, order_id,
+                gateway_transaction_id, invoice_id
+            ) VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
             RETURNING id, gateway, amount, currency, status, gateway_transaction_id, created_at, updated_at
             """,
+            ctx.tenant_id,
             body.gateway.value,
             body.amount,
             body.currency,
             body.description,
-            body.order_id,
+            order_id,
             gw_txn_id,
+            body.invoice_id,
         )
     
     res = payment_row_to_out(row)
@@ -111,38 +136,52 @@ async def handle_ipn(
     tenant_settings = await get_tenant_settings(request, tenant_id)
     
     gw = get_gateway(gateway, settings)
-    if not await gw.verify_ipn(ipn_data, settings, tenant_settings):
+    verified_data = await gw.verify_ipn(ipn_data, settings, tenant_settings)
+    if verified_data is None:
         raise HTTPException(status_code=400, detail="Invalid IPN")
 
-    order_ref, gw_txn_id = _ipn_refs(gateway, ipn_data)
+    order_ref, gw_txn_id = _ipn_refs(gateway, verified_data)
     if not order_ref and not gw_txn_id:
-        raise HTTPException(status_code=400, detail="IPN missing order/transaction reference")
+        raise HTTPException(status_code=400, detail="Verified payment is missing order/transaction reference")
 
-    r = getattr(request.app.state, "redis", None)
-    ttl = settings.redis_ipn_ttl_seconds
-    if ttl <= 0:
-        ttl = 86_400
-    dedupe_key = build_ipn_idempotency_key(sub, gateway.value, order_ref, gw_txn_id)
-    if await ipn_already_processed(r, dedupe_key):
-        return {"status": "ok", "idempotent": True, "source": "redis"}
-
-    ipn_amount = _decimal_or_none(ipn_data.get("amount"))
-    new_status = gw.ipn_payment_status(ipn_data)
-    if new_status not in ("completed", "failed"):
-        new_status = "failed"
+    ipn_amount = _decimal_or_none(verified_data.get("amount"))
+    new_status = gw.ipn_payment_status(verified_data)
+    if new_status != "completed":
+        raise HTTPException(status_code=400, detail="Provider did not verify a successful payment")
+    if new_status == "completed" and ipn_amount is None:
+        raise HTTPException(status_code=400, detail="Verified payment is missing its amount")
 
     async with tenant_transaction(request, tenant_id, tenant_info["dedicated_database_name"]) as conn:
         row = await conn.fetchrow(
             """
-            SELECT id, amount, status, gateway_transaction_id, order_id
+            SELECT id, amount, currency, status, gateway_transaction_id, order_id, invoice_id
             FROM tenant_data.payments
             WHERE gateway = $1::text
               AND (
-                ($2::text IS NOT NULL AND $2 <> '' AND order_id = $2)
-                OR ($3::text IS NOT NULL AND $3 <> '' AND gateway_transaction_id = $3)
+                (
+                    $1::text = 'sslcommerz'
+                    AND $2::text IS NOT NULL
+                    AND order_id = $2
+                )
+                OR (
+                    $1::text <> 'sslcommerz'
+                    AND (
+                        (
+                            $3::text IS NOT NULL
+                            AND gateway_transaction_id = $3
+                            AND ($2::text IS NULL OR order_id = $2)
+                        )
+                        OR (
+                            $3::text IS NULL
+                            AND $2::text IS NOT NULL
+                            AND order_id = $2
+                        )
+                    )
+                )
               )
             ORDER BY created_at DESC
             LIMIT 1
+            FOR UPDATE
             """,
             gateway.value,
             order_ref or None,
@@ -151,11 +190,16 @@ async def handle_ipn(
         if not row:
             return {"status": "noop", "reason": "payment_not_found"}
 
-        if ipn_amount is not None and row["amount"] != ipn_amount:
-            raise HTTPException(status_code=400, detail="IPN amount does not match payment")
+        if row["order_id"] != order_ref:
+            raise HTTPException(status_code=400, detail="Verified order does not match payment")
+        if row["amount"] != ipn_amount:
+            raise HTTPException(status_code=400, detail="Verified amount does not match payment")
+        if row["currency"].upper() != str(verified_data.get("currency") or "").upper():
+            raise HTTPException(status_code=400, detail="Verified currency does not match payment")
+        if row["gateway_transaction_id"] and row["gateway_transaction_id"] != gw_txn_id:
+            raise HTTPException(status_code=400, detail="Verified transaction does not match payment")
 
-        if row["status"] == "completed" and new_status == "completed":
-            await ipn_record_processed(r, dedupe_key, ttl)
+        if row["status"] == "completed":
             return {"status": "ok", "idempotent": True, "payment_id": str(row["id"])}
 
         await conn.execute(
@@ -171,37 +215,5 @@ async def handle_ipn(
             new_status,
             gw_txn_id,
         )
-        # If this payment is linked to an invoice, update the invoice totals
-        if row.get('invoice_id'):
-            invoice_id = row['invoice_id']
-            # Fetch current invoice data
-            inv = await conn.fetchrow(
-                """
-                SELECT id, subtotal, total_vat, total_amount, amount_paid, balance_due, status
-                FROM tenant_data.invoices
-                WHERE id = $1
-                """,
-                invoice_id,
-            )
-            if inv:
-                # Calculate new paid amount and balance
-                paid = (inv['amount_paid'] or Decimal('0')) + row['amount']
-                balance = (inv['total_amount'] or Decimal('0')) - paid
-                new_inv_status = 'paid' if balance <= 0 else 'partially_paid'
-                await conn.execute(
-                    """
-                    UPDATE tenant_data.invoices
-                    SET amount_paid = $2,
-                        balance_due = $3,
-                        status = $4,
-                        updated_at = now()
-                    WHERE id = $1
-                    """,
-                    invoice_id,
-                    paid,
-                    balance,
-                    new_inv_status,
-                )
 
-    await ipn_record_processed(r, dedupe_key, ttl)
     return {"status": "ok", "payment_id": str(row["id"]), "payment_status": new_status}
