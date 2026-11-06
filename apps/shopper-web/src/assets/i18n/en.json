@@ -17,7 +17,52 @@
     "procurement": "Procurement",
     "customers": "Customers",
     "staff": "Staff",
-    "payments": "Payments"
+    "payments": "Payments",
+    "settings": "Settings"
+  },
+  "settings": {
+    "title": "Shop settings",
+    "hint": "These apply to the whole shop. Only a manager can change them.",
+    "theme": "Theme",
+    "themeNames": {
+      "default": "Default", "midnight": "Midnight", "emerald": "Emerald", "ruby": "Ruby",
+      "cyberpunk": "Cyberpunk", "amber": "Amber", "lavender": "Lavender", "ocean": "Ocean",
+      "sunset": "Sunset", "forest": "Forest", "slate": "Slate", "gold": "Gold"
+    },
+    "language": "Default language",
+    "legalTitleEn": "Legal name (English)",
+    "legalTitleBn": "Legal name (Bangla)",
+    "bin": "BIN",
+    "vat": "Default VAT rate (%)",
+    "logoUrl": "Logo URL",
+    "modules": "Modules",
+    "save": "Save settings",
+    "saved": "Settings saved.",
+    "noChanges": "Nothing to save.",
+    "vatRange": "VAT rate must be between 0 and 100.",
+    "loadFailed": "Could not load settings. You need a manager role.",
+    "saveFailed": "Could not save settings.",
+    "discard": "Discard changes",
+    "allSaved": "No unsaved changes",
+    "unsavedOne": "1 unsaved change",
+    "unsavedMany": "{{count}} unsaved changes",
+    "logoBroken": "This image did not load. Check the URL.",
+    "sections": {
+      "print": "On receipts and invoices",
+      "printHint": "Customers see these. Check them against your VAT registration.",
+      "look": "Look and language",
+      "lookHint": "A new theme applies to everyone in the shop after you save.",
+      "modulesHint": "Choose which parts of the app this shop uses."
+    },
+    "preview": {
+      "title": "Receipt preview",
+      "hint": "The top of a printed receipt, in the default language.",
+      "noName": "No legal name yet. The shop's web address prints instead."
+    },
+    "moduleNames": {
+      "pos": "Point of sale",
+      "inventory": "Inventory"
+    }
   },
   "admin": {
     "title": "Platform admin",

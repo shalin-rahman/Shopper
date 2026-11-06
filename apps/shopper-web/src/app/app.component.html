@@ -2,99 +2,29 @@
   @if (bare()) {
     <router-outlet />
   } @else {
-  <!-- Premium Glossy Navbar -->
-  <header class="sticky top-0 z-50 w-full border-b border-shopper-border bg-shopper-bg/70 backdrop-blur-xl transition-all">
-    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-      
-      <div class="flex items-center gap-8">
-        <div class="flex items-center gap-2 group cursor-pointer" routerLink="/">
-          <div class="h-8 w-8 rounded-lg bg-shopper-primary shadow-lg shadow-shopper-primary/20 flex items-center justify-center text-white font-black transform transition-transform group-hover:scale-110">S</div>
-          <h1 class="text-xl font-extrabold tracking-tighter text-shopper-text uppercase">{{ 'app.title' | transloco }}</h1>
-        </div>
-        
-        <nav class="hidden md:flex items-center gap-1">
-          <a routerLink="/" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary" 
-             [routerLinkActiveOptions]="{exact: true}"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.home' | transloco }}
-          </a>
-          <a routerLink="/products" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.products' | transloco }}
-          </a>
-          <a routerLink="/invoices" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.invoices' | transloco }}
-          </a>
-          <a routerLink="/inventory" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.inventory' | transloco }}
-          </a>
-          <a routerLink="/procurement" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.procurement' | transloco }}
-          </a>
-          <a routerLink="/suppliers" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.suppliers' | transloco }}
-          </a>
-          <a routerLink="/expenses" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.expenses' | transloco }}
-          </a>
-          <a routerLink="/payments" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.payments' | transloco }}
-          </a>
-          <a routerLink="/accounting" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.accounting' | transloco }}
-          </a>
-          <a routerLink="/customers" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.customers' | transloco }}
-          </a>
-          <a routerLink="/staff" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.staff' | transloco }}
-          </a>
-          <a routerLink="/admin/tenants" 
-             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
-             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
-            {{ 'nav.admin' | transloco }}
-          </a>
-        </nav>
+  <header class="app-header sticky top-0 z-50 w-full border-b border-shopper-border bg-shopper-bg">
+    <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div class="flex min-w-0 items-center gap-2 group cursor-pointer" routerLink="/">
+        <div class="h-8 w-8 flex-none rounded-lg bg-shopper-primary shadow-lg flex items-center justify-center text-white font-black transform transition-transform group-hover:scale-110">S</div>
+        <h1 class="max-[399px]:sr-only truncate text-lg sm:text-xl font-extrabold tracking-tighter text-shopper-text uppercase">{{ 'app.title' | transloco }}</h1>
       </div>
 
-      <div class="flex items-center gap-4">
-        
+      <div class="flex flex-none items-center gap-2 sm:gap-4">
         <!-- Theme Switcher (Mini Pills) -->
         <div class="hidden lg:flex items-center gap-1.5 p-1 bg-shopper-surface rounded-full border border-shopper-border">
           @for (t of themes; track t) {
-            <button 
+            <button
               type="button"
-              class="h-5 w-5 rounded-full border border-white/20 transition-transform hover:scale-125 focus:ring-2 focus:ring-shopper-primary"
+              class="h-5 w-5 rounded-full border border-white/20 bg-shopper-primary transition-transform hover:scale-125 focus:ring-2 focus:ring-shopper-primary"
               [class.scale-125]="theme.currentTheme() === t"
-              [title]="t"
+              [title]="'settings.themeNames.' + t | transloco"
+              [attr.aria-label]="'settings.themeNames.' + t | transloco"
               (click)="setTheme(t)"
-              [style.background]="getThemeColor(t)"
               [attr.data-theme]="t"
             ></button>
           }
         </div>
 
-        <!-- Language Dropdown placeholder (simplified for now) -->
         <div class="flex gap-1">
           <button
             type="button"
@@ -118,18 +48,33 @@
 
         <button
           type="button"
-          class="rounded-lg px-3 py-1.5 text-xs font-bold transition-all hover:bg-shopper-primary/10 hover:text-shopper-primary"
+          class="whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-bold transition-all hover:bg-shopper-primary/10 hover:text-shopper-primary"
           (click)="logout()"
         >
           {{ 'login.logout' | transloco }}
         </button>
-
       </div>
     </div>
+
+    <!-- On narrow screens this row scrolls sideways instead of widening the page. -->
+    <nav class="app-nav mx-auto max-w-7xl px-2 sm:px-4">
+      <a routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">{{ 'nav.home' | transloco }}</a>
+      <a routerLink="/products" routerLinkActive="is-active">{{ 'nav.products' | transloco }}</a>
+      <a routerLink="/invoices" routerLinkActive="is-active">{{ 'nav.invoices' | transloco }}</a>
+      <a routerLink="/inventory" routerLinkActive="is-active">{{ 'nav.inventory' | transloco }}</a>
+      <a routerLink="/procurement" routerLinkActive="is-active">{{ 'nav.procurement' | transloco }}</a>
+      <a routerLink="/suppliers" routerLinkActive="is-active">{{ 'nav.suppliers' | transloco }}</a>
+      <a routerLink="/expenses" routerLinkActive="is-active">{{ 'nav.expenses' | transloco }}</a>
+      <a routerLink="/payments" routerLinkActive="is-active">{{ 'nav.payments' | transloco }}</a>
+      <a routerLink="/accounting" routerLinkActive="is-active">{{ 'nav.accounting' | transloco }}</a>
+      <a routerLink="/customers" routerLinkActive="is-active">{{ 'nav.customers' | transloco }}</a>
+      <a routerLink="/staff" routerLinkActive="is-active">{{ 'nav.staff' | transloco }}</a>
+      <a routerLink="/settings" routerLinkActive="is-active">{{ 'nav.settings' | transloco }}</a>
+      <a routerLink="/admin/tenants" routerLinkActive="is-active">{{ 'nav.admin' | transloco }}</a>
+    </nav>
   </header>
 
-  <!-- Main Viewport -->
-  <main class="mx-auto max-w-7xl pt-10 pb-20 px-6">
+  <main class="mx-auto max-w-7xl pt-8 sm:pt-10 pb-20 px-4 sm:px-6">
     <router-outlet />
   </main>
 

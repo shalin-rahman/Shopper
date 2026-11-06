@@ -13,6 +13,7 @@ import { ProcurementPageComponent } from './features/procurement/procurement-pag
 import { InvoicesPageComponent } from './features/invoices/invoices-page.component';
 import { InventoryPageComponent } from './features/inventory/inventory-page.component';
 import { PaymentsPageComponent } from './features/payments/payments-page.component';
+import { SettingsPageComponent } from './features/settings/settings-page.component';
 import { LoginPageComponent } from './features/login/login-page.component';
 import { CheckoutPageComponent } from './features/checkout/checkout-page.component';
 import { authGuard } from './core/auth/auth.guard';
@@ -38,6 +39,7 @@ export const routes: Routes = [
       { path: 'accounting', component: AccountingPageComponent },
       { path: 'customers', component: CustomersPageComponent },
       { path: 'staff', component: StaffPageComponent },
+      { path: 'settings', component: SettingsPageComponent },
     ],
   },
 ];

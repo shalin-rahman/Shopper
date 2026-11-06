@@ -1,0 +1,200 @@
+// Shared parts (field, notice, segmented, switch, muted) and the --shopper-* tokens
+// live in src/styles.scss. Only the parts used on this page alone are here.
+
+:host {
+  display: block;
+  // Printed paper is white with black ink whatever the screen theme is.
+  --receipt-paper: #ffffff;
+  --receipt-ink: #1c1917;
+  color: var(--shopper-text);
+}
+
+// Theme picker. Each mock carries its own data-theme, so var() reads that theme's tokens.
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  cursor: pointer;
+
+  &__mock {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    height: 4.5rem;
+    padding: 0.5rem;
+    border-radius: 0.625rem;
+    border: 1px solid var(--shopper-border);
+    background: var(--shopper-bg);
+    overflow: hidden;
+  }
+
+  &__bar {
+    height: 0.9rem;
+    margin: -0.5rem -0.5rem 0.15rem;
+    background: var(--shopper-surface);
+    border-bottom: 1px solid var(--shopper-border);
+  }
+
+  &__line {
+    height: 0.3rem;
+    width: 70%;
+    border-radius: 999px;
+    background: var(--shopper-text);
+    opacity: 0.75;
+
+    &--short {
+      width: 45%;
+      opacity: 0.35;
+    }
+  }
+
+  &__button {
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    width: 1.6rem;
+    height: 0.75rem;
+    border-radius: 0.25rem;
+    background: var(--shopper-primary);
+  }
+
+  &__name {
+    font-size: 0.8125rem;
+    text-transform: capitalize;
+    color: var(--shopper-muted);
+  }
+
+  // The outline uses the page's theme, not the mock's.
+  input:checked + &__mock {
+    box-shadow: 0 0 0 2px var(--shopper-bg), 0 0 0 4px var(--shopper-primary);
+  }
+
+  input:checked ~ &__name {
+    color: var(--shopper-text);
+    font-weight: 600;
+  }
+
+  input:focus-visible + &__mock {
+    outline: 2px solid var(--shopper-primary);
+    outline-offset: 5px;
+  }
+}
+
+.logo-well {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 4rem;
+  height: 4rem;
+  margin-top: 1.625rem;
+  border-radius: 0.625rem;
+  border: 1px dashed var(--shopper-border);
+  background: var(--shopper-surface);
+  overflow: hidden;
+
+  img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+}
+
+// Receipt preview: the top of a 42-column, 80 mm thermal slip.
+
+.receipt {
+  position: relative;
+  max-width: 44ch;
+  padding: 1.25rem 1rem 1.5rem;
+  background: var(--receipt-paper);
+  color: var(--receipt-ink);
+  font-family: ui-monospace, Consolas, 'Courier New', monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  text-align: center;
+  overflow-wrap: anywhere;
+  box-shadow: 0 1px 0 var(--shopper-border), 0 8px 24px -12px color-mix(in srgb, var(--shopper-text) 35%, transparent);
+
+  // Torn bottom edge
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -0.5rem;
+    height: 0.5rem;
+    background:
+      linear-gradient(135deg, var(--receipt-paper) 0.35rem, transparent 0) 0 0 / 0.7rem 0.5rem repeat-x,
+      linear-gradient(-135deg, var(--receipt-paper) 0.35rem, transparent 0) 0 0 / 0.7rem 0.5rem repeat-x;
+  }
+
+  &__title {
+    font-weight: 700;
+    font-size: 0.9375rem;
+  }
+
+  &__rule {
+    margin: 0.5rem 0 0.75rem;
+    border-top: 1px dashed var(--receipt-ink);
+  }
+
+  &__ghost {
+    display: block;
+    height: 0.4rem;
+    width: 60%;
+    margin-bottom: 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--receipt-ink) 12%, transparent);
+
+    &--short {
+      width: 40%;
+    }
+  }
+}
+
+// The save bar stays at the bottom of the screen while the form is longer than it.
+
+.savebar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--shopper-border);
+  background: var(--shopper-bg);
+
+  &__status {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  &__discard {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--shopper-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    border-radius: 0.25rem;
+
+    &:hover {
+      color: var(--shopper-text);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shopper-focus-ring);
+    }
+  }
+
+  // On a phone Save takes its own full-width row, so long Bangla labels still fit.
+  @media (max-width: 639px) {
+    &__save {
+      flex: 1 1 100%;
+    }
+  }
+}

@@ -1,5 +1,5 @@
-import { Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { TranslocoPipe } from '@ngneat/transloco';
@@ -49,13 +49,25 @@ export class AppComponent {
     this.theme.setTheme(t);
   }
 
-  getThemeColor(t: ShopperTheme): string {
-    const colors: Record<string, string> = {
-      default: '#6366f1', midnight: '#818cf8', emerald: '#10b981',
-      ruby: '#e11d48', cyberpunk: '#ff00ff', amber: '#d97706',
-      lavender: '#a855f7', ocean: '#0ea5e9', sunset: '#f97316',
-      forest: '#22c55e', slate: '#64748b', gold: '#eab308'
-    };
-    return colors[t] || '#6366f1';
+  private activeLinkWatch?: ResizeObserver;
+
+  constructor() {
+    // On a phone the nav row scrolls sideways; keep the current page's link in view.
+    // Link widths change when translations load, so it re-centres on each resize.
+    this.router.events
+      .pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed())
+      .subscribe(() => setTimeout(() => this.watchActiveLink()));
+    inject(DestroyRef).onDestroy(() => this.activeLinkWatch?.disconnect());
+  }
+
+  private watchActiveLink(): void {
+    this.activeLinkWatch?.disconnect();
+    const link = document.querySelector<HTMLElement>('.app-nav .is-active');
+    const nav = link?.parentElement;
+    if (!link || !nav || typeof ResizeObserver === 'undefined') return;
+    this.activeLinkWatch = new ResizeObserver(() => {
+      nav.scrollLeft = link.offsetLeft - nav.offsetLeft - (nav.clientWidth - link.offsetWidth) / 2;
+    });
+    this.activeLinkWatch.observe(link);
   }
 }

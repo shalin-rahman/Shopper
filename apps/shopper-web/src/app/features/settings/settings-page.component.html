@@ -1,0 +1,160 @@
+<div class="settings mx-auto max-w-6xl space-y-8 p-1">
+  <header class="max-w-prose">
+    <h2 class="text-3xl font-bold tracking-tight text-shopper-text">{{ 'settings.title' | transloco }}</h2>
+    <p class="muted mt-1 text-sm">{{ 'settings.hint' | transloco }}</p>
+  </header>
+
+  @if (message(); as m) {
+    <div class="notice" [class.notice--error]="m.error" [attr.role]="m.error ? 'alert' : 'status'">
+      {{ m.text ?? (m.key | transloco) }}
+    </div>
+  }
+
+  @if (loaded() && form; as f) {
+    <form class="grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)] lg:items-start" (ngSubmit)="save()">
+      <div class="space-y-12">
+        <section aria-labelledby="settings-print">
+          <h3 id="settings-print" class="section-title">{{ 'settings.sections.print' | transloco }}</h3>
+          <p class="muted mt-1 max-w-prose text-sm">{{ 'settings.sections.printHint' | transloco }}</p>
+
+          <div class="mt-5 grid gap-5 sm:grid-cols-2">
+            <label class="field">
+              <span class="field__label">{{ 'settings.legalTitleEn' | transloco }}</span>
+              <input name="legal_title_en" autocomplete="organization" [(ngModel)]="f.legal_title_en" class="field__control" />
+            </label>
+
+            <label class="field">
+              <span class="field__label">{{ 'settings.legalTitleBn' | transloco }}</span>
+              <input name="legal_title_bn" lang="bn" [(ngModel)]="f.legal_title_bn" class="field__control" />
+            </label>
+
+            <label class="field">
+              <span class="field__label">{{ 'settings.bin' | transloco }}</span>
+              <input name="bin" maxlength="64" inputmode="numeric" spellcheck="false" [(ngModel)]="f.bin"
+                class="field__control field__control--figures" />
+            </label>
+
+            <label class="field">
+              <span class="field__label">{{ 'settings.vat' | transloco }}</span>
+              <input name="default_vat_rate_pct" type="number" min="0" max="100" step="0.01"
+                [(ngModel)]="f.default_vat_rate_pct" class="field__control field__control--figures" />
+            </label>
+          </div>
+        </section>
+
+        <section aria-labelledby="settings-look">
+          <h3 id="settings-look" class="section-title">{{ 'settings.sections.look' | transloco }}</h3>
+          <p class="muted mt-1 max-w-prose text-sm">{{ 'settings.sections.lookHint' | transloco }}</p>
+
+          <fieldset class="mt-5">
+            <legend class="field__label">{{ 'settings.theme' | transloco }}</legend>
+            <div class="mt-2 grid grid-cols-3 gap-2 sm:gap-3 xl:grid-cols-4">
+              @for (t of themes; track t) {
+                <label class="swatch">
+                  <input type="radio" class="sr-only" name="theme_id" [value]="t" [(ngModel)]="f.theme_id" />
+                  <span class="swatch__mock" [attr.data-theme]="t" aria-hidden="true">
+                    <span class="swatch__bar"></span>
+                    <span class="swatch__line"></span>
+                    <span class="swatch__line swatch__line--short"></span>
+                    <span class="swatch__button"></span>
+                  </span>
+                  <span class="swatch__name">{{ 'settings.themeNames.' + t | transloco }}</span>
+                </label>
+              }
+            </div>
+          </fieldset>
+
+          <fieldset class="mt-8">
+            <legend class="field__label">{{ 'settings.language' | transloco }}</legend>
+            <div class="segmented mt-2">
+              <label>
+                <input type="radio" class="sr-only" name="default_language" value="en" [(ngModel)]="f.default_language" />
+                <span>{{ 'app.english' | transloco }}</span>
+              </label>
+              <label>
+                <input type="radio" class="sr-only" name="default_language" value="bn" [(ngModel)]="f.default_language" />
+                <span lang="bn">{{ 'app.bangla' | transloco }}</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="mt-8 flex items-start gap-4">
+            <label class="field min-w-0 flex-1">
+              <span class="field__label">{{ 'settings.logoUrl' | transloco }}</span>
+              <input name="logo_url" type="url" maxlength="2048" spellcheck="false" placeholder="https://"
+                [(ngModel)]="f.logo_url" class="field__control" />
+              @if (f.logo_url.trim() && brokenLogo() === f.logo_url.trim()) {
+                <span class="field__error">{{ 'settings.logoBroken' | transloco }}</span>
+              }
+            </label>
+            <span class="logo-well" aria-hidden="true">
+              @if (f.logo_url.trim() && brokenLogo() !== f.logo_url.trim()) {
+                <img [src]="f.logo_url.trim()" alt="" (error)="brokenLogo.set(f.logo_url.trim())" />
+              }
+            </span>
+          </div>
+        </section>
+
+        @if (moduleKeys().length) {
+          <section aria-labelledby="settings-modules">
+            <h3 id="settings-modules" class="section-title">{{ 'settings.modules' | transloco }}</h3>
+            <p class="muted mt-1 max-w-prose text-sm">{{ 'settings.sections.modulesHint' | transloco }}</p>
+            <ul class="mt-4 divide-list">
+              @for (key of moduleKeys(); track key) {
+                <li>
+                  <label class="switch-row">
+                    @if (moduleLabel(key); as label) {
+                      <span>{{ label | transloco }}</span>
+                    } @else {
+                      <span class="font-mono">{{ key }}</span>
+                    }
+                    <input type="checkbox" role="switch" class="switch" [name]="'module_' + key"
+                      [(ngModel)]="f.module_access[key]" />
+                  </label>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+
+      <aside class="lg:sticky lg:top-32" aria-labelledby="settings-preview">
+        <h3 id="settings-preview" class="section-title">{{ 'settings.preview.title' | transloco }}</h3>
+        <p class="muted mt-1 text-sm">{{ 'settings.preview.hint' | transloco }}</p>
+
+        <div class="receipt mt-4" [attr.lang]="f.default_language">
+          <p class="receipt__title">{{ receiptTitle() || '········' }}</p>
+          @if (f.bin.trim()) {
+            <p>{{ receiptText[f.default_language].bin }} {{ f.bin.trim() }}</p>
+          }
+          <p>{{ receiptText[f.default_language].mushak }}</p>
+          <p class="receipt__rule" aria-hidden="true"></p>
+          <span class="receipt__ghost" aria-hidden="true"></span>
+          <span class="receipt__ghost receipt__ghost--short" aria-hidden="true"></span>
+        </div>
+
+        @if (!receiptTitle()) {
+          <p class="muted mt-3 text-sm">{{ 'settings.preview.noName' | transloco }}</p>
+        }
+      </aside>
+
+      <div class="savebar lg:col-span-2">
+        <p class="savebar__status text-sm" [class.muted]="!dirtyCount()" aria-live="polite">
+          @switch (dirtyCount()) {
+            @case (0) { {{ 'settings.allSaved' | transloco }} }
+            @case (1) { {{ 'settings.unsavedOne' | transloco }} }
+            @default { {{ 'settings.unsavedMany' | transloco: { count: dirtyCount() } }} }
+          }
+        </p>
+        @if (dirtyCount()) {
+          <button type="button" class="savebar__discard" (click)="discard()">
+            {{ 'settings.discard' | transloco }}
+          </button>
+        }
+        <app-shopper-button class="savebar__save" type="submit" [disabled]="saving() || !dirtyCount()" [loading]="saving()">
+          {{ 'settings.save' | transloco }}
+        </app-shopper-button>
+      </div>
+    </form>
+  }
+</div>
