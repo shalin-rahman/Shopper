@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -nE '^\\\\+.*\\(//|///\\) ' tracked.diff)",
+      "Bash(grep -nE '^\\\\+.*\\(//|/\\\\*|\\\\*\\)')"
+    ]
+  }
+}
