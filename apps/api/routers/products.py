@@ -10,9 +10,10 @@ from reportlab.graphics.barcode import code128
 from reportlab.lib.units import inch
 from reportlab.pdfgen import canvas
 
-from core.dependencies import SettingsDep, StaffDep
+from core.dependencies import BranchDep, SettingsDep, StaffDep
 from core.tenant_context import TenantCtxDep
 from schemas import ProductCreate, ProductOut, ProductUpdate
+from services.stock import record_movement
 from utils.codes import barcode_for_sku, qr_payload_for_product
 
 router = APIRouter(prefix="/v1/tenant/products", tags=["products"])
@@ -58,7 +59,7 @@ async def get_product(ctx: TenantCtxDep, product_id: UUID, _auth: StaffDep):
     return _row_to_out(row)
 
 @router.post("", response_model=ProductOut, status_code=201)
-async def create_product(ctx: TenantCtxDep, body: ProductCreate, settings: SettingsDep, _auth: StaffDep):
+async def create_product(ctx: TenantCtxDep, body: ProductCreate, settings: SettingsDep, _auth: StaffDep, branch: BranchDep):
     bc = barcode_for_sku(body.sku)
     qr = qr_payload_for_product(settings.storefront_public_base_url or "", ctx.subdomain, body.sku)
 
@@ -100,28 +101,25 @@ async def create_product(ctx: TenantCtxDep, body: ProductCreate, settings: Setti
                 body.vat_rate_pct,
                 bc,
                 qr,
-                body.stock_quantity,
+                Decimal("0"),
                 body.marketplace_enabled,
             )
 
+            # The product total comes from stock_levels, so the opening stock goes in as a movement.
             if body.stock_quantity > 0:
-                await conn.execute(
-                    """
-                    INSERT INTO tenant_data.stock_transactions (
-                        tenant_id, product_id, transaction_type, quantity, unit_cost, reference_type, notes
-                    ) VALUES ($1, $2, 'in', $3, $4, 'manual', 'Initial stock')
-                    """,
-                    ctx.tenant_id,
-                    row["id"],
-                    body.stock_quantity,
-                    body.buy_price,
+                await record_movement(
+                    conn, ctx, await branch.resolve(conn), row["id"], "in", body.stock_quantity,
+                    "manual", None, "Initial stock", unit_cost=body.buy_price, reason_code="opening",
                 )
+                row = {**dict(row), "stock_quantity": await conn.fetchval(
+                    "SELECT stock_quantity FROM tenant_data.products WHERE id = $1", row["id"]
+                )}
         except asyncpg.exceptions.UniqueViolationError:
             raise HTTPException(status_code=409, detail="SKU already exists")
     return _row_to_out(row)
 
 @router.patch("/{product_id}", response_model=ProductOut)
-async def update_product(ctx: TenantCtxDep, product_id: UUID, body: ProductUpdate, _auth: StaffDep):
+async def update_product(ctx: TenantCtxDep, product_id: UUID, body: ProductUpdate, _auth: StaffDep, branch: BranchDep):
     fields = body.model_dump(exclude_unset=True)
     if not fields:
         return await get_product(ctx, product_id, _auth)
@@ -143,6 +141,31 @@ async def update_product(ctx: TenantCtxDep, product_id: UUID, body: ProductUpdat
         if not old:
             raise HTTPException(status_code=404, detail="Product not found")
 
+        # stock_quantity is the new total. The difference moves at the chosen branch and the
+        # trigger updates the product total, so the column is never set here. A total cannot be
+        # split across branches, so this only works while no other branch holds stock.
+        new_qty = fields.pop("stock_quantity", None)
+        if new_qty is not None:
+            diff = Decimal(str(new_qty)) - Decimal(str(old["stock_quantity"]))
+            if diff != 0:
+                branch_id = await branch.resolve(conn)
+                elsewhere = await conn.fetchval(
+                    "SELECT COALESCE(SUM(quantity), 0) FROM tenant_data.stock_levels "
+                    "WHERE product_id = $1 AND branch_id <> $2",
+                    product_id,
+                    branch_id,
+                )
+                if elsewhere != 0:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="This product has stock at more than one branch. Use /inventory/adjust for each branch.",
+                    )
+                await record_movement(
+                    conn, ctx, branch_id, product_id, "in" if diff > 0 else "out", abs(diff),
+                    "manual", None, "Stock adjustment",
+                    unit_cost=fields.get("buy_price", old["buy_price"]), reason_code="adjustment",
+                )
+
         set_parts = [f"{key} = ${index + 1}" for index, key in enumerate(fields.keys())]
         set_parts.append("updated_at = now()")
         args = list(fields.values())
@@ -154,25 +177,6 @@ async def update_product(ctx: TenantCtxDep, product_id: UUID, body: ProductUpdat
             "unit, buy_price, sell_price, mrp, vat_rate_pct, barcode, qr_payload, stock_quantity, is_active, marketplace_enabled, created_at, updated_at",
             *args,
         )
-
-        if "stock_quantity" in fields:
-            old_qty = Decimal(str(old["stock_quantity"]))
-            new_qty = Decimal(str(fields["stock_quantity"]))
-            diff = new_qty - old_qty
-            if diff != 0:
-                unit_cost = fields.get("buy_price", old["buy_price"])
-                await conn.execute(
-                    """
-                    INSERT INTO tenant_data.stock_transactions (
-                        tenant_id, product_id, transaction_type, quantity, unit_cost, reference_type, notes
-                    ) VALUES ($1, $2, $3, $4, $5, 'manual', 'Stock adjustment')
-                    """,
-                    ctx.tenant_id,
-                    product_id,
-                    "in" if diff > 0 else "out",
-                    abs(diff),
-                    unit_cost,
-                )
     return _row_to_out(row)
 
 @router.delete("/{product_id}", status_code=204)

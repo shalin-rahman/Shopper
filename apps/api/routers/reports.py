@@ -1,4 +1,5 @@
 from __future__ import annotations
+import calendar
 from collections import Counter
 from datetime import date
 from decimal import Decimal
@@ -146,6 +147,13 @@ async def vat_register_report(
         lines=lines
     )
 
+def _inventory_turnover(cogs_annual: Decimal, avg_inv_value: Decimal) -> Decimal:
+    # A tenant with no stock value yet has no meaningful turnover.
+    if avg_inv_value <= 0:
+        return Decimal("0")
+    return cogs_annual / avg_inv_value
+
+
 @router.get("/business-analytics", response_model=BusinessAnalyticsOut)
 async def business_analytics_report(ctx: TenantCtxDep, _auth: AccountantDep):
     """
@@ -153,12 +161,20 @@ async def business_analytics_report(ctx: TenantCtxDep, _auth: AccountantDep):
     """
     async with ctx.transaction() as conn:
         # Outbound sale movement costs are assigned by the FIFO valuation trigger.
+        # Returned and cancelled goods come back in at their sale cost, so net them off.
         cogs_30d = await conn.fetchval(
             """
-            SELECT COALESCE(SUM(quantity * COALESCE(unit_cost, 0)), 0)
+            SELECT COALESCE(SUM(
+                CASE WHEN transaction_type = 'out'
+                     THEN quantity * COALESCE(unit_cost, 0)
+                     ELSE -quantity * COALESCE(unit_cost, 0)
+                END
+            ), 0)
             FROM tenant_data.stock_transactions
-            WHERE transaction_type = 'out'
-              AND reference_type = 'sale'
+            WHERE (
+                (transaction_type = 'out' AND reference_type = 'sale')
+                OR (transaction_type = 'in' AND reference_type IN ('return', 'sale_cancel'))
+              )
               AND created_at > now() - interval '30 days'
             """
         )
@@ -166,22 +182,24 @@ async def business_analytics_report(ctx: TenantCtxDep, _auth: AccountantDep):
 
         # Average Inventory Value (simplified: current value)
         avg_inv_value = await conn.fetchval(
-            "SELECT COALESCE(SUM(stock_quantity * wac_cost), 1) FROM tenant_data.products WHERE is_active = true"
+            "SELECT COALESCE(SUM(stock_quantity * wac_cost), 0) FROM tenant_data.products WHERE is_active = true"
         )
         avg_inv_value = Decimal(str(avg_inv_value))
 
-        itr = cogs_annual / avg_inv_value
+        itr = _inventory_turnover(cogs_annual, avg_inv_value)
 
         # EOQ for top 5 moving products
         # D = Annual Demand, S = BDT 500 (fixed order cost), H = 15% of WAC cost (holding cost)
         product_demand = await conn.fetch(
             """
-            SELECT p.sku, p.wac_cost, COALESCE(SUM(st.quantity), 0) as demand_30d
+            SELECT p.sku, p.wac_cost,
+                   GREATEST(COALESCE(SUM(CASE WHEN st.transaction_type = 'out' THEN st.quantity
+                                              ELSE -st.quantity END), 0), 0) as demand_30d
             FROM tenant_data.products p
             LEFT JOIN tenant_data.stock_transactions st
               ON st.product_id = p.id
-             AND st.transaction_type = 'out'
-             AND st.reference_type = 'sale'
+             AND ((st.transaction_type = 'out' AND st.reference_type = 'sale')
+                  OR (st.transaction_type = 'in' AND st.reference_type IN ('return', 'sale_cancel')))
              AND st.created_at > now() - interval '30 days'
             GROUP BY p.sku, p.wac_cost
             ORDER BY demand_30d DESC LIMIT 5
@@ -263,19 +281,20 @@ async def mushak_6_10_report(
         rows = await conn.fetch(
             """
             SELECT i.invoice_no, i.created_at::date as invoice_date, 
-                    c.name_en as buyer_name_en, 
-                    SUM(l.qty) as total_qty, 
+                    COALESCE(c.name_en, i.buyer_name_en) as buyer_name_en,
+                    SUM(l.qty) as total_qty,
                     i.subtotal as total_taxable, 
                     i.total_vat as total_vat, 
                     i.discount as total_discount,
                     i.total_amount as total_gross
             FROM tenant_data.invoices i
-            JOIN tenant_data.customers c ON i.customer_id = c.id
+            LEFT JOIN tenant_data.customers c ON i.customer_id = c.id
             JOIN tenant_data.invoice_lines l ON l.invoice_id = i.id
-            WHERE EXTRACT(MONTH FROM i.created_at) = $1 
+            WHERE EXTRACT(MONTH FROM i.created_at) = $1
                 AND EXTRACT(YEAR FROM i.created_at) = $2
                 AND i.total_amount >= 200000
-            GROUP BY i.id, i.invoice_no, i.created_at, c.name_en, i.subtotal, i.total_vat, i.discount, i.total_amount
+                AND i.status NOT IN ('draft', 'cancelled')
+            GROUP BY i.id, i.invoice_no, i.created_at, c.name_en, i.buyer_name_en, i.subtotal, i.total_vat, i.discount, i.total_amount
             ORDER BY i.created_at DESC
             """,
             month, year
@@ -296,7 +315,7 @@ async def mushak_6_10_report(
 
     return VatRegisterReportOut(
         start_date=date(year, month, 1),
-        end_date=date(year, month, 28), # Approximated for model response
+        end_date=date(year, month, calendar.monthrange(year, month)[1]),
         total_taxable_value=sum(l.taxable_value for l in lines) if lines else Decimal("0"),
         total_vat_amount=sum(l.vat_amount for l in lines) if lines else Decimal("0"),
         total_discount_amount=sum(l.discount_amount for l in lines) if lines else Decimal("0"),

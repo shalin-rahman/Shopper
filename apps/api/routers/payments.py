@@ -1,18 +1,23 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal, InvalidOperation
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from core.config import Settings
-from core.dependencies import SettingsDep, StaffDep
-from schemas import PaymentCreate, PaymentGateway, PaymentOut
+from core.dependencies import ManagerDep, SettingsDep, StaffDep
+from schemas import (
+    PaymentCreate, PaymentGateway, PaymentOut, PaymentRefundCreate, PaymentReviewOut, PaymentReviewResolve,
+)
 from core.tenant_context import TenantCtxDep, resolve_tenant_id, tenant_transaction
 from services.payment_gateway import get_gateway, get_tenant_settings, payment_row_to_out
-from services.payment_settlement import reserve_invoice_payment
+from services.payment_settlement import late_settlement_problem, reserve_invoice_payment
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/tenant/payments", tags=["payments"])
 
@@ -90,23 +95,26 @@ async def create_payment(ctx: TenantCtxDep, body: PaymentCreate, settings: Setti
             tenant_settings,
         )
         gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
-        row = await conn.fetchrow(
-            """
-            INSERT INTO tenant_data.payments (
-                tenant_id, gateway, amount, currency, status, description, order_id,
-                gateway_transaction_id, invoice_id
-            ) VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
-            RETURNING id, gateway, amount, currency, status, gateway_transaction_id, created_at, updated_at
-            """,
-            ctx.tenant_id,
-            body.gateway.value,
-            body.amount,
-            body.currency,
-            body.description,
-            order_id,
-            gw_txn_id,
-            body.invoice_id,
-        )
+        try:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO tenant_data.payments (
+                    tenant_id, gateway, amount, currency, status, description, order_id,
+                    gateway_transaction_id, invoice_id
+                ) VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
+                RETURNING id, gateway, amount, currency, status, gateway_transaction_id, created_at, updated_at
+                """,
+                ctx.tenant_id,
+                body.gateway.value,
+                body.amount,
+                body.currency,
+                body.description,
+                order_id,
+                gw_txn_id,
+                body.invoice_id,
+            )
+        except asyncpg.UniqueViolationError:
+            raise HTTPException(status_code=409, detail="A payment with this order or transaction id already exists")
     
     res = payment_row_to_out(row)
     res.gateway_url = init_data.get("gateway_url")
@@ -202,18 +210,136 @@ async def handle_ipn(
         if row["status"] == "completed":
             return {"status": "ok", "idempotent": True, "payment_id": str(row["id"])}
 
+        problem = None
+        if row["invoice_id"]:
+            problem = await late_settlement_problem(conn, row["invoice_id"], row["amount"])
+            if problem:
+                logger.error(
+                    "Gateway payment %s completed on invoice %s needs review: %s",
+                    row["id"], row["invoice_id"], problem,
+                )
+
         await conn.execute(
             """
             UPDATE tenant_data.payments
             SET status = $2,
                 gateway_transaction_id = COALESCE(NULLIF($3::text, ''), gateway_transaction_id),
                 ipn_verified = true,
+                review_reason = $4,
                 updated_at = now()
             WHERE id = $1::uuid
             """,
             row["id"],
             new_status,
             gw_txn_id,
+            problem,
         )
 
-    return {"status": "ok", "payment_id": str(row["id"]), "payment_status": new_status}
+    result = {"status": "ok", "payment_id": str(row["id"]), "payment_status": new_status}
+    if problem:
+        result["needs_review"] = problem
+    return result
+
+
+_REVIEW_COLUMNS = """
+    id, gateway, amount, currency, status, invoice_id, review_reason, review_note,
+    review_resolved_at, review_resolved_by, created_at, updated_at
+"""
+
+
+@router.get("/review", response_model=list[PaymentReviewOut])
+async def list_payment_reviews(ctx: TenantCtxDep, _auth: ManagerDep):
+    """Completed gateway payments on a cancelled or overpaid invoice that no one has resolved."""
+    async with ctx.transaction() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT {_REVIEW_COLUMNS}
+            FROM tenant_data.payments
+            WHERE review_reason IS NOT NULL AND review_resolved_at IS NULL
+            ORDER BY created_at
+            """
+        )
+    return [PaymentReviewOut(**dict(row)) for row in rows]
+
+
+@router.post("/{payment_id}/resolve-review", response_model=PaymentReviewOut)
+async def resolve_payment_review(
+    ctx: TenantCtxDep, payment_id: UUID, body: PaymentReviewResolve, _auth: ManagerDep
+):
+    """Close a review once the refund or other fix is done at the gateway."""
+    async with ctx.transaction() as conn:
+        row = await conn.fetchrow(
+            f"""
+            UPDATE tenant_data.payments
+            SET review_resolved_at = now(), review_note = $2, review_resolved_by = $3, updated_at = now()
+            WHERE id = $1 AND review_reason IS NOT NULL AND review_resolved_at IS NULL
+            RETURNING {_REVIEW_COLUMNS}
+            """,
+            payment_id,
+            body.note,
+            str(_auth["uid"]),
+        )
+    if not row:
+        raise HTTPException(status_code=404, detail="No open review for this payment")
+    return PaymentReviewOut(**dict(row))
+
+
+@router.post("/{payment_id}/refunds", status_code=201)
+async def create_payment_refund(
+    ctx: TenantCtxDep, payment_id: UUID, body: PaymentRefundCreate, _auth: ManagerDep
+):
+    """Record money sent back through the gateway's own dashboard. The invoice balance follows by trigger."""
+    async with ctx.transaction() as conn:
+        # The lock makes two refunds on one payment take turns, so their sum is checked one at a time.
+        payment = await conn.fetchrow(
+            "SELECT id, invoice_id, amount, status FROM tenant_data.payments WHERE id = $1 FOR UPDATE",
+            payment_id,
+        )
+        if not payment:
+            raise HTTPException(status_code=404, detail="Payment not found")
+        if payment["status"] != "completed":
+            raise HTTPException(status_code=409, detail="Only a completed payment can be refunded")
+        refunded = await conn.fetchval(
+            "SELECT COALESCE(SUM(amount), 0) FROM tenant_data.payment_refunds WHERE payment_id = $1",
+            payment_id,
+        )
+        if Decimal(str(refunded)) + body.amount > Decimal(str(payment["amount"])):
+            raise HTTPException(status_code=409, detail="Refund exceeds the payment amount")
+        # The FK check skips RLS, so check the credit note here: it must be this tenant's and this invoice's.
+        if body.credit_note_id is not None:
+            found = await conn.fetchval(
+                "SELECT 1 FROM tenant_data.credit_notes WHERE id = $1 AND invoice_id = $2",
+                body.credit_note_id,
+                payment["invoice_id"],
+            )
+            if not found:
+                raise HTTPException(status_code=400, detail="Credit note does not belong to this invoice")
+        row = await conn.fetchrow(
+            """
+            INSERT INTO tenant_data.payment_refunds (
+                tenant_id, payment_id, invoice_id, amount, reference, note, credit_note_id, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+            """,
+            ctx.tenant_id,
+            payment_id,
+            payment["invoice_id"],
+            body.amount,
+            body.reference,
+            body.note,
+            body.credit_note_id,
+            UUID(str(_auth["uid"])),
+        )
+    return dict(row)
+
+
+@router.get("/{payment_id}/refunds")
+async def list_payment_refunds(ctx: TenantCtxDep, payment_id: UUID, _auth: StaffDep):
+    async with ctx.transaction() as conn:
+        if not await conn.fetchval("SELECT 1 FROM tenant_data.payments WHERE id = $1", payment_id):
+            raise HTTPException(status_code=404, detail="Payment not found")
+        rows = await conn.fetch(
+            "SELECT * FROM tenant_data.payment_refunds WHERE payment_id = $1 ORDER BY created_at",
+            payment_id,
+        )
+    return [dict(r) for r in rows]

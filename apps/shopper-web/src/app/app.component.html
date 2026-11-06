@@ -1,5 +1,7 @@
 <div class="min-h-screen bg-shopper-bg text-shopper-text font-sans antialiased transition-colors duration-500">
-  
+  @if (bare()) {
+    <router-outlet />
+  } @else {
   <!-- Premium Glossy Navbar -->
   <header class="sticky top-0 z-50 w-full border-b border-shopper-border bg-shopper-bg/70 backdrop-blur-xl transition-all">
     <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -46,6 +48,11 @@
              routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
              class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
             {{ 'nav.expenses' | transloco }}
+          </a>
+          <a routerLink="/payments" 
+             routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
+             class="rounded-full px-4 py-2 text-sm font-bold transition-all hover:bg-shopper-primary/5 hover:text-shopper-primary">
+            {{ 'nav.payments' | transloco }}
           </a>
           <a routerLink="/accounting" 
              routerLinkActive="bg-shopper-primary/10 text-shopper-primary"
@@ -109,6 +116,14 @@
           </button>
         </div>
 
+        <button
+          type="button"
+          class="rounded-lg px-3 py-1.5 text-xs font-bold transition-all hover:bg-shopper-primary/10 hover:text-shopper-primary"
+          (click)="logout()"
+        >
+          {{ 'login.logout' | transloco }}
+        </button>
+
       </div>
     </div>
   </header>
@@ -131,4 +146,5 @@
       </div>
     </div>
   </footer>
+  }
 </div>

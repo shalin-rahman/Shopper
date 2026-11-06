@@ -34,6 +34,15 @@ async def seed_from_json(json_path: str, db_url: str):
                 subdomain, tenant_data["display_name_en"], tenant_data["display_name_bn"]
             )
             tenant_id = tenant["id"]
+            main_branch_id = await conn.fetchval(
+                """
+                INSERT INTO tenant_data.branches (tenant_id, name, code, is_main)
+                VALUES ($1, 'Main branch', 'MAIN', true)
+                ON CONFLICT (tenant_id, code) DO UPDATE SET code = EXCLUDED.code
+                RETURNING id
+                """,
+                tenant_id
+            )
 
             # 2. Settings
             s = tenant_data.get("settings", {})
@@ -120,12 +129,20 @@ async def seed_from_json(json_path: str, db_url: str):
                     Decimal(str(prod["vat_rate_pct"])), Decimal(str(prod["stock_quantity"]))
                 )
                 if p_row and prod.get("stock_quantity", 0) > 0:
+                    # The stock_levels trigger recomputes products.stock_quantity from this row.
                     await conn.execute(
                         """
-                        INSERT INTO tenant_data.stock_transactions (tenant_id, product_id, transaction_type, quantity, unit_cost, reference_type, notes)
-                        VALUES ($1, $2, 'in', $3, $4, 'manual', 'Seed Stock')
+                        INSERT INTO tenant_data.stock_levels (tenant_id, branch_id, product_id, quantity)
+                        VALUES ($1, $2, $3, $4)
                         """,
-                        tenant_id, p_row["id"], prod["stock_quantity"], Decimal(str(prod["buy_price"]))
+                        tenant_id, main_branch_id, p_row["id"], Decimal(str(prod["stock_quantity"]))
+                    )
+                    await conn.execute(
+                        """
+                        INSERT INTO tenant_data.stock_transactions (tenant_id, branch_id, product_id, transaction_type, quantity, unit_cost, reference_type, notes)
+                        VALUES ($1, $2, $3, 'in', $4, $5, 'manual', 'Seed Stock')
+                        """,
+                        tenant_id, main_branch_id, p_row["id"], prod["stock_quantity"], Decimal(str(prod["buy_price"]))
                     )
 
             # 9. Expenses

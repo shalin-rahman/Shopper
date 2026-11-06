@@ -41,6 +41,7 @@ from routers.accounts import router as accounts_router
 from routers.maintenance import router as maintenance_router
 from routers.marketplace import router as marketplace_router
 from routers.procurement import router as procurement_router
+from routers.branches import router as branches_router
 
 
 REDIS = None
@@ -73,6 +74,7 @@ async def lifespan(app: FastAPI):
         yield
         return
 
+    settings.assert_safe_for_runtime()
     dsn = settings.normalize_dsn(settings.database_url)
     pool = await asyncpg.create_pool(dsn, min_size=1, max_size=10)
     app.state.db_pool = pool
@@ -125,10 +127,11 @@ async def tenant_context(request: Request, call_next):
     sub = host_subdomain(
         request.headers.get("host", ""),
         platform_root_domain=settings.platform_root_domain,
+        allow_dev_hosts=settings.allow_tenant_override,
     )
     if not sub:
         # Allow tenant-less access to global/platform-level endpoints
-        if request.url.path == "/health" or request.url.path.startswith(("/v1/admin", "/v1/marketplace", "/v1/register", "/docs", "/openapi.json")):
+        if request.url.path == "/health" or request.url.path.startswith(("/v1/admin", "/v1/marketplace", "/v1/register", "/v1/tenant/payments/ipn/", "/docs", "/openapi.json")):
             sub = "global"
         else:
             return JSONResponse(
@@ -168,3 +171,4 @@ app.include_router(accounts_router)
 app.include_router(maintenance_router)
 app.include_router(marketplace_router)
 app.include_router(procurement_router)
+app.include_router(branches_router)

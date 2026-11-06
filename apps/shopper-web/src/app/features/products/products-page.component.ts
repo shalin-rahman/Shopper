@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslocoPipe } from '@ngneat/transloco';
 
 import { LocaleService } from '../../core/i18n/locale.service';
-import { Product, ProductService } from './product.service';
+import { Product, ProductService, filterProducts } from './product.service';
 
 import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
 import { ShopperDataGridComponent } from '../../shared/components/shopper-data-grid.component';
@@ -29,6 +29,10 @@ export class ProductsPageComponent implements OnInit {
   readonly loadError = signal<string | null>(null);
   readonly saving = signal(false);
   readonly formError = signal<string | null>(null);
+  readonly query = signal('');
+  readonly visible = computed(() => filterProducts(this.items(), this.query()));
+  /** Ids with a marketplace change in flight, so a second click can't race the first. */
+  readonly toggling = signal<ReadonlySet<string>>(new Set());
 
   sku = '';
   nameEn = '';
@@ -85,6 +89,27 @@ export class ProductsPageComponent implements OnInit {
           this.formError.set('products.saveFailed');
         },
       });
+  }
+
+  toggleMarketplace(p: Product): void {
+    if (this.toggling().has(p.id)) return;
+    this.toggling.update((s) => new Set(s).add(p.id));
+    const done = () =>
+      this.toggling.update((s) => {
+        const next = new Set(s);
+        next.delete(p.id);
+        return next;
+      });
+    this.productsApi.setMarketplace(p.id, !p.marketplace_enabled).subscribe({
+      next: (updated) => {
+        this.items.update((rows) => rows.map((r) => (r.id === updated.id ? updated : r)));
+        done();
+      },
+      error: () => {
+        this.loadError.set('products.marketplaceFailed');
+        done();
+      },
+    });
   }
 
   deactivate(p: Product): void {

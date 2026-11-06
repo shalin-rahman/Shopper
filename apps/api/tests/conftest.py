@@ -2,6 +2,7 @@ import os
 import pytest
 # Ensure app lifespan skips DB before `main` is imported by test modules.
 os.environ["TESTING"] = "1"
+os.environ["ALLOW_TENANT_OVERRIDE"] = "1"
 
 import jwt
 from datetime import datetime, timedelta, timezone

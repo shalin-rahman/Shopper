@@ -156,6 +156,8 @@ graph TB
 |--------|------|----------|-------|
 | `POST` | `` | `create_payment` | initiate gateway + insert pending |
 | `POST` | `/ipn/{gateway}` | `handle_ipn` | IPN webhook (form + JSON) |
+| `POST` | `/{payment_id}/refunds` | `create_payment_refund` | record a refund (manager); total refunded never exceeds the payment |
+| `GET` | `/{payment_id}/refunds` | `list_payment_refunds` | list refunds; 404 for an unknown payment |
 
 **Classes:**
 - `PaymentGatewayInterface(ABC)` — methods: `initiate_payment()`, `verify_ipn()`, `ipn_payment_status()`
@@ -167,6 +169,9 @@ graph TB
 | Method | Path | Function |
 |--------|------|----------|
 | `GET` | `` | `get_tenant_settings` |
+| `PATCH` | `` | `update_tenant_settings` |
+
+Lives in `routers/settings.py`. Both routes need a manager. PATCH takes `TenantSettingsUpdate` and changes only the fields sent; the NOT NULL fields (theme_id, default_language, default_vat_rate_pct, module_access) cannot be set to null.
 
 #### `storefront_router.py` — prefix `/v1/storefront`
 | Method | Path | Function | Query Params |

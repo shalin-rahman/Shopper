@@ -52,8 +52,8 @@ The worktree contains implementation across these areas, but repository code and
 ## 4. Verification & QA
 
 - The API suite reported 69 passed and 19 skipped on 2026-10-20.
-- PostgreSQL migration, RLS, marketplace, and settlement checks are skipped without configured integration database credentials.
-- Flutter tests currently include one failing product-repository assertion; the app is not release-verified.
+- The full Flutter test suite passes and `flutter analyze` reports no issues after fixing barcode mapping and declaring `mocktail` as a direct dev dependency.
+- A local PostgreSQL service is running, but the configured application-role credentials fail authentication. Migration, RLS, marketplace, and settlement checks remain unverified until valid test database credentials are configured.
 
 ---
 **Review Status:** **IN PROGRESS — NOT PRODUCTION CERTIFIED**

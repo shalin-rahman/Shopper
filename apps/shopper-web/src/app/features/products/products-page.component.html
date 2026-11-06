@@ -93,17 +93,31 @@
     </div>
   </section>
 
+  <input
+    type="search"
+    class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+    [ngModel]="query()"
+    (ngModelChange)="query.set($event)"
+    [placeholder]="'products.search' | transloco"
+    [attr.aria-label]="'products.search' | transloco"
+  />
+
+  @if (items().length && !visible().length) {
+    <p class="text-sm text-slate-500">{{ 'products.noMatch' | transloco }}</p>
+  }
+
   <!-- Premium Data Grid -->
   <div class="rounded-3xl border border-shopper-border bg-shopper-bg overflow-hidden shadow-xl">
     <app-shopper-data-grid
       title="Active Product Catalog"
-      [data]="items()"
+      [data]="visible()"
       [columns]="[
         { key: 'sku', header: 'products.sku' | transloco, width: '120px' },
         { key: 'name_en', header: 'products.name' | transloco },
         { key: 'sell_price', header: 'products.sellPrice' | transloco, align: 'right' },
         { key: 'vat_rate_pct', header: 'VAT (%)', align: 'center', width: '80px' },
-        { key: 'is_active', header: 'Status', width: '100px' }
+        { key: 'is_active', header: 'Status', width: '100px' },
+        { key: 'marketplace_enabled', header: 'products.marketplace' | transloco, align: 'center', width: '120px' }
       ]"
     >
       <!-- Custom Cell for Status -->
@@ -112,6 +126,22 @@
           <span [class]="row.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter">
             {{ row.is_active ? 'Active' : 'Inactive' }}
           </span>
+        } @else if (col.key === 'marketplace_enabled') {
+          <button
+            type="button"
+            role="switch"
+            [attr.aria-checked]="row.marketplace_enabled"
+            [attr.aria-label]="('products.marketplace' | transloco) + ' ' + row.sku"
+            [disabled]="toggling().has(row.id)"
+            (click)="toggleMarketplace(row)"
+            [class]="row.marketplace_enabled ? 'bg-shopper-primary' : 'bg-slate-300'"
+            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-4 focus:ring-shopper-primary/20 disabled:opacity-50"
+          >
+            <span
+              [class]="row.marketplace_enabled ? 'translate-x-6' : 'translate-x-1'"
+              class="inline-block h-4 w-4 rounded-full bg-white shadow transition-transform"
+            ></span>
+          </button>
         } @else if (col.key === 'sell_price') {
           <span class="font-mono font-bold text-shopper-primary">
             {{ locale.formatCurrency(+row.sell_price) }}

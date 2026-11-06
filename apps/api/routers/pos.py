@@ -8,7 +8,8 @@ from fastapi import APIRouter
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from core.tenant_context import TenantCtxDep
-from core.dependencies import StaffDep
+from core.dependencies import BranchDep, StaffDep
+from services.stock import lock_levels, record_movement
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/tenant/pos", tags=["pos"])
@@ -133,27 +134,33 @@ class _AlreadySyncedOrder(Exception):
 
 
 @router.get("/sync")
-async def pos_sync_data(ctx: TenantCtxDep, _auth: StaffDep):
+async def pos_sync_data(ctx: TenantCtxDep, _auth: StaffDep, branch: BranchDep):
     """
     Returns a consolidated payload of products and categories for local mobile caching.
+    stock_quantity is what the till's branch holds, 0 when it has no row.
     """
     async with ctx.transaction() as conn:
+        branch_id = await branch.resolve(conn)
         categories = await conn.fetch("SELECT id, name_en, name_bn FROM tenant_data.product_categories")
         products = await conn.fetch(
             """
-            SELECT id, category_id, sku, name_en, name_bn, sell_price, vat_rate_pct, barcode, qr_payload, stock_quantity
-            FROM tenant_data.products
-            WHERE is_active = true
-            """
+            SELECT p.id, p.category_id, p.sku, p.name_en, p.name_bn, p.sell_price, p.vat_rate_pct,
+                   p.barcode, p.qr_payload, COALESCE(sl.quantity, 0) AS stock_quantity
+            FROM tenant_data.products p
+            LEFT JOIN tenant_data.stock_levels sl ON sl.product_id = p.id AND sl.branch_id = $1
+            WHERE p.is_active = true
+            """,
+            branch_id,
         )
 
     return {
+        "branch_id": branch_id,
         "categories": [dict(c) for c in categories],
         "products": [dict(p) for p in products]
     }
 
 @router.post("/offline-punch")
-async def pos_offline_punch(ctx: TenantCtxDep, body: list[Any], _auth: StaffDep):
+async def pos_offline_punch(ctx: TenantCtxDep, body: list[Any], _auth: StaffDep, branch: BranchDep):
     """
     Processes a batch of offline-synced orders.
     Orchestrates Invoice -> Stock Transactions -> VAT Register population.
@@ -162,6 +169,7 @@ async def pos_offline_punch(ctx: TenantCtxDep, body: list[Any], _auth: StaffDep)
     synced_ids: list[str] = []
 
     async with ctx.transaction() as conn:
+        branch_id = await branch.resolve(conn)
         for order in orders:
             try:
                 async with conn.transaction():
@@ -197,7 +205,7 @@ async def pos_offline_punch(ctx: TenantCtxDep, body: list[Any], _auth: StaffDep)
                         )
                     locked_products = await conn.fetch(
                         """
-                        SELECT id, is_active, stock_quantity
+                        SELECT id, is_active
                         FROM tenant_data.products
                         WHERE id = ANY($1::uuid[])
                         ORDER BY id
@@ -206,11 +214,12 @@ async def pos_offline_punch(ctx: TenantCtxDep, body: list[Any], _auth: StaffDep)
                         list(demand_by_product),
                     )
                     product_by_id = {product["id"]: product for product in locked_products}
+                    levels = await lock_levels(conn, branch_id, list(demand_by_product))
                     for product_id, demanded_quantity in demand_by_product.items():
                         product = product_by_id.get(product_id)
                         if not product or not product["is_active"]:
                             raise ValueError(f"Product {product_id} is missing or inactive")
-                        if Decimal(str(product["stock_quantity"])) < demanded_quantity:
+                        if levels[product_id] < demanded_quantity:
                             raise ValueError(f"Insufficient stock for product {product_id}")
 
                     invoice_id = await conn.fetchval(
@@ -276,23 +285,9 @@ async def pos_offline_punch(ctx: TenantCtxDep, body: list[Any], _auth: StaffDep)
                             item.line_total,
                         )
 
-                        await conn.execute(
-                            """
-                            INSERT INTO tenant_data.stock_transactions (
-                                tenant_id, product_id, transaction_type, quantity, reference_type, reference_id, notes
-                            ) VALUES ($1, $2, 'out', $3, 'sale', $4, $5)
-                            """,
-                            ctx.tenant_id,
-                            item.product_id,
-                            item.quantity,
-                            invoice_id,
-                            f"POS Sale: {order.order_number}",
-                        )
-
-                        await conn.execute(
-                            "UPDATE tenant_data.products SET stock_quantity = stock_quantity - $1 WHERE id = $2",
-                            item.quantity,
-                            item.product_id,
+                        await record_movement(
+                            conn, ctx, branch_id, item.product_id, "out", Decimal(item.quantity),
+                            "sale", invoice_id, f"POS Sale: {order.order_number}",
                         )
 
                         await conn.execute(

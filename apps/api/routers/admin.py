@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import re
 from typing import Literal
 from uuid import UUID
@@ -105,7 +106,9 @@ def _require_admin(x_shopper_admin_key: str | None, settings: Settings) -> None:
     expected = (settings.shopper_admin_api_key or "").strip()
     if not expected:
         raise HTTPException(status_code=503, detail="Admin API disabled (set SHOPPER_ADMIN_API_KEY)")
-    if not x_shopper_admin_key or x_shopper_admin_key != expected:
+    if not x_shopper_admin_key or not hmac.compare_digest(
+        x_shopper_admin_key.encode(), expected.encode()
+    ):
         raise HTTPException(status_code=401, detail="Invalid admin key")
 
 
@@ -143,7 +146,15 @@ async def set_tenant_status(
     pool = _migrate_pool(request)
     if pool is None:
         raise HTTPException(status_code=503, detail="Migrate database pool not configured")
-    async with pool.acquire() as conn:
+    async with pool.acquire() as conn, conn.transaction():
+        old_status = await conn.fetchval(
+            # NO KEY UPDATE, not UPDATE: audit inserts take KEY SHARE on this row
+            # for their FK check while holding the audit lock; FOR UPDATE deadlocks.
+            "SELECT status FROM platform.tenants WHERE id = $1 FOR NO KEY UPDATE",
+            tenant_id,
+        )
+        if old_status is None:
+            raise HTTPException(status_code=404, detail="Tenant not found")
         row = await conn.fetchrow(
             """
             UPDATE platform.tenants
@@ -155,8 +166,19 @@ async def set_tenant_status(
             tenant_id,
             body.status,
         )
-    if not row:
-        raise HTTPException(status_code=404, detail="Tenant not found")
+        await conn.execute(
+            """
+            INSERT INTO tenant_data.audit_log
+                (tenant_id, table_name, record_id, action, old_values, new_values, changed_by)
+            VALUES ($1, 'platform.tenants', $1, 'UPDATE',
+                    jsonb_build_object('status', $2::text),
+                    jsonb_build_object('status', $3::text),
+                    'platform-admin')
+            """,
+            tenant_id,
+            old_status,
+            body.status,
+        )
     return dict(row)
 
 @router.get("/tenants/{tenant_id}/export")

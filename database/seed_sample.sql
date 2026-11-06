@@ -18,6 +18,10 @@ BEGIN
     VALUES (tid, 'Shopper Demo Retail', '123456789-0101')
     ON CONFLICT (tenant_id) DO NOTHING;
 
+    INSERT INTO tenant_data.branches (tenant_id, name, code, is_main)
+    VALUES (tid, 'Main branch', 'MAIN', true)
+    ON CONFLICT (tenant_id, code) DO NOTHING;
+
     -- Provision Accounts
     PERFORM tenant_data.provision_system_accounts(tid);
 
@@ -39,5 +43,13 @@ BEGIN
         (tid, 'PROD-001', 'Smart Watch GL', 'স্মার্ট ওয়াচ জিএল', 2500, 3200, 5, 20),
         (tid, 'PROD-002', 'Basmati Rice 5kg', 'বাসমতি চাল ৫ কেজি', 650, 780, 0, 100)
     ON CONFLICT (tenant_id, sku) DO NOTHING;
+
+    -- The stock_levels trigger recomputes products.stock_quantity from these rows.
+    INSERT INTO tenant_data.stock_levels (tenant_id, branch_id, product_id, quantity)
+    SELECT tid, b.id, p.id, p.stock_quantity
+    FROM tenant_data.products p
+    JOIN tenant_data.branches b ON b.tenant_id = tid AND b.is_main
+    WHERE p.tenant_id = tid AND p.sku IN ('PROD-001', 'PROD-002')
+    ON CONFLICT (branch_id, product_id) DO NOTHING;
 
 END $$;

@@ -5,7 +5,9 @@ from __future__ import annotations
 import re
 
 
-def subdomain_from_host(host: str, *, platform_root_domain: str | None = None) -> str | None:
+def subdomain_from_host(
+    host: str, *, platform_root_domain: str | None = None, allow_dev_hosts: bool = False
+) -> str | None:
     if not host:
         return None
     host = host.split(":")[0].strip().lower()
@@ -13,6 +15,9 @@ def subdomain_from_host(host: str, *, platform_root_domain: str | None = None) -
     if root and host.endswith("." + root):
         sub = host[: -(len(root) + 1)]
         return sub or None
+    # localhost names are for local development only (ALLOW_TENANT_OVERRIDE).
+    if not allow_dev_hosts:
+        return None
     m = re.match(r"^([a-z0-9][a-z0-9-]*)\.localhost$", host)
     if m:
         return m.group(1)

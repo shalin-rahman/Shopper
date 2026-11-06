@@ -68,3 +68,10 @@ class CreditNoteOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class CheckoutLinkOut(BaseModel):
+    invoice_id: UUID
+    token: str
+    expires: int
+    path: str

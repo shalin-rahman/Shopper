@@ -14,6 +14,9 @@ class OrderRepositoryImpl implements OrderRepository {
 
   OrderRepositoryImpl(this.database, this.remoteDataSource);
 
+  // The server takes money with at most 2 decimals; raw doubles carry float noise.
+  String? _money(double? v) => v?.toStringAsFixed(2);
+
   String _generateId() {
     return '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999)}';
   }
@@ -208,24 +211,24 @@ class OrderRepositoryImpl implements OrderRepository {
         orderPayloads.add({
           'id': order.id,
           'orderNumber': order.orderNumber,
-          'total': order.total,
-          'subtotal': order.subtotal,
-          'discount': order.discount,
-          'taxAmount': order.taxAmount,
+          'total': _money(order.total),
+          'subtotal': _money(order.subtotal),
+          'discount': _money(order.discount),
+          'taxAmount': _money(order.taxAmount),
           'customerName': order.customerName,
           'customerPhone': order.customerPhone,
           'notes': order.notes,
           'payment_method': order.paymentMethod,
-          'amount_paid': order.amountPaid,
+          'amount_paid': _money(order.amountPaid),
           'items': items.map((item) => {
             'productId': item.productId,
             'productName': item.productName,
             'quantity': item.quantity,
-            'unitPrice': item.unitPrice,
-            'discount': item.discount,
-            'taxAmount': item.taxAmount,
+            'unitPrice': _money(item.unitPrice),
+            'discount': _money(item.discount),
+            'taxAmount': _money(item.taxAmount),
             'vatRatePct': item.vatRatePct,
-            'vatAmount': item.vatAmount,
+            'vatAmount': _money(item.vatAmount),
           }).toList(),
           'createdAt': order.createdAt.toIso8601String(),
         });

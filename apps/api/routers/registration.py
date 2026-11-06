@@ -21,8 +21,11 @@ async def register_tenant(request: Request, body: RegisterTenantBody):
     Self-service registration for new tenants.
     Creates the tenant record and the initial admin user.
     """
+    # Registration writes platform rows and the first staff row before any tenant
+    # context exists, so it needs the BYPASSRLS migrate role.
+    pool = getattr(request.app.state, "migrate_pool", None)
     if pool is None:
-        raise HTTPException(status_code=503, detail="Database unavailable")
+        raise HTTPException(status_code=503, detail="Registration unavailable")
 
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -46,6 +49,15 @@ async def register_tenant(request: Request, body: RegisterTenantBody):
                 VALUES ($1, $2, $3)
                 """,
                 tenant_id, body.company_name_en, body.company_name_bn
+            )
+
+            # Stock requests with no branch header use the main branch.
+            await conn.execute(
+                """
+                INSERT INTO tenant_data.branches (tenant_id, name, code, is_main)
+                VALUES ($1, 'Main branch', 'MAIN', true)
+                """,
+                tenant_id
             )
 
             # 3. Create Admin Staff in the same schema (or dedicated if enabled)

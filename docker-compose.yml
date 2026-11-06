@@ -28,10 +28,12 @@ services:
     environment:
       DATABASE_URL: ${SHOPPER_DATABASE_URL:-postgresql+asyncpg://shopper_app:shopper_app_change_me@postgres:5432/shopper}
       PLATFORM_ROOT_DOMAIN: ${PLATFORM_ROOT_DOMAIN:-}
+      ALLOW_TENANT_OVERRIDE: ${ALLOW_TENANT_OVERRIDE:-false}
       STOREFRONT_PUBLIC_BASE_URL: ${STOREFRONT_PUBLIC_BASE_URL:-}
       CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-*}"
       MIGRATE_DATABASE_URL: ${SHOPPER_MIGRATE_DATABASE_URL:-}
       SHOPPER_ADMIN_API_KEY: ${SHOPPER_ADMIN_API_KEY:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     ports:
       - "8000:8000"

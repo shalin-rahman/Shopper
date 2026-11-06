@@ -1,7 +1,10 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map } from 'rxjs';
 import { TranslocoPipe } from '@ngneat/transloco';
 
+import { AuthService } from './core/auth/auth.service';
 import { LocaleService, ShopperLang } from './core/i18n/locale.service';
 import { ThemeService, ShopperTheme } from './core/theme/theme.service';
 
@@ -15,12 +18,28 @@ import { ThemeService, ShopperTheme } from './core/theme/theme.service';
 export class AppComponent {
   readonly locale = inject(LocaleService);
   readonly theme = inject(ThemeService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  /** Pages shown without the staff header and footer. */
+  readonly bare = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => /^\/(login|checkout)(\/|\?|$)/.test(e.urlAfterRedirects)),
+    ),
+    { initialValue: false },
+  );
 
   readonly themes: ShopperTheme[] = [
     'default', 'midnight', 'emerald', 'ruby', 
     'cyberpunk', 'amber', 'lavender', 'ocean', 
     'sunset', 'forest', 'slate', 'gold'
   ];
+
+  logout(): void {
+    this.auth.logout();
+    void this.router.navigate(['/login']);
+  }
 
   setLang(lang: ShopperLang): void {
     this.locale.setLanguage(lang);

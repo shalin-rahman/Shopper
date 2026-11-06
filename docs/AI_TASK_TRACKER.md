@@ -1,3 +1,5 @@
+> Historical (superseded). Current tasks and handoff notes are in [tasks.md](../.specify/specs/shopper-platform/tasks.md).
+
 - [x] Phase 1: Documentation Reorganization
   - [x] Create `docs/mobile` directory
   - [x] Move root documentation (`.txt`, `.docx`, `ARCHITECTURE_MAP.md`, `TODO.md`) to `docs/`

@@ -5,7 +5,11 @@ from uuid import UUID
 
 import pytest
 
+from core.dependencies import BranchChoice
 from routers.pos import parse_offline_punch_orders, pos_offline_punch
+from tests.unit.stock_fake import StockLevels
+
+PRODUCT = UUID("11111111-1111-4111-8111-111111111111")
 
 
 def test_parse_offline_punch_orders_accepts_valid_payload():
@@ -207,14 +211,21 @@ class _FakeConnection:
             "invoices": {},
             "effects": [],
             "active": True,
-            "stock_quantity": Decimal("10"),
+            "stock": StockLevels({PRODUCT: 10}),
             "fail_on_vat_insert": False,
         }
+
+    @property
+    def stock(self):
+        return self.state["stock"]
 
     def transaction(self):
         return _FakeTransaction(self)
 
     async def fetchrow(self, query, *args):
+        if "INSERT INTO tenant_data.stock_transactions" in query:
+            self.state["effects"].append(("movement", args))
+            return {"id": UUID(int=7)}
         if "source_order_id = $2" in query:
             return self.state["invoices"].get(args[1])
         if "invoice_no = $2" in query:
@@ -225,15 +236,15 @@ class _FakeConnection:
         raise AssertionError(f"Unexpected fetchrow query: {query}")
 
     async def fetch(self, query, *args):
+        if self.stock.handles(query):
+            return await self.stock.fetch(query, *args)
         if "FROM tenant_data.products" in query:
-            return [{
-                "id": product_id,
-                "is_active": self.state["active"],
-                "stock_quantity": self.state["stock_quantity"],
-            } for product_id in args[0]]
+            return [{"id": product_id, "is_active": self.state["active"]} for product_id in args[0]]
         raise AssertionError(f"Unexpected fetch query: {query}")
 
     async def fetchval(self, query, *args):
+        if self.stock.handles(query):
+            return await self.stock.fetchval(query, *args)
         if "INSERT INTO tenant_data.invoices" in query:
             invoice_id = UUID("00000000-0000-0000-0000-000000000099")
             self.state["invoices"][args[2]] = {
@@ -251,8 +262,8 @@ class _FakeConnection:
     async def execute(self, query, *args):
         if self.state["fail_on_vat_insert"] and "vat_sales_register_lines" in query:
             raise RuntimeError("simulated register failure")
-        if "stock_quantity = stock_quantity -" in query:
-            self.state["stock_quantity"] -= Decimal(str(args[0]))
+        if self.stock.handles(query):
+            return await self.stock.execute(query, *args)
         effect = "settlement" if "invoice_settlements" in query else query.strip().split()[0]
         self.state["effects"].append((effect, args))
 
@@ -290,17 +301,17 @@ async def test_offline_sync_is_replay_safe_and_reduces_stock_once():
         }],
     }]
 
-    first_result = await pos_offline_punch(context, payload, None)
-    second_result = await pos_offline_punch(context, payload, None)
+    first_result = await pos_offline_punch(context, payload, None, BranchChoice(None))
+    second_result = await pos_offline_punch(context, payload, None, BranchChoice(None))
 
     assert first_result["status"] == "success"
     assert second_result["status"] == "success"
     assert len(connection.state["invoices"]) == 1
-    assert len([effect for effect in connection.state["effects"] if effect[0] == "UPDATE"]) == 1
+    assert len([effect for effect in connection.state["effects"] if effect[0] == "movement"]) == 1
     assert len([effect for effect in connection.state["effects"] if effect[0] == "settlement"]) == 1
     settlement = next(effect for effect in connection.state["effects"] if effect[0] == "settlement")
     assert settlement[1][2] == Decimal("100.00")
-    assert connection.state["stock_quantity"] == Decimal("9")
+    assert connection.stock.at(PRODUCT) == Decimal("9")
 
 
 @pytest.mark.asyncio
@@ -321,7 +332,7 @@ async def test_offline_sync_keeps_omitted_collection_unpaid_without_settlement()
         }],
     }]
 
-    result = await pos_offline_punch(context, payload, None)
+    result = await pos_offline_punch(context, payload, None, BranchChoice(None))
 
     assert result["status"] == "success"
     invoice = connection.state["invoices"]["POS-LOCAL-UNPAID"]
@@ -335,7 +346,7 @@ async def test_offline_sync_keeps_omitted_collection_unpaid_without_settlement()
 @pytest.mark.asyncio
 async def test_offline_sync_rejects_insufficient_aggregate_stock():
     connection = _FakeConnection()
-    connection.state["stock_quantity"] = Decimal("10")
+    connection.state["stock"] = StockLevels({PRODUCT: 10})
     context = _FakeTenantContext(connection)
     product_id = "11111111-1111-4111-8111-111111111111"
     payload = [{
@@ -359,13 +370,13 @@ async def test_offline_sync_rejects_insufficient_aggregate_stock():
         ],
     }]
 
-    result = await pos_offline_punch(context, payload, None)
+    result = await pos_offline_punch(context, payload, None, BranchChoice(None))
 
     assert result["status"] == "failed"
     assert result["synced_count"] == 0
     assert "Insufficient stock" in str(result["rejected"][0]["error"])
     assert connection.state["invoices"] == {}
-    assert connection.state["stock_quantity"] == Decimal("10")
+    assert connection.stock.at(PRODUCT) == Decimal("10")
 
 
 @pytest.mark.asyncio
@@ -389,7 +400,7 @@ async def test_offline_sync_rolls_back_a_failed_order():
         }],
     }]
 
-    result = await pos_offline_punch(context, payload, None)
+    result = await pos_offline_punch(context, payload, None, BranchChoice(None))
 
     assert result["status"] == "failed"
     assert result["synced_count"] == 0

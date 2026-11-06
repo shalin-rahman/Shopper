@@ -12,5 +12,7 @@ reportlab>=4.1.0
 yarl>=1.9.0
 PyJWT>=2.8.0
 passlib[bcrypt]>=1.7.4
+# passlib 1.7.4 breaks on bcrypt 5 (it raises on its 72+ byte self-check)
+bcrypt>=4.0.1,<5
 openpyxl>=3.1.0
 pytest-asyncio>=0.23.0

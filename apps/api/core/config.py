@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_DEV_JWT_SECRET = "shopper-dev-secret-change-in-prod"
+MIN_JWT_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -22,8 +25,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://shopper_app:shopper_app_change_me@localhost:5432/shopper"
     migrate_database_url: str | None = None
     platform_root_domain: str | None = None
+    # Dev only: honour X-Shopper-Tenant and map localhost hosts to a tenant.
+    allow_tenant_override: bool = False
     storefront_public_base_url: str | None = None
-    jwt_secret_key: str = "shopper-dev-secret-change-in-prod"
+    # Days a printed invoice's QR pay link stays valid. Screen links stay at 24h.
+    printed_checkout_link_days: int = Field(default=30, ge=1, le=365)
+    jwt_secret_key: str = DEFAULT_DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"
     cors_allow_origins: str = "*"
     shopper_admin_api_key: str | None = None
@@ -44,6 +51,16 @@ class Settings(BaseSettings):
         if v == "":
             return None
         return v
+
+    def assert_safe_for_runtime(self) -> None:
+        """Refuse to serve real traffic with a JWT secret anyone can read in the repo."""
+        if self.testing:
+            return
+        secret = self.jwt_secret_key.strip()
+        if not secret or secret == DEFAULT_DEV_JWT_SECRET:
+            raise RuntimeError("Set JWT_SECRET_KEY to a long random value before starting the API")
+        if len(secret) < MIN_JWT_SECRET_LENGTH:
+            raise RuntimeError(f"JWT_SECRET_KEY must be at least {MIN_JWT_SECRET_LENGTH} characters")
 
     def cors_origins_list(self) -> list[str]:
         raw = self.cors_allow_origins.strip()

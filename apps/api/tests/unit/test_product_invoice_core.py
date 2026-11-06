@@ -96,11 +96,68 @@ def test_sales_return_uses_original_invoice_price_and_allocates_discount():
         returned_by_line,
     )
 
-    discount = _apply_return_discount(allocations, Decimal("20"), Decimal("220"))
+    terms = {invoice_line_id: {"qty": Decimal("2"), "share": Decimal("20"),
+                               "returned_qty": Decimal("0"), "returned_discount": Decimal("0")}}
+    discount = _apply_return_discount(allocations, terms)
 
     assert allocations[0]["unit_price"] == Decimal("100")
     assert allocations[0]["qty"] == Decimal("1")
     assert discount == Decimal("10")
+    assert allocations[0]["total_amount"] == Decimal("100")
+
+
+def _alloc(line_id, qty):
+    return {"invoice_line_id": line_id, "qty": Decimal(qty), "total_amount": Decimal("100")}
+
+
+def test_return_discount_rounds_like_issue_and_last_unit_takes_the_rest():
+    line = UUID(int=1)
+    terms = {line: {"qty": Decimal("3"), "share": Decimal("10"),
+                    "returned_qty": Decimal("0"), "returned_discount": Decimal("0")}}
+
+    first = _apply_return_discount([_alloc(line, "1")], terms)
+    assert first == Decimal("3.3333")
+
+    terms[line].update(returned_qty=Decimal("1"), returned_discount=first)
+    rest = _apply_return_discount([_alloc(line, "2")], terms)
+    # Both returns together give back exactly the share the 6.3 line carried.
+    assert rest == Decimal("6.6667")
+    assert first + rest == Decimal("10")
+
+
+def test_return_discount_uses_each_line_share_not_gross():
+    # Issue gave line A 6.6667 and line B 3.3333 of a 10 discount.
+    a, b = UUID(int=1), UUID(int=2)
+    terms = {
+        a: {"qty": Decimal("1"), "share": Decimal("6.6667"),
+            "returned_qty": Decimal("0"), "returned_discount": Decimal("0")},
+        b: {"qty": Decimal("1"), "share": Decimal("3.3333"),
+            "returned_qty": Decimal("0"), "returned_discount": Decimal("0")},
+    }
+    allocations = [_alloc(b, "1")]
+
+    assert _apply_return_discount(allocations, terms) == Decimal("3.3333")
+    assert allocations[0]["discount_amount"] == Decimal("3.3333")
+    assert allocations[0]["total_amount"] == Decimal("96.6667")
+
+
+def test_return_discount_same_line_twice_in_one_note():
+    line = UUID(int=1)
+    terms = {line: {"qty": Decimal("3"), "share": Decimal("10"),
+                    "returned_qty": Decimal("0"), "returned_discount": Decimal("0")}}
+    allocations = [_alloc(line, "1"), _alloc(line, "2")]
+
+    assert _apply_return_discount(allocations, terms) == Decimal("10")
+    assert [a["discount_amount"] for a in allocations] == [Decimal("3.3333"), Decimal("6.6667")]
+
+def test_return_discount_never_negative_after_an_old_style_note():
+    # A note from before the per-line split gave back more than this line's share.
+    line = UUID(int=1)
+    terms = {line: {"qty": Decimal("2"), "share": Decimal("5"),
+                    "returned_qty": Decimal("1"), "returned_discount": Decimal("7")}}
+    allocations = [_alloc(line, "1")]
+
+    assert _apply_return_discount(allocations, terms) == Decimal("0")
     assert allocations[0]["total_amount"] == Decimal("100")
 
 def test_sales_return_rejects_quantity_beyond_remaining_sold_units():

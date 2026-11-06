@@ -41,8 +41,8 @@ The repository contains a multi-tenant ERP/POS implementation with active remedi
 ## 4. Verification
 
 - API suite: 69 passed, 19 skipped on 2026-10-20.
-- PostgreSQL migration, RLS, marketplace, and settlement checks are skipped without configured integration credentials.
-- Flutter tests include one failing product-repository assertion; mobile release readiness is not established.
+- A local PostgreSQL service is running, but configured application-role credentials fail authentication; migration, RLS, marketplace, and settlement checks remain unverified.
+- The full Flutter test suite passes and `flutter analyze` reports no issues.
 
 ## 5. Release Decision
 

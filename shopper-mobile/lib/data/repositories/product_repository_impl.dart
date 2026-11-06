@@ -172,6 +172,7 @@ class ProductRepositoryImpl implements ProductRepository {
       id: row.id,
       nameEn: row.nameEn,
       nameBn: row.nameBn,
+      barcode: row.barcode,
       sku: row.sku,
       price: row.price,
       sellPrice: row.sellPrice,

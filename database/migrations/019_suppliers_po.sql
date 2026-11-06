@@ -43,9 +43,12 @@ ALTER TABLE tenant_data.purchase_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tenant_data.po_lines ENABLE ROW LEVEL SECURITY;
 
 -- Assuming function app_tenant_id() exists in tenant_data
+DROP POLICY IF EXISTS tenant_isolation_suppliers ON tenant_data.suppliers;
 CREATE POLICY tenant_isolation_suppliers ON tenant_data.suppliers FOR ALL TO shopper_app USING (tenant_id = tenant_data.app_tenant_id());
+DROP POLICY IF EXISTS tenant_isolation_po ON tenant_data.purchase_orders;
 CREATE POLICY tenant_isolation_po ON tenant_data.purchase_orders FOR ALL TO shopper_app USING (tenant_id = tenant_data.app_tenant_id());
-CREATE POLICY tenant_isolation_po_lines ON tenant_data.po_lines FOR ALL TO shopper_app USING (tenant_id = (SELECT tenant_id FROM tenant_data.purchase_orders WHERE id = po_id));
+DROP POLICY IF EXISTS tenant_isolation_po_lines ON tenant_data.po_lines;
+CREATE POLICY tenant_isolation_po_lines ON tenant_data.po_lines FOR ALL TO shopper_app USING (EXISTS (SELECT 1 FROM tenant_data.purchase_orders po WHERE po.id = po_lines.po_id AND po.tenant_id = tenant_data.app_tenant_id()));
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON tenant_data.suppliers TO shopper_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON tenant_data.purchase_orders TO shopper_app;

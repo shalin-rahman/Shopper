@@ -10,7 +10,7 @@ from routers.payments import _ipn_refs, _pool
 from schemas.payment import PaymentGateway
 from schemas.payment import PaymentCreate
 from services.payment_gateway import BKashGateway, NagadGateway, SSLCommerzGateway
-from services.payment_settlement import reserve_invoice_payment
+from services.payment_settlement import PENDING_PAYMENT_HOLD, late_settlement_problem, reserve_invoice_payment
 
 
 def test_build_ipn_idempotency_key_is_stable_and_unique():
@@ -189,7 +189,7 @@ async def test_sslcommerz_rejects_callback_claim_mismatching_provider_verificati
 
 
 class _InvoicePaymentConnection:
-    def __init__(self, total_amount, status="draft", reserved=0):
+    def __init__(self, total_amount, status="issued", reserved=0):
         self.invoice = {
             "id": "invoice-id",
             "total_amount": total_amount,
@@ -201,8 +201,13 @@ class _InvoicePaymentConnection:
         assert "FOR UPDATE" in query
         return self.invoice
 
-    async def fetchval(self, query, invoice_id):
-        assert "status IN ('pending', 'completed')" in query
+    async def fetchval(self, query, invoice_id, hold):
+        # Completed payments always count; pending ones only inside the hold window.
+        assert "status = 'completed'" in query
+        assert "created_at > now() - $2::interval" in query
+        # Refunds are taken off, or a fully refunded invoice could never be paid again.
+        assert "FROM tenant_data.payment_refunds" in query
+        assert hold == PENDING_PAYMENT_HOLD
         return self.reserved
 
 
@@ -246,3 +251,41 @@ async def test_invoice_payment_rejects_cancelled_invoices_and_non_bdt():
             "BDT",
         )
     assert status_error.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_invoice_payment_rejects_draft_invoices():
+    with pytest.raises(HTTPException) as exc:
+        await reserve_invoice_payment(
+            _InvoicePaymentConnection("100", status="draft"),
+            "invoice-id",
+            Decimal("10"),
+            "BDT",
+        )
+    assert exc.value.status_code == 400
+
+
+class _LateSettlementConnection:
+    def __init__(self, status, total_amount, amount_paid):
+        self.invoice = {"status": status, "total_amount": Decimal(total_amount), "amount_paid": Decimal(amount_paid)}
+
+    async def fetchrow(self, query, invoice_id):
+        assert "FOR UPDATE" in query
+        return self.invoice
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "status, total, paid, amount, expected",
+    [
+        ("issued", "100", "0", "100", None),
+        ("partially_paid", "100", "60", "40", None),
+        ("cancelled", "100", "0", "100", "invoice_cancelled"),
+        ("paid", "100", "100", "10", "overpayment"),
+        ("partially_paid", "100", "60", "40.01", "overpayment"),
+    ],
+)
+async def test_late_settlement_flags_cancelled_and_overpaid_invoices(status, total, paid, amount, expected):
+    conn = _LateSettlementConnection(status, total, paid)
+
+    assert await late_settlement_problem(conn, "invoice-id", Decimal(amount)) == expected

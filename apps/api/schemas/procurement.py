@@ -5,22 +5,6 @@ from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-class InventoryTransferCreate(BaseModel):
-    transfer_no: str
-    from_location: str
-    to_location: str
-    items: list[dict] # {product_id: UUID, qty: Decimal, value: Decimal}
-
-class InventoryTransferOut(BaseModel):
-    id: UUID
-    transfer_no: str
-    from_location: str
-    to_location: str
-    total_value_taxable: Decimal
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
 class DebitNoteOut(BaseModel):
     id: UUID
     note_no: str

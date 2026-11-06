@@ -16,7 +16,8 @@
     "inventory": "Inventory",
     "procurement": "Procurement",
     "customers": "Customers",
-    "staff": "Staff"
+    "staff": "Staff",
+    "payments": "Payments"
   },
   "admin": {
     "title": "Platform admin",
@@ -60,7 +61,11 @@
     "empty": "No products yet.",
     "loadFailed": "Could not load products. Is the API running?",
     "formRequired": "SKU and both names are required.",
-    "saveFailed": "Could not save product (duplicate SKU or server error)."
+    "saveFailed": "Could not save product (duplicate SKU or server error).",
+    "search": "Search by SKU, name or barcode",
+    "marketplace": "Marketplace",
+    "noMatch": "No product matches your search.",
+    "marketplaceFailed": "Could not change the marketplace setting."
   },
   "customers": {
     "title": "Customers",
@@ -76,12 +81,55 @@
     "title": "Payments",
     "gateway": "Gateway",
     "amount": "Amount",
-    "status": "Status"
+    "status": "Status",
+    "reviewTitle": "Payments to review",
+    "reviewHint": "Gateway payments the system could not settle on its own. Fix each one at the gateway, then resolve it here with a note.",
+    "reason": "Reason",
+    "invoice": "Invoice",
+    "received": "Received",
+    "note": "Note",
+    "notePlaceholder": "What you did, e.g. refunded at gateway, ref 991",
+    "resolve": "Resolve",
+    "empty": "No payments need review.",
+    "loadFailed": "Could not load payments. You need a manager role.",
+    "noteRequired": "Write a note before resolving.",
+    "resolveFailed": "Could not resolve this payment.",
+    "refresh": "Refresh",
+    "refundAmount": "Refund amount",
+    "refund": "Record refund",
+    "refunded": "Refund recorded. Resolve the review when you are done.",
+    "refundAmountRequired": "Enter a refund amount above zero.",
+    "refundFailed": "Could not record the refund."
   },
   "staff": {
     "title": "Staff Management",
     "addTitle": "Add team member",
     "role": "Role",
     "status": "Status"
+  },
+  "login": {
+    "title": "Staff sign in",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "badCredentials": "Wrong username or password.",
+    "failed": "Could not sign in. Try again.",
+    "logout": "Sign out"
+  },
+  "invoices": {
+    "issue": "Issue",
+    "cancel": "Cancel",
+    "payLink": "Copy pay link"
+  },
+  "checkout": {
+    "invoice": "Invoice",
+    "due": "Amount due",
+    "method": "Pay with",
+    "pay": "Pay now",
+    "nothingDue": "Nothing to pay on this invoice.",
+    "badLink": "This pay link is wrong or has expired. Ask the shop for a new one.",
+    "loadFailed": "Could not load the invoice. Try again later.",
+    "noPaymentPage": "The gateway did not return a payment page. Try another method.",
+    "payFailed": "Could not start the payment. Try again."
   }
 }

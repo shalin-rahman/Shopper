@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 from uuid import UUID
 
 import asyncpg
@@ -9,17 +9,29 @@ from fastapi import HTTPException, Request
 
 
 def subdomain_from_request(request: Request) -> str | None:
-    raw = (request.headers.get("X-Shopper-Tenant") or "").strip().lower()
-    if raw:
-        return raw
+    from core.config import get_settings
+
+    settings = getattr(request.app.state, "settings", None) or get_settings()
+    # The header lets any caller pick a tenant, so it only works in dev setups.
+    if settings.allow_tenant_override:
+        raw = (request.headers.get("X-Shopper-Tenant") or "").strip().lower()
+        if raw:
+            return raw
     return getattr(request.state, "tenant_subdomain", None)
+
+
+# Tenants in these states may sign in and transact. Trial and past-due tenants
+# keep access; suspended, canceled, deleted and pending ones do not.
+TRANSACTING_TENANT_STATUSES: tuple[str, ...] = ("active", "trialing", "past_due")
 
 
 async def resolve_tenant_id(pool: asyncpg.Pool, subdomain: str) -> dict[str, Any]:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
-            "SELECT id, dedicated_database_name FROM platform.tenants WHERE subdomain = $1 AND status = 'active'",
+            "SELECT id, dedicated_database_name FROM platform.tenants "
+            "WHERE subdomain = $1 AND status = ANY($2::text[])",
             subdomain,
+            list(TRANSACTING_TENANT_STATUSES),
         )
     if not row:
         raise HTTPException(status_code=404, detail="Unknown or inactive tenant")

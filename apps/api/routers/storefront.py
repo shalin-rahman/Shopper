@@ -12,6 +12,7 @@ from schemas import StorefrontProductListResponse, StorefrontProductOut, Invoice
 from core.tenant_context import TenantCtxDep
 from services.payment_gateway import get_gateway, get_tenant_settings, payment_row_to_out
 from services.payment_settlement import reserve_invoice_payment
+from services.checkout_link import verify_checkout
 
 router = APIRouter(prefix="/v1/storefront", tags=["storefront"])
 
@@ -32,6 +33,7 @@ async def storefront_products(
             SELECT count(*)::int
             FROM tenant_data.products p
             WHERE p.is_active = true
+              AND p.marketplace_enabled = true
               AND (
                 $1::text IS NULL
                 OR p.sku ILIKE $1
@@ -47,6 +49,7 @@ async def storefront_products(
                    p.unit, p.sell_price, p.mrp, p.vat_rate_pct, p.barcode, p.qr_payload
             FROM tenant_data.products p
             WHERE p.is_active = true
+              AND p.marketplace_enabled = true
               AND (
                 $3::text IS NULL
                 OR p.sku ILIKE $3
@@ -65,9 +68,21 @@ async def storefront_products(
     return StorefrontProductListResponse(tenant=ctx.subdomain, products=products, total=int(total or 0))
 
 
+def _require_checkout_token(ctx, invoice_id: UUID, settings: Settings, t: str | None, e: int | None) -> None:
+    if not verify_checkout(ctx.tenant_id, invoice_id, t, e, settings.jwt_secret_key):
+        raise HTTPException(status_code=403, detail="Checkout link is invalid or expired")
+
+
 @router.get("/checkout/{invoice_id}", response_model=InvoiceOut)
-async def storefront_invoice_details(ctx: TenantCtxDep, invoice_id: UUID):
-    """Public view of an invoice (e.g. for customer payment)."""
+async def storefront_invoice_details(
+    ctx: TenantCtxDep,
+    invoice_id: UUID,
+    settings: SettingsDep,
+    t: str | None = Query(default=None),
+    e: int | None = Query(default=None),
+):
+    """Public view of an invoice, reached through a signed checkout link."""
+    _require_checkout_token(ctx, invoice_id, settings, t, e)
     async with ctx.transaction() as conn:
         row = await conn.fetchrow(
             """
@@ -96,10 +111,13 @@ async def storefront_invoice_details(ctx: TenantCtxDep, invoice_id: UUID):
 async def storefront_initiate_payment(
     ctx: TenantCtxDep, 
     invoice_id: UUID, 
-    body: PaymentCreate, 
-    settings: SettingsDep
+    body: PaymentCreate,
+    settings: SettingsDep,
+    t: str | None = Query(default=None),
+    e: int | None = Query(default=None),
 ):
     """Start a payment session for a specific invoice."""
+    _require_checkout_token(ctx, invoice_id, settings, t, e)
     if body.invoice_id is not None and body.invoice_id != invoice_id:
         raise HTTPException(status_code=400, detail="Payment invoice does not match the checkout invoice")
 
@@ -126,23 +144,26 @@ async def storefront_initiate_payment(
         )
         gw_txn_id = init_data.get("paymentID") or init_data.get("gateway_transaction_id")
 
-        row = await conn.fetchrow(
-            """
-            INSERT INTO tenant_data.payments (
-                tenant_id, gateway, amount, currency, status, description, order_id,
-                gateway_transaction_id, invoice_id
-            ) VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
-            RETURNING id, gateway, amount, currency, status, gateway_transaction_id, created_at, updated_at
-            """,
-            ctx.tenant_id,
-            body.gateway.value,
-            body.amount,
-            body.currency,
-            body.description,
-            order_id,
-            gw_txn_id,
-            invoice_id,
-        )
+        try:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO tenant_data.payments (
+                    tenant_id, gateway, amount, currency, status, description, order_id,
+                    gateway_transaction_id, invoice_id
+                ) VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8)
+                RETURNING id, gateway, amount, currency, status, gateway_transaction_id, created_at, updated_at
+                """,
+                ctx.tenant_id,
+                body.gateway.value,
+                body.amount,
+                body.currency,
+                body.description,
+                order_id,
+                gw_txn_id,
+                invoice_id,
+            )
+        except asyncpg.UniqueViolationError:
+            raise HTTPException(status_code=409, detail="A payment with this order or transaction id already exists")
     
     res = payment_row_to_out(row)
     res.gateway_url = init_data.get("gateway_url")

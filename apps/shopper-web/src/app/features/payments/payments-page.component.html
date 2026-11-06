@@ -1,0 +1,97 @@
+<div class="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8 p-1">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h2 class="text-3xl font-bold tracking-tight text-shopper-text">{{ 'payments.reviewTitle' | transloco }}</h2>
+      <p class="text-sm text-slate-500 mt-1">{{ 'payments.reviewHint' | transloco }}</p>
+    </div>
+    <app-shopper-button variant="secondary" (btnClick)="reload()">
+      <span class="mr-1">↺</span> {{ 'payments.refresh' | transloco }}
+    </app-shopper-button>
+  </div>
+
+  @if (loadError(); as err) {
+    <div class="rounded-xl border border-red-200 bg-red-50/50 p-4 text-sm text-red-800">{{ err | transloco }}</div>
+  }
+
+  @if (loaded() && !reviews().length) {
+    <p class="text-sm text-slate-500">{{ 'payments.empty' | transloco }}</p>
+  }
+
+  @if (reviews().length) {
+    <div class="rounded-3xl border border-shopper-border bg-shopper-bg overflow-hidden shadow-xl">
+      <app-shopper-data-grid
+        [data]="reviews()"
+        [columns]="[
+          { key: 'created_at', header: 'payments.received' | transloco, width: '170px' },
+          { key: 'gateway', header: 'payments.gateway' | transloco },
+          { key: 'amount', header: 'payments.amount' | transloco, align: 'right' },
+          { key: 'review_reason', header: 'payments.reason' | transloco },
+          { key: 'invoice_id', header: 'payments.invoice' | transloco }
+        ]"
+      >
+        <ng-template #cell let-row="row" let-col="col">
+          @if (col.key === 'amount') {
+            <span class="font-mono font-bold text-shopper-primary">{{ locale.formatCurrency(+row.amount) }}</span>
+          } @else if (col.key === 'created_at') {
+            {{ received(row) }}
+          } @else if (col.key === 'invoice_id') {
+            <span class="font-mono text-xs">{{ row.invoice_id ? row.invoice_id.slice(0, 8) : '—' }}</span>
+          } @else {
+            {{ row[col.key] }}
+          }
+        </ng-template>
+
+        <ng-template #actions let-row="row">
+          <div class="flex flex-col items-end gap-2">
+            <div class="flex items-center gap-2">
+              <input
+                class="w-40 rounded-xl border border-shopper-border bg-slate-50/50 px-3 py-2 text-sm outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+                maxlength="1000"
+                [(ngModel)]="notes[row.id]"
+                [placeholder]="'payments.notePlaceholder' | transloco"
+                [attr.aria-label]="'payments.note' | transloco"
+              />
+              <app-shopper-button
+                [disabled]="resolving() === row.id"
+                [loading]="resolving() === row.id"
+                (btnClick)="resolve(row)"
+              >
+                {{ 'payments.resolve' | transloco }}
+              </app-shopper-button>
+            </div>
+            <div class="flex items-center gap-2">
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                class="w-40 rounded-xl border border-shopper-border bg-slate-50/50 px-3 py-2 text-sm outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
+                [(ngModel)]="refundAmounts[row.id]"
+                [placeholder]="'payments.refundAmount' | transloco"
+                [attr.aria-label]="'payments.refundAmount' | transloco"
+              />
+              <app-shopper-button
+                variant="outline"
+                [disabled]="resolving() === row.id"
+                (btnClick)="refund(row)"
+              >
+                {{ 'payments.refund' | transloco }}
+              </app-shopper-button>
+            </div>
+            @if (refundMsg(); as rm) {
+              @if (rm.id === row.id) {
+                <p class="text-xs font-medium" [class.text-red-600]="rm.error" [class.text-shopper-primary]="!rm.error">
+                  {{ rm.text ?? (rm.key | transloco) }}
+                </p>
+              }
+            }
+            @if (rowError(); as re) {
+              @if (re.id === row.id) {
+                <p class="text-xs font-medium text-red-600">{{ re.key | transloco }}</p>
+              }
+            }
+          </div>
+        </ng-template>
+      </app-shopper-data-grid>
+    </div>
+  }
+</div>

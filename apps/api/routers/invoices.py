@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from uuid import UUID, uuid4
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import io
 
@@ -14,6 +14,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 
 from schemas import (
+    CheckoutLinkOut,
     CreditNoteOut,
     InvoiceCreate,
     InvoiceLineCreate,
@@ -23,7 +24,10 @@ from schemas import (
     SalesReturnLineCreate,
 )
 from core.tenant_context import TenantCtxDep
-from core.dependencies import StaffDep
+from core.dependencies import BranchDep, SettingsDep, StaffDep
+from services.checkout_link import new_checkout_link
+from services.payment_settlement import PENDING_PAYMENT_HOLD
+from services.stock import lock_levels, lock_products, main_branch_id, record_movement
 
 router = APIRouter(prefix="/v1/tenant/invoices", tags=["invoices"])
 
@@ -99,31 +103,35 @@ def _allocate_return_item(
     return allocations
 
 
-def _apply_return_discount(
-    allocations: list[dict], invoice_discount: Decimal, original_gross: Decimal
-) -> Decimal:
-    gross_returned = sum(
-        (allocation["total_amount"] for allocation in allocations), Decimal("0")
-    )
-    discount_amount = (
-        invoice_discount * gross_returned / original_gross
-        if original_gross > 0
-        else Decimal("0")
-    )
-    discount_remaining = discount_amount
-    for index, allocation in enumerate(allocations):
-        if index == len(allocations) - 1:
-            allocation_discount = discount_remaining
+def _apply_return_discount(allocations: list[dict], line_terms: dict[UUID, dict]) -> Decimal:
+    """
+    Give back the discount each line carried on its 6.3 line, pro rata by quantity.
+    line_terms maps invoice_line_id to qty, share (from _split_discount), and what
+    earlier credit notes already returned (returned_qty, returned_discount).
+    The return that empties a line takes whatever share is left, so returns sum to the share.
+    """
+    used_qty: dict[UUID, Decimal] = {}
+    used_discount: dict[UUID, Decimal] = {}
+    total = Decimal("0")
+    for allocation in allocations:
+        line_id = allocation["invoice_line_id"]
+        terms = line_terms[line_id]
+        qty = allocation["qty"]
+        done_qty = terms["returned_qty"] + used_qty.get(line_id, Decimal("0"))
+        done_discount = terms["returned_discount"] + used_discount.get(line_id, Decimal("0"))
+        if done_qty + qty >= terms["qty"]:
+            # Notes written before the per-line split may have given back more than the share.
+            discount = max(Decimal("0"), terms["share"] - done_discount)
         else:
-            allocation_discount = (
-                discount_amount * allocation["total_amount"] / gross_returned
-                if gross_returned > 0
-                else Decimal("0")
+            discount = (terms["share"] * qty / terms["qty"]).quantize(
+                Decimal("0.0001"), rounding=ROUND_HALF_UP
             )
-            discount_remaining -= allocation_discount
-        allocation["discount_amount"] = allocation_discount
-        allocation["total_amount"] -= allocation_discount
-    return discount_amount
+        used_qty[line_id] = used_qty.get(line_id, Decimal("0")) + qty
+        used_discount[line_id] = used_discount.get(line_id, Decimal("0")) + discount
+        allocation["discount_amount"] = discount
+        allocation["total_amount"] -= discount
+        total += discount
+    return total
 
 
 @router.post("", response_model=InvoiceOut, status_code=201)
@@ -246,7 +254,10 @@ async def create_sales_return(ctx: TenantCtxDep, body: SalesReturnCreate, _auth:
     """
     async with ctx.transaction() as conn:
         invoice = await conn.fetchrow(
-            "SELECT id, total_amount, amount_paid, discount, status FROM tenant_data.invoices WHERE id = $1 FOR UPDATE",
+            """
+            SELECT id, invoice_no, buyer_name_en, total_amount, amount_paid, discount, status
+            FROM tenant_data.invoices WHERE id = $1 FOR UPDATE
+            """,
             body.invoice_id,
         )
         if not invoice:
@@ -254,13 +265,14 @@ async def create_sales_return(ctx: TenantCtxDep, body: SalesReturnCreate, _auth:
         if invoice["status"] in ("draft", "cancelled"):
             raise HTTPException(status_code=400, detail="Only finalized invoices can be returned")
 
-        original_gross = Decimal(str(await conn.fetchval(
-            "SELECT COALESCE(SUM(line_total), 0) FROM tenant_data.invoice_lines WHERE invoice_id = $1",
+        invoice_lines = await conn.fetch(
+            "SELECT id, qty, unit_price FROM tenant_data.invoice_lines WHERE invoice_id = $1 ORDER BY id",
             body.invoice_id,
-        )))
+        )
         prior_returns = await conn.fetch(
             """
-            SELECT invoice_line_id, COALESCE(SUM(qty), 0) AS returned_qty
+            SELECT invoice_line_id, COALESCE(SUM(qty), 0) AS returned_qty,
+                   COALESCE(SUM(discount_amount), 0) AS returned_discount
             FROM tenant_data.credit_note_lines
             WHERE invoice_id = $1
             GROUP BY invoice_line_id
@@ -270,6 +282,21 @@ async def create_sales_return(ctx: TenantCtxDep, body: SalesReturnCreate, _auth:
         returned_by_line = {
             row["invoice_line_id"]: Decimal(str(row["returned_qty"])) for row in prior_returns
         }
+        prior_by_line = {row["invoice_line_id"]: row for row in prior_returns}
+        # Same split as _write_sales_vat_lines at issue, so returns undo the 6.3 discount exactly.
+        shares = _split_discount(
+            [Decimal(str(l["qty"])) * Decimal(str(l["unit_price"])) for l in invoice_lines],
+            Decimal(str(invoice["discount"] or 0)),
+        )
+        line_terms = {}
+        for line, share in zip(invoice_lines, shares):
+            prior = prior_by_line.get(line["id"])
+            line_terms[line["id"]] = {
+                "qty": Decimal(str(line["qty"])),
+                "share": share,
+                "returned_qty": Decimal(str(prior["returned_qty"])) if prior else Decimal("0"),
+                "returned_discount": Decimal(str(prior["returned_discount"])) if prior else Decimal("0"),
+            }
 
         allocations: list[dict] = []
         total_taxable = Decimal("0")
@@ -294,14 +321,12 @@ async def create_sales_return(ctx: TenantCtxDep, body: SalesReturnCreate, _auth:
                 (allocation["vat_amount"] for allocation in item_allocations), Decimal("0")
             )
 
-        discount_amount = _apply_return_discount(
-            allocations,
-            Decimal(str(invoice["discount"] or 0)),
-            original_gross,
-        )
+        discount_amount = _apply_return_discount(allocations, line_terms)
         total_adjustment = total_taxable + total_vat - discount_amount
         if total_adjustment > Decimal(str(invoice["total_amount"])):
             raise HTTPException(status_code=400, detail="Return exceeds the remaining invoice total")
+
+        await lock_products(conn, [allocation["product_id"] for allocation in allocations])
 
         note_no = f"CN-{datetime.now().strftime('%Y%m%d')}-{uuid4().hex[:8].upper()}"
         cn_row = await conn.fetchrow(
@@ -343,23 +368,12 @@ async def create_sales_return(ctx: TenantCtxDep, body: SalesReturnCreate, _auth:
                 allocation["discount_amount"],
                 allocation["total_amount"],
             )
-            await conn.execute(
-                """
-                INSERT INTO tenant_data.stock_transactions (
-                    tenant_id, product_id, transaction_type, quantity, reference_type, reference_id, notes
-                ) VALUES ($1, $2, 'in', $3, 'return', $4, $5)
-                """,
-                ctx.tenant_id,
-                allocation["product_id"],
-                allocation["qty"],
-                cn_row["id"],
-                f"Sales Return: {note_no}",
+            await _restock_at_sale_cost(
+                conn, ctx, body.invoice_id, allocation["product_id"], allocation["qty"],
+                "return", cn_row["id"], f"Sales Return: {note_no}",
             )
-            await conn.execute(
-                "UPDATE tenant_data.products SET stock_quantity = stock_quantity + $1 WHERE id = $2",
-                allocation["qty"],
-                allocation["product_id"],
-            )
+
+        await _write_credit_note_vat_lines(conn, ctx, note_no, invoice, allocations)
 
         await conn.execute(
             """
@@ -367,6 +381,7 @@ async def create_sales_return(ctx: TenantCtxDep, body: SalesReturnCreate, _auth:
             SET total_amount = total_amount - $1,
                 balance_due = GREATEST(0, total_amount - $1 - amount_paid),
                 status = CASE
+                    WHEN amount_paid = 0 THEN status
                     WHEN total_amount - $1 <= amount_paid THEN 'paid'
                     ELSE 'partially_paid'
                 END,
@@ -512,31 +527,266 @@ async def get_invoice(ctx: TenantCtxDep, id: UUID, _auth: StaffDep):
     return _row_to_out(invoice_row, line_rows)
 
 
-@router.get("/{id}/qr", responses={200: {"content": {"image/png": {}}}})
-async def get_invoice_qr(ctx: TenantCtxDep, id: UUID, _auth: StaffDep):
-    async with ctx.transaction() as conn:
-        invoice_row = await conn.fetchrow(
-            "SELECT invoice_no, total_amount FROM tenant_data.invoices WHERE id = $1", id
-        )
-        if not invoice_row:
-            raise HTTPException(status_code=404, detail="Invoice not found")
-        
-        # Retrieve merchant IDs from settings to include in QR as per requirements
-        settings_row = await conn.fetchrow(
-            "SELECT bkash_app_key, nagad_merchant_id FROM platform.tenant_settings WHERE tenant_id = $1",
-            ctx.tenant_id
+def _split_discount(subtotals: list[Decimal], discount: Decimal) -> list[Decimal]:
+    """Share the invoice discount across lines by subtotal. The last line takes the remainder."""
+    total = sum(subtotals, Decimal("0"))
+    parts = []
+    remaining = discount
+    for index, subtotal in enumerate(subtotals):
+        if index == len(subtotals) - 1 or total == 0:
+            part = remaining if index == len(subtotals) - 1 else Decimal("0")
+        else:
+            part = (discount * subtotal / total).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+        remaining -= part
+        parts.append(part)
+    return parts
+
+
+async def _lock_invoice(conn, id: UUID):
+    invoice = await conn.fetchrow(
+        "SELECT * FROM tenant_data.invoices WHERE id = $1 FOR UPDATE", id
+    )
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return invoice
+
+
+async def _write_sales_vat_lines(conn, ctx, invoice, lines, sign: Decimal) -> None:
+    """Mushak 6.3 lines for an issue (sign 1) or its reversal on cancel (sign -1)."""
+    subtotals = [Decimal(str(l["qty"])) * Decimal(str(l["unit_price"])) for l in lines]
+    discounts = _split_discount(subtotals, Decimal(str(invoice["discount"] or 0)))
+    for line, subtotal, discount in zip(lines, subtotals, discounts):
+        await conn.execute(
+            """
+            INSERT INTO tenant_data.vat_sales_register_lines (
+                tenant_id, mushak_form, invoice_no, invoice_date,
+                buyer_name_en, description_en, qty, taxable_value, vat_amount,
+                discount_amount, total_amount
+            ) VALUES ($1, '6.3', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            """,
+            ctx.tenant_id,
+            invoice["invoice_no"],
+            datetime.now().date(),
+            invoice.get("buyer_name_en"),
+            line["description"],
+            sign * Decimal(str(line["qty"])),
+            sign * subtotal,
+            sign * Decimal(str(line["vat_amount"])),
+            sign * discount,
+            sign * (Decimal(str(line["line_total"])) - discount),
         )
 
-    settings = getattr(ctx.request.app.state, "settings", None)
-    base_url = (settings.storefront_public_base_url if settings else None) or f"https://{ctx.subdomain}.shopper.com"
-    amount = Decimal(str(invoice_row["total_amount"]))
-    invoice_no = invoice_row["invoice_no"]
-    
-    # Payload conceptually combining amounts and merchant data for generic or MFS scanning
-    b_key = settings_row["bkash_app_key"] if settings_row and settings_row["bkash_app_key"] else ""
-    n_id = settings_row["nagad_merchant_id"] if settings_row and settings_row["nagad_merchant_id"] else ""
-    
-    qr_payload = f"{base_url}/checkout?invoice={invoice_no}&amount={amount:.2f}&bkash={b_key}&nagad={n_id}"
+
+async def _write_credit_note_vat_lines(conn, ctx, note_no: str, invoice, allocations) -> None:
+    """Mushak 6.7 lines for a credit note. Amounts are negative so the register nets the return off."""
+    for allocation in allocations:
+        await conn.execute(
+            """
+            INSERT INTO tenant_data.vat_sales_register_lines (
+                tenant_id, mushak_form, invoice_no, invoice_date,
+                buyer_name_en, description_en, qty, taxable_value, vat_amount,
+                discount_amount, total_amount
+            ) VALUES ($1, '6.7', $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            """,
+            ctx.tenant_id,
+            note_no,
+            datetime.now().date(),
+            invoice.get("buyer_name_en"),
+            f"Return against invoice {invoice['invoice_no']}",
+            -Decimal(str(allocation["qty"])),
+            -Decimal(str(allocation["taxable_amount"])),
+            -Decimal(str(allocation["vat_amount"])),
+            -Decimal(str(allocation["discount_amount"])),
+            -Decimal(str(allocation["total_amount"])),
+        )
+
+
+async def _restock_at_sale_cost(
+    conn, ctx, invoice_id: UUID, product_id: UUID, qty: Decimal,
+    reference_type: str, reference_id: UUID, notes: str,
+) -> None:
+    """Put goods back at the cost they left at.
+
+    The FIFO trigger turns an 'in' row without unit_cost into a zero-cost layer,
+    which would understate stock value and later COGS. Use the average cost of
+    this invoice's sale rows for the product, or the current average cost if
+    there are none (for example, sales made before costs were recorded).
+    """
+    unit_cost = await conn.fetchval(
+        """
+        SELECT SUM(quantity * unit_cost) / NULLIF(SUM(quantity), 0)
+        FROM tenant_data.stock_transactions
+        WHERE transaction_type = 'out'
+          AND reference_type = 'sale'
+          AND reference_id = $1
+          AND product_id = $2
+          AND unit_cost IS NOT NULL
+        """,
+        invoice_id,
+        product_id,
+    )
+    if unit_cost is None:
+        unit_cost = await conn.fetchval(
+            "SELECT wac_cost FROM tenant_data.products WHERE id = $1", product_id
+        )
+    # Goods go back to the branch they left from. Sales made before branches existed fall back to main.
+    branch_id = await conn.fetchval(
+        """
+        SELECT branch_id FROM tenant_data.stock_transactions
+        WHERE reference_type = 'sale' AND reference_id = $1 AND product_id = $2 AND branch_id IS NOT NULL
+        ORDER BY created_at
+        LIMIT 1
+        """,
+        invoice_id,
+        product_id,
+    ) or await main_branch_id(conn)
+    await record_movement(
+        conn, ctx, branch_id, product_id, "in", qty, reference_type, reference_id, notes,
+        unit_cost=Decimal(str(unit_cost or 0)),
+    )
+
+
+async def _set_invoice_status(conn, id: UUID, status: str):
+    return await conn.fetchrow(
+        "UPDATE tenant_data.invoices SET status = $2, updated_at = now() WHERE id = $1 RETURNING *",
+        id,
+        status,
+    )
+
+
+@router.post("/{id}/issue", response_model=InvoiceOut)
+async def issue_invoice(ctx: TenantCtxDep, id: UUID, _auth: StaffDep, branch: BranchDep):
+    """Issue a draft: take the stock out and write the Mushak 6.3 lines."""
+    async with ctx.transaction() as conn:
+        invoice = await _lock_invoice(conn, id)
+        if invoice["status"] != "draft":
+            raise HTTPException(status_code=409, detail="Only draft invoices can be issued")
+
+        lines = await conn.fetch(
+            "SELECT * FROM tenant_data.invoice_lines WHERE invoice_id = $1 ORDER BY id", id
+        )
+        demand: dict[UUID, Decimal] = {}
+        for line in lines:
+            if line["product_id"]:
+                demand[line["product_id"]] = demand.get(line["product_id"], Decimal("0")) + Decimal(str(line["qty"]))
+
+        branch_id = await branch.resolve(conn)
+        if demand:
+            products = await conn.fetch(
+                """
+                SELECT id, is_active
+                FROM tenant_data.products
+                WHERE id = ANY($1::uuid[])
+                ORDER BY id
+                FOR UPDATE
+                """,
+                list(demand),
+            )
+            by_id = {p["id"]: p for p in products}
+            for product_id in demand:
+                product = by_id.get(product_id)
+                if not product or not product["is_active"]:
+                    raise HTTPException(status_code=400, detail=f"Product {product_id} is missing or inactive")
+            levels = await lock_levels(conn, branch_id, list(demand))
+            for product_id, qty in demand.items():
+                if levels[product_id] < qty:
+                    raise HTTPException(status_code=409, detail=f"Insufficient stock for product {product_id}")
+
+        for line in lines:
+            if not line["product_id"]:
+                continue
+            await record_movement(
+                conn, ctx, branch_id, line["product_id"], "out", Decimal(str(line["qty"])),
+                "sale", id, f"Invoice issued: {invoice['invoice_no']}",
+            )
+
+        await _write_sales_vat_lines(conn, ctx, invoice, lines, Decimal("1"))
+        updated = await _set_invoice_status(conn, id, "issued")
+
+    return _row_to_out(updated, lines)
+
+
+@router.post("/{id}/cancel", response_model=InvoiceOut)
+async def cancel_invoice(ctx: TenantCtxDep, id: UUID, _auth: StaffDep):
+    """Cancel a draft, or an issued invoice that has no payments and no returns.
+
+    Cancelling an issued invoice puts the stock back and writes negative 6.3 lines.
+    Paid or returned invoices need a refund or a credit note instead.
+    """
+    async with ctx.transaction() as conn:
+        invoice = await _lock_invoice(conn, id)
+        status = invoice["status"]
+        if status == "cancelled":
+            raise HTTPException(status_code=409, detail="Invoice is already cancelled")
+        if status != "draft":
+            if status != "issued" or Decimal(str(invoice["amount_paid"] or 0)) > 0:
+                raise HTTPException(status_code=409, detail="Paid invoices need a refund or credit note, not a cancel")
+            has_returns = await conn.fetchval(
+                "SELECT count(*) FROM tenant_data.credit_notes WHERE invoice_id = $1", id
+            )
+            if has_returns:
+                raise HTTPException(status_code=409, detail="Invoices with returns cannot be cancelled")
+            # The customer may still finish a gateway checkout. The hold limit stops
+            # an abandoned checkout from blocking the cancel forever.
+            pending = await conn.fetchval(
+                """
+                SELECT count(*) FROM tenant_data.payments
+                WHERE invoice_id = $1 AND status = 'pending' AND created_at > now() - $2::interval
+                """,
+                id,
+                PENDING_PAYMENT_HOLD,
+            )
+            if pending:
+                raise HTTPException(status_code=409, detail="A payment for this invoice is still in progress")
+
+        lines = await conn.fetch(
+            "SELECT * FROM tenant_data.invoice_lines WHERE invoice_id = $1 ORDER BY id", id
+        )
+        if status == "issued":
+            await lock_products(conn, [l["product_id"] for l in lines if l["product_id"]])
+            for line in sorted((l for l in lines if l["product_id"]), key=lambda l: l["product_id"]):
+                await _restock_at_sale_cost(
+                    conn, ctx, id, line["product_id"], Decimal(str(line["qty"])),
+                    "sale_cancel", id, f"Invoice cancelled: {invoice['invoice_no']}",
+                )
+            await _write_sales_vat_lines(conn, ctx, invoice, lines, Decimal("-1"))
+
+        updated = await _set_invoice_status(conn, id, "cancelled")
+
+    return _row_to_out(updated, lines)
+
+
+async def _check_payable(conn, id: UUID) -> None:
+    """A customer link only makes sense once the invoice is issued and not cancelled."""
+    row = await conn.fetchrow("SELECT id, status FROM tenant_data.invoices WHERE id = $1", id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    if row["status"] in ("draft", "cancelled"):
+        raise HTTPException(status_code=409, detail=f"A {row['status']} invoice cannot be paid")
+
+
+@router.post("/{id}/checkout-link", response_model=CheckoutLinkOut)
+async def create_checkout_link(ctx: TenantCtxDep, id: UUID, settings: SettingsDep, _auth: StaffDep):
+    """Signed link a customer can use to view and pay this invoice."""
+    async with ctx.transaction() as conn:
+        await _check_payable(conn, id)
+    token, expires, path = new_checkout_link(ctx.tenant_id, id, settings.jwt_secret_key)
+    return CheckoutLinkOut(invoice_id=id, token=token, expires=expires, path=path)
+
+
+@router.get("/{id}/qr", responses={200: {"content": {"image/png": {}}}})
+async def get_invoice_qr(ctx: TenantCtxDep, id: UUID, settings: SettingsDep, _auth: StaffDep):
+    async with ctx.transaction() as conn:
+        await _check_payable(conn, id)
+
+    # The QR opens the signed checkout page. It must not carry gateway keys:
+    # anyone holding the printed invoice can read it.
+    base_url = settings.storefront_public_base_url or f"https://{ctx.subdomain}.shopper.com"
+    # A printed invoice is kept for weeks, so its link lasts longer than a screen link.
+    _, _, path = new_checkout_link(
+        ctx.tenant_id, id, settings.jwt_secret_key, timedelta(days=settings.printed_checkout_link_days)
+    )
+    qr_payload = f"{base_url.rstrip('/')}{path}"
 
     qr = qrcode.QRCode(
         version=1,
