@@ -1,5 +1,9 @@
 # Plans
 
+**Current:** [2026-11-13-master-plan.md](2026-11-13-master-plan.md) holds every open item as small sessions with steps, tests and acceptance criteria, plus a tracker. Start there.
+
+Finished plans, kept as history:
+
 Each plan lists its tasks and marks the finished ones "— done". Read them in this order:
 
 1. [2026-10-23-review-remediation.md](2026-10-23-review-remediation.md): fixes from the October 2026 review, plus the Phase 2 decisions.

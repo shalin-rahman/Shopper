@@ -1,3 +1,5 @@
+> Historical (superseded). Current plan: [master plan](superpowers/plans/2026-11-13-master-plan.md).
+
 # Shopper — Comprehensive Architecture, Security & QA Review (Current Status)
 
 **Last updated:** 2026-10-20

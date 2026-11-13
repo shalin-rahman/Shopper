@@ -76,6 +76,7 @@ Acceptance criteria:
 - Offline orders shall be validated before insertion.
 
 Acceptance criteria:
+- The mobile app calls only routes the API serves, with the tenant and branch the API expects (checked against docs/openapi.json, master plan E4).
 - Valid orders sync successfully.
 - Invalid payloads are rejected with clear error semantics.
 - Mobile tender values are API-compatible, with explicit bKash/Nagad/Rocket choices and zero-settlement credit sales.
@@ -109,6 +110,7 @@ Acceptance criteria:
 - Super admin functions shall provide tenant lifecycle management and platform controls.
 
 Acceptance criteria:
+- Money-moving tenant endpoints (account transfers, supplier payments) require accountant, manager or admin; staff creation requires admin.
 - Only authorized global users can manage platform state.
 - Suspended or inactive tenants cannot process new transactions.
 
@@ -129,5 +131,5 @@ Acceptance criteria:
 ## Traceability
 - Source requirement file: [docs/ShopperRequirements.txt](../../../docs/ShopperRequirements.txt)
 - Implementation evidence: [apps/api](../../../apps/api)
-- Status tracking: [docs/TODO.md](../../../docs/TODO.md)
-- Verification status: to be completed via code and automated test evidence
+- Status tracking: [tasks.md](tasks.md); open work: [master plan](../../../docs/superpowers/plans/2026-11-13-master-plan.md)
+- Verification status: automated evidence in apps/api/tests (unit and integration) and the web and mobile suites; see tasks.md

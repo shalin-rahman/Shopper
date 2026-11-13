@@ -1,12 +1,14 @@
 # Shopper Platform Tasks
 
+> **Pick work from the [master plan](../../../docs/superpowers/plans/2026-11-13-master-plan.md)** (2026-11-13). Every open item below is mapped to a session ID there. This file keeps history and evidence; it is refreshed in session G3, not after each session.
+
 ## Priority A: requirement alignment
 - [x] Confirm requirement source of truth in [docs/ShopperRequirements.txt](../../../docs/ShopperRequirements.txt)
 - [x] Record repository evidence and unresolved issues in the spec
 - [x] Keep implementation status separate from intended behavior
 
 ## Priority B: tenant and security
-- [ ] REQ-BR-001 — Tenant model and routing
+- [ ] REQ-BR-001 — Tenant model and routing (evidence: unit tests; live wildcard DNS check X4)
 - [ ] REQ-BR-002 — Tenant isolation and access control
 - [ ] REQ-NFR-001 — Security by default
 - [ ] REQ-NFR-002 — Auditability
@@ -25,7 +27,7 @@
 - [x] Include allocated POS discounts in VAT register rows, reports, and exports.
 - [x] Record sale returns against original invoice lines and reject quantities beyond the unreturned balance.
 - [x] Make offline POS sync replay-safe and roll back failures per order.
-- [ ] Run database-backed integration tests for product, invoice, return, and POS flows.
+- [ ] Run database-backed integration tests for product, invoice, return, and POS flows. → master plan A4, D1.
 - [x] Add location-level stock balances so branch transfers preserve destination inventory. Done 2026-10-23 with migration 030 (branches, stock_levels) and services/stock.py.
 
 ### Payment and settlement implementation evidence
@@ -36,14 +38,14 @@
 - [x] Match successful IPNs to amounts, avoid downgrading completed payments, and allow failed callbacks to be followed by a later success.
 - [x] Apply migrations 025 and 026 against PostgreSQL. Done 2026-10-24: migrations 01 to 031 applied on local Postgres 18.2 (scratch DB). Payment initiation and callbacks were not run against live gateways.
 - [x] Fail closed for bKash/Nagad initiation and callbacks until approved provider-authenticated verification contracts are available.
-- [ ] Implement Rocket gateway initiation and verification; it is currently declared in the API enum but returns 501.
+- [ ] Implement Rocket gateway initiation and verification; it is currently declared in the API enum but returns 501. → master plan X1 (blocked on provider contracts).
 
 ## User-prioritized execution queue
 - [x] REQ-BR-007 — Implement callback verification boundaries and reconcile completed payments against invoice balances; live PostgreSQL verification remains pending.
 - [ ] REQ-BR-008/009/010 — Verify reports, storefront, marketplace, and admin business flows.
   - [x] Fix marketplace search failing on undefined database-pool access, observed in smoke tests.
   - [x] Return the expected unavailable-database response when tenant pool state is absent.
-  - [ ] Verify non-empty global marketplace results through an explicitly public, RLS-safe data path; current smoke tests run without PostgreSQL.
+  - [ ] Verify non-empty global marketplace results through an explicitly public, RLS-safe data path; current smoke tests run without PostgreSQL. → master plan D2.
 - [ ] REQ-BR-002 / REQ-NFR-001/002 — Complete tenant-isolation, security, and audit validation.
   - [x] Bind staff JWT tenant claims to the resolved request tenant and limit the no-token development bypass to testing mode.
   - [x] Explicitly prevent the shopper_app database role from being superuser or bypassing RLS.
@@ -87,8 +89,8 @@ Plans, with per-task notes: [review remediation](../../../docs/superpowers/plans
 ### Still open
 - [x] Printed QR links and gateway return URLs now put the tenant subdomain in front of STOREFRONT_PUBLIC_BASE_URL (core/storefront_url.py), or fill a `{subdomain}` placeholder in it (2026-11-06). Wildcard DNS and TLS must cover the host. Still check on the real deploy.
 - [x] Product QR payloads now use the subdomain rule (`https://{sub}.{base}/p/{sku}`) through core/storefront_url.py, like invoice QR links (2026-11-06). No backfill: products created before this keep the old path-prefix payload until they are edited or recreated.
-- [ ] Rocket gateway returns 501. bKash and Nagad fail closed until provider contracts arrive.
-- [ ] Foreign key checks bypass RLS. A tenant who knows another tenant's row UUID could reference it. Low risk, not fixed.
+- [ ] Rocket gateway returns 501. bKash and Nagad fail closed until provider contracts arrive. → X1 (blocked).
+- [ ] Foreign key checks bypass RLS. A tenant who knows another tenant's row UUID could reference it. → C1, C2 (migration 032).
 - [x] Web /settings page for tenant settings (manager only), 2026-11-06: route, nav link, PATCH in the service, page, spec and en/bn strings. Shared form parts (field, notice, segmented, switch) and the --shopper-muted/-tint/-focus-ring/-danger tokens moved to src/styles.scss so the page style fits the budget (2.73 kB; warns over 2 kB, fails over 4 kB). Checked in a browser at 1440, 390 and 360 px (no sideways scroll, save sends only changed fields).
 - [x] Web layout and theme fixes, 2026-11-06 (commit a086c86 plus later uncommitted work):
   - Header nav has its own row that scrolls sideways at every width. Phones now get a nav. The current page is marked and kept in view.
@@ -97,18 +99,29 @@ Plans, with per-task notes: [review remediation](../../../docs/superpowers/plans
   - Tokens added for the six themes that had none. Cyberpunk primary darkened to #d000d0 so white text passes 4.5:1.
   - Footer translated (footer.rights), dead "Security / Privacy / Infrastructure" items removed. Logo is a real link. EN/BN buttons have aria-pressed.
   - .animate-in (used on 12 pages) is defined in styles.scss. No Tailwind plugin provides it. Off under reduced motion.
-- [ ] Web: look over all pages once. The Tailwind color fix turned on tints and hover colors that never showed before.
-- [ ] Web: hide nav links for modules switched off in settings. Show the Admin link only to admins (check how roles reach the web first).
-- [ ] Web: warn before leaving /settings with unsaved changes (canDeactivate).
-- [ ] Web: no theme switch on screens under 1024 px except the /settings page.
-- [ ] Web: browser test for /settings at 360 px in Bangla (no sideways scroll).
-- [ ] Repo: add .gitattributes. Every commit warns about LF/CRLF.
-- [ ] The QR link expiry is an app setting. It could move into platform.tenant_settings if each tenant needs its own value.
+- [ ] Web: look over all pages once. The Tailwind color fix turned on tints and hover colors that never showed before. → B6.
+- [ ] Web: hide nav links for modules switched off in settings. Show the Admin link only to admins. Roles reach the web in the JWT `role` claim. → B1, B2 (decisions D1, D3).
+- [ ] Web: warn before leaving /settings with unsaved changes (canDeactivate). → B3.
+- [x] Web: no theme switch on screens under 1024 px except the /settings page. Verified 2026-11-13: the header theme dots are `hidden lg:flex`; /settings has its own picker.
+- [ ] Web: browser test for /settings at 360 px in Bangla (no sideways scroll). → B6.
+- [x] Repo: .gitattributes stores text as LF (2026-11-13, commit 1fff976).
+- [x] The QR link expiry stays an app setting (decision D5, 2026-11-13). Reopen only if a tenant asks (X6).
 - [x] DB-backed RLS integration tests run against the scratch DB (2026-11-06): 11 passed, 1 skipped. The test cleanup deleted tenants directly, which failed: the cascade hits audited tables, and their audit trigger writes a row for a tenant that is already gone (audit_log_tenant_id_fkey). Cleanup now deletes the audited rows and audit_log rows first. The app itself never deletes tenants.
-- [ ] test_pos_e2e.py still skips. It runs only when TESTING is unset, and it needs a seeded `demo` tenant with an admin/password staff login. Product, invoice and return flows have no DB-backed test yet (see "Run database-backed integration tests" above).
-- [ ] Out of scope from the per-branch stock plan: per-branch FIFO costing, branch on invoices and POS sales, a branches screen on the web, per-branch stock in mobile, storefront orders taking stock.
+- [ ] test_pos_e2e.py still skips: conftest always sets TESTING=1, so its skip rule always fires, and it needs a seeded tenant. → A4. Product, invoice and return flows → D1.
+- [ ] Out of scope from the per-branch stock plan: per-branch FIFO costing (X2, deferred), branch on invoices and POS sales (F2), a branches screen on the web (F1), per-branch stock in mobile (E1, E3), storefront orders taking stock (X5: no storefront ordering exists).
+
+### Found in the 2026-11-13 review (all planned in the master plan)
+- [ ] Gateway IPN URL is built from PLATFORM_ROOT_DOMAIN (a bare domain): no scheme, tenant or /api. Return URLs point at /checkout/success, which the web reads as an invoice id, and gateways POST there. → A2.
+- [ ] GET /v1/tenant/settings needs a manager, so cashiers never get the tenant theme or language; the web bootstrap runs before login and bypasses ThemeService. → A1, B1.
+- [ ] Settings page shows no module switches when module_access is `{}` (what seeds and registration create). → B2.
+- [ ] Untyped bodies on accounts transfer, expenses and staff create give 500 on bad input; any cashier can transfer money and record supplier payments. → A3 (decision D2).
+- [ ] Mobile cannot talk to the API: fixed base URL with no tenant, login posts `{email}` to `/v1/auth/login`, calls `/auth/refresh`, `/auth/me`, `/v1/products`, `/v1/orders` that do not exist. → E1 to E4.
+- [ ] Hard-coded English on 9 web pages. → B4, B5.
+- [ ] CI runs only on main/master (work happens on dev2), and has no web unit tests or Flutter job. → G1.
+- [ ] One-off scripts tracked in apps/api (fix_*.py, refactor.py) and scratch/. → G2.
 
 ### Handoff notes
+- 2026-11-13: API 318 passed, 19 skipped (rerun); ng build passes. Web unit tests not rerun that day (no Chrome on the machine). The 2026-11-06 work is committed (1fff976).
 - API tests: `python -m pytest -q` in apps/api. Last run on 2026-11-06: 318 passed, 19 skipped. Web (2026-11-06): 60 passed.
 - Integration tests, from apps/api, on a scratch DB only: set `INTEGRATION_TEST=1`, `MIGRATE_DATABASE_URL` (a superuser or migrate role, used to seed and clean up), `DATABASE_URL` (a login role with shopper_app's rights and no BYPASSRLS) and a `JWT_SECRET_KEY` of 32+ chars, then `python -m pytest tests/integration -q`. Locally the shopper_app password is unknown, so a test role was made: `CREATE ROLE shopper_verify_app LOGIN PASSWORD '...' NOSUPERUSER NOBYPASSRLS IN ROLE shopper_app` (drop it with `DROP ROLE shopper_verify_app`).
 - Web tests: `npx ng test --watch=false --browsers=ChromeHeadless` and `npx ng build` in apps/shopper-web.

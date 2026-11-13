@@ -51,6 +51,9 @@ This project spans:
 - Run available backend tests and Flutter checks; run migration/RLS tests on PostgreSQL when configured.
 - Keep database migration application and live provider verification marked pending if external infrastructure/contracts are unavailable.
 
+## Current implementation plan (2026-11-13)
+All remaining work, its order, dependencies, tests and acceptance criteria are in [the master plan](../../../docs/superpowers/plans/2026-11-13-master-plan.md). Phases: A API fixes, B web, C tenant-qualified foreign keys, D DB-backed tests, E mobile/API contract, F branch features, G CI, cleanup and docs. External gates (gateway contracts, live deploy checks) are listed there as blocked items.
+
 ## Dependencies and constraints
 - Not all code paths are validated yet; implementation tasks must remain evidence-based.
 - The repo has multiple planning documents; they must be reconciled before major assumptions are treated as final.

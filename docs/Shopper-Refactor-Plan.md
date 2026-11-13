@@ -1,3 +1,5 @@
+> Historical (superseded). Current plan: [master plan](superpowers/plans/2026-11-13-master-plan.md).
+
 # Shopper Platform — Implementation-Ready Refactor Plan
 
 ## Executive Summary
