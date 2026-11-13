@@ -35,7 +35,7 @@ A session is sized for one sitting: at most about 6 files changed and one test f
 
 ## Decisions applied in this plan
 
-Defaults chosen on 2026-11-13. If the user changes one, edit the sessions listed next to it before running them.
+The user confirmed D2, D3, D4 and D6 on 2026-11-13. D1 and D5 are defaults. If the user changes one, edit the sessions listed next to it before running them.
 
 | ID | Decision | Sessions |
 |---|---|---|
