@@ -642,7 +642,7 @@ API exists: `GET /v1/tenant/branches` (staff), `POST` and `PATCH /{id}` (admin).
 
 ## G3. Docs close-out
 
-Run once, after the last non-blocked session.
+Run once, after the last non-blocked session. On 2026-11-13 a status pass already added known-issue notes to DEPLOY.md, ARCHITECTURE_AND_SECURITY_REVIEW.md, the web and mobile READMEs, and a "Changes since 2026-04-20" list at the top of ARCHITECTURE_MAP.md. G3 removes the known-issue notes that the sessions fixed and merges that list into the map's sections.
 
 1. Rerun all suites; write the counts and date in README "Verification status".
 2. DEPLOY.md: `STOREFRONT_PUBLIC_BASE_URL` must be host style (A2); gateway URLs it produces; mobile `SHOPPER_API_URL` (E1); migrations up to 033; precheck before 032 on real data.

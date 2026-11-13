@@ -1,17 +1,16 @@
 # shopper_mobile
 
-A new Flutter project.
+Flutter POS app for Shopper. It keeps products and sales in a local database (drift) and sends finished sales to the API with offline-punch.
 
-## Getting Started
+## Commands
+- `flutter pub get`
+- `flutter test` and `flutter analyze` (both passed on 2026-10-24)
+- `flutter run`
 
-This project is a starting point for a Flutter application.
+## Status against the API (2026-11-13)
+The app does not yet work against the real API. Its tests pass because they use mocks.
+- The base URL is fixed to `https://api.shopper.com/v1`, and no tenant is sent. The API reads the tenant from the host, so every call is refused.
+- Login posts `{email, password}` to `/v1/auth/login`. The API takes `{username, password}` at `/v1/tenant/auth/login` and returns only `access_token`.
+- `/auth/refresh`, `/auth/me`, `/products` and `/orders` do not exist in the API.
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Fix: master plan sessions E1 to E4 ([plan](../docs/superpowers/plans/2026-11-13-master-plan.md)). After E1 the app is run with `--dart-define=SHOPPER_API_URL=...` and the login screen asks for a shop code, username and password.

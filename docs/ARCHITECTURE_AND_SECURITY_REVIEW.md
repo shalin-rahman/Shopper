@@ -2,6 +2,12 @@
 
 **Review note (2026-10-20):** This document's previous "hardened and verified" statements were unsupported and are withdrawn. Current requirements and evidence are in [ShopperRequirements.txt](ShopperRequirements.txt) and [the platform tasks](../.specify/specs/shopper-platform/tasks.md).
 
+> **2026-11-13:** the tables below are from 2026-10-20 and kept as history. Current status is in [tasks.md](../.specify/specs/shopper-platform/tasks.md) and open work in the [master plan](superpowers/plans/2026-11-13-master-plan.md). Security findings from the 2026-11-13 review, all planned there:
+> - Foreign key checks bypass RLS on about 35 links; `po_lines` has no `tenant_id` (C1, C2).
+> - Any cashier can transfer between accounts and record supplier payments; three endpoints take untyped bodies and return 500 on bad input (A3).
+> - SSLCommerz IPN and return URLs are built wrong (A2).
+> - Since 2026-11-06 the RLS isolation tests run against PostgreSQL (11 passed, 1 skipped); the POS end-to-end test never runs (A4).
+
 ---
 
 ## 1. Current Evidence Summary

@@ -1,7 +1,24 @@
 # Shopper Platform — Architecture Map
 
-> **Last Updated:** 2026-04-20
+> **Last Updated:** 2026-04-20 (sections 1 to 9); change list below updated 2026-11-13
 > **Rule:** Always update this map as the last step of any structural change.
+
+## Changes since 2026-04-20 (not yet merged into the sections below)
+
+The sections below describe the April 2026 structure. Master plan session G3 merges this list into them. Until then, this list is the current truth where they differ.
+
+- **API (`apps/api`)**
+  - `core/storefront_url.py`: tenant storefront base URL (subdomain in front of `STOREFRONT_PUBLIC_BASE_URL`, or `{subdomain}` placeholder). Used by invoice QR, product QR and gateway return URLs.
+  - `core/dependencies.py`: role deps `StaffDep`, `AccountantDep`, `ManagerDep`, `AdminDep`; `BranchDep` (`X-Shopper-Branch`, cashiers and accountants limited to `staff.branch_id`).
+  - `services/stock.py` (per-branch stock: `lock_products` then `lock_levels`), `services/payment_settlement.py` (reservations, 30-minute pending hold), `services/checkout_link.py` (signed pay links).
+  - Routers added: `branches.py`, `settings.py` (GET and manager-only PATCH), `procurement.py`, `marketplace.py`, `registration.py`. Payments has review, resolve-review and refunds. Invoices has issue, cancel, checkout-link and QR.
+- **Database:** migrations 027 (hardening, forced RLS, unique payment order ids), 028 (credit-note VAT, Mushak 6.7), 029 (payment review), 030 (`branches`, `stock_levels`, products.stock_quantity as the sum), 031 (debit-note links, `staff.branch_id`, `payment_refunds`, quieter product audit). `database/init/02_apply_migrations.sh` applies them on a fresh volume.
+- **Web (`apps/shopper-web`)**
+  - `core/auth` (AuthService with the token in sessionStorage, Bearer interceptor, `authGuard`), `/login` and the public `/checkout/:id` page.
+  - Pages added: `/payments` (review and refunds), `/settings` (tenant settings, manager only), invoice issue, cancel and pay-link actions.
+  - Header: separate scrolling nav row; Tailwind `shopper-*` colours map to the `--shopper-*` tokens; 12 themes in `src/styles.scss`.
+- **Mobile (`shopper-mobile`):** sends money as 2-decimal strings in POS sync. Its `ApiClient` does not yet match the API (base URL, login body, several paths): master plan E1 to E4.
+- **Shared docs:** `AGENTS.md` (brief for every agent) and the [master plan](superpowers/plans/2026-11-13-master-plan.md).
 
 ---
 

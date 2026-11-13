@@ -30,3 +30,11 @@ Run these in `apps/shopper-web`.
 ## Translations
 
 Strings live in `src/assets/i18n/en.json` and `bn.json`. Add every key to both files.
+
+## Login, roles and tenant settings
+- Staff log in at `/login`. The token is kept in sessionStorage (`shopper.token`); its `role` claim (`cashier`, `accountant`, `manager`, `admin`) is read by `AuthService.role`.
+- `/checkout/:id` (customer pay link) and `/admin/tenants` (platform admin, uses its own API key) need no staff login.
+- Known gaps (2026-11-13), planned in the [master plan](../../docs/superpowers/plans/2026-11-13-master-plan.md):
+  - Tenant settings load at app start, before login, and the API lets only managers read them, so most staff never get the shop's theme or language (A1, B1).
+  - Every nav link shows to every role, and modules switched off in settings still show (B2). With `module_access = {}` the settings page shows no module switches (B2).
+  - Several pages still have English-only text (B4, B5).
