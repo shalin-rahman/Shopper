@@ -29,8 +29,8 @@
 
 ## Post-Deployment Verification
 - **Health Check**: `GET /health`
-- **Isolation Suite**: Run `pytest apps/api/tests/integration/test_isolation.py` and `test_rls_isolation.py` to verify tenant safety. They skip without integration configuration.
-- **E2E Flow**: Run `pytest apps/api/tests/integration/test_pos_e2e.py` to verify the full transaction lifecycle.
+- **Isolation Suite**: From apps/api, set `INTEGRATION_TEST=1`, `MIGRATE_DATABASE_URL` (migrate role, seeds and cleans up test tenants), `DATABASE_URL` (shopper_app, no BYPASSRLS) and `JWT_SECRET_KEY`, then run `python -m pytest tests/integration -q`. Run it on a staging or scratch database, not production: it creates and deletes two test tenants. Without these settings the RLS tests skip. Last run 2026-11-06 on a local scratch DB: 11 passed, 1 skipped.
+- **E2E Flow**: `tests/integration/test_pos_e2e.py` needs `TESTING` unset and a seeded `demo` tenant with an admin/password staff login. It skips otherwise.
 
 ## Payment & Webhook Configuration
 - Register IPN callbacks with the `?tenant=subdomain` parameter.

@@ -20,6 +20,9 @@
     "payments": "Payments",
     "settings": "Settings"
   },
+  "footer": {
+    "rights": "Shopper Enterprise Platform. All rights reserved."
+  },
   "settings": {
     "title": "Shop settings",
     "hint": "These apply to the whole shop. Only a manager can change them.",

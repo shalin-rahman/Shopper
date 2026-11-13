@@ -30,7 +30,7 @@ This repo is best understood as an in-progress implementation with a documented 
 
 ## Verification status
 
-On 2026-10-24 the API suite ran with 305 passed and 19 skipped (`python -m pytest -q` in apps/api). Migrations 01 to 031 were applied on a local PostgreSQL 18.2 scratch database, and a refund and RLS smoke test passed as the shopper_app role. The DB-backed tests in apps/api/tests/integration still skip without integration configuration. The full Flutter test suite passes, and `flutter analyze` reports no issues.
+On 2026-10-24 the API suite ran with 305 passed and 19 skipped (`python -m pytest -q` in apps/api). Migrations 01 to 031 were applied on a local PostgreSQL 18.2 scratch database, and a refund and RLS smoke test passed as the shopper_app role. On 2026-11-06 the API suite ran with 318 passed and 19 skipped, and the DB-backed tests in apps/api/tests/integration ran against the scratch database as an app-role login: 11 passed, 1 skipped (the POS end-to-end test needs seeded demo data). docs/DEPLOY.md lists the settings they need; without them they skip. The full Flutter test suite passes, and `flutter analyze` reports no issues.
 
 The work from 2026-10-23 and 2026-10-24 is not committed yet. For what was done, what is still open, and how to pick it up, see the "Review remediation and leftovers" section of [tasks.md](.specify/specs/shopper-platform/tasks.md).
 

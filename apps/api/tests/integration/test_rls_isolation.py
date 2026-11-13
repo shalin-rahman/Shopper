@@ -1,7 +1,10 @@
 """
-Run against a real Postgres with schema loaded and tenant fixtures created via a migrate-capable role:
-  set INTEGRATION_TEST=1 SHOPPER_MIGRATE_DATABASE_URL=postgresql+asyncpg://shopper_migrate:...@host:5432/shopper
-  pytest apps/api/tests/test_integration_rls.py -q
+Run from apps/api against a scratch Postgres with all migrations applied:
+  INTEGRATION_TEST=1
+  MIGRATE_DATABASE_URL=postgresql://<migrate or superuser>@host:5432/<scratch db>   (seeds and cleans up)
+  DATABASE_URL=postgresql://<shopper_app or a member of it>@host:5432/<scratch db>  (RLS checks)
+  JWT_SECRET_KEY=<32+ chars>
+  python -m pytest tests/integration -q
 """
 
 # RLS assertions connect as shopper_app; fixture setup uses the migration URL.
@@ -161,8 +164,22 @@ async def _seed_tenant_data(
 
 async def _cleanup_tenant_data(dsn: str, tenant_ids: list[uuid.UUID]) -> None:
     pool = await asyncpg.create_pool(dsn, min_size=1, max_size=2)
+    # A plain tenant delete cascades into audited tables, whose audit trigger then
+    # inserts a row for a tenant that is already gone and fails the audit_log FK.
+    # So delete the audited rows first, while the tenants still exist.
     async with pool.acquire() as conn:
         async with conn.transaction():
+            for table in (
+                "tenant_data.invoice_settlements",
+                "tenant_data.invoices",
+                "tenant_data.products",
+                "tenant_data.product_categories",
+                "tenant_data.audit_log",
+            ):
+                await conn.execute(
+                    f"DELETE FROM {table} WHERE tenant_id = ANY($1::uuid[])",
+                    tenant_ids,
+                )
             await conn.execute(
                 "DELETE FROM platform.tenants WHERE id = ANY($1::uuid[])",
                 tenant_ids,

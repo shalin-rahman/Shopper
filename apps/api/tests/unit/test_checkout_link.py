@@ -148,7 +148,7 @@ async def test_invoice_qr_carries_signed_link_not_gateway_keys(monkeypatch):
     await invoices.get_invoice_qr(FakeCtx(InvoiceConn()), INVOICE, settings, {"role": "cashier"})
 
     url = captured[0]
-    assert url.startswith(f"https://shop.example/checkout/{INVOICE}?t=")
+    assert url.startswith(f"https://acme.shop.example/checkout/{INVOICE}?t=")
     assert "bkash" not in url and "nagad" not in url
     token = url.split("t=")[1].split("&")[0]
     expires = int(url.split("e=")[1])

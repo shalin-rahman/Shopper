@@ -9,6 +9,7 @@ import {
   TenantSettingsService,
   TenantSettingsUpdate,
 } from '../../core/tenant/tenant-settings.service';
+import { ShopperTheme, ThemeService } from '../../core/theme/theme.service';
 import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
 
 export const SETTINGS_THEMES = [
@@ -68,6 +69,7 @@ function textOrNull(value: string): string | null {
 })
 export class SettingsPageComponent implements OnInit {
   private readonly api = inject(TenantSettingsService);
+  private readonly theme = inject(ThemeService);
 
   readonly themes = SETTINGS_THEMES;
   readonly receiptText = RECEIPT_TEXT;
@@ -165,7 +167,8 @@ export class SettingsPageComponent implements OnInit {
     this.api.update(body).subscribe({
       next: (s) => {
         this.reset(s);
-        document.documentElement.setAttribute('data-theme', s.theme_id);
+        // Through the service, so the header's theme picker and the saved choice follow.
+        this.theme.setTheme(s.theme_id as ShopperTheme);
         this.message.set({ key: 'settings.saved', error: false });
         this.saving.set(false);
       },

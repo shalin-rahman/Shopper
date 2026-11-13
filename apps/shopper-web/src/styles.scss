@@ -59,7 +59,8 @@ body {
 /* 4. Cyberpunk (Vibrant) */
 :root[data-theme='cyberpunk'],
 [data-theme='cyberpunk'] {
-  --shopper-primary: #ff00ff;
+  /* Darker than pure #ff00ff so white button text passes 4.5:1. */
+  --shopper-primary: #d000d0;
   --shopper-bg: #1a1a1a;
   --shopper-text: #00ff00;
   --shopper-accent: #ffff00;
@@ -368,7 +369,24 @@ body {
   }
 }
 
+/* Page entrance used by 12 pages ("animate-in fade-in slide-in-from-bottom-4").
+   No Tailwind plugin provides these, so they are defined here. */
+.animate-in {
+  animation: page-enter 500ms ease-out both;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+
   .field__control,
   .switch,
   .switch::after {

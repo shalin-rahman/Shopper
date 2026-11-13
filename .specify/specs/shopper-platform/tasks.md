@@ -48,7 +48,7 @@
   - [x] Bind staff JWT tenant claims to the resolved request tenant and limit the no-token development bypass to testing mode.
   - [x] Explicitly prevent the shopper_app database role from being superuser or bypassing RLS.
   - [x] Add tenant-qualified foreign keys and PostgreSQL assertions for settlement visibility and cross-tenant invoice references.
-  - [ ] Run RLS integration checks against a configured PostgreSQL app-role connection. A manual smoke test passed on 2026-10-24, but the tests in apps/api/tests/integration still skip without integration configuration.
+  - [x] Run RLS integration checks against a configured PostgreSQL app-role connection. Done 2026-11-06 on the scratch DB as a login role that is a member of shopper_app: all 6 tests in test_rls_isolation.py pass (see the handoff notes for the command).
 
 ## Review remediation queue (2026-10-20)
 - [x] Record approved behavior: omitted POS `amount_paid` means unpaid; specific MFS choices; product-level marketplace opt-in; provider callbacks fail closed without provider contracts.
@@ -85,16 +85,32 @@ Plans, with per-task notes: [review remediation](../../../docs/superpowers/plans
   - Checkout error messages are translated (checkout.noPaymentPage, checkout.payFailed).
 
 ### Still open
-- [ ] Printed QR links use STOREFRONT_PUBLIC_BASE_URL, which has no tenant subdomain. With ALLOW_TENANT_OVERRIDE=false they may not find the tenant. Check on the real deploy.
+- [x] Printed QR links and gateway return URLs now put the tenant subdomain in front of STOREFRONT_PUBLIC_BASE_URL (core/storefront_url.py), or fill a `{subdomain}` placeholder in it (2026-11-06). Wildcard DNS and TLS must cover the host. Still check on the real deploy.
+- [x] Product QR payloads now use the subdomain rule (`https://{sub}.{base}/p/{sku}`) through core/storefront_url.py, like invoice QR links (2026-11-06). No backfill: products created before this keep the old path-prefix payload until they are edited or recreated.
 - [ ] Rocket gateway returns 501. bKash and Nagad fail closed until provider contracts arrive.
 - [ ] Foreign key checks bypass RLS. A tenant who knows another tenant's row UUID could reference it. Low risk, not fixed.
-- [ ] No web screen to edit tenant settings yet. The API is ready.
+- [x] Web /settings page for tenant settings (manager only), 2026-11-06: route, nav link, PATCH in the service, page, spec and en/bn strings. Shared form parts (field, notice, segmented, switch) and the --shopper-muted/-tint/-focus-ring/-danger tokens moved to src/styles.scss so the page style fits the budget (2.73 kB; warns over 2 kB, fails over 4 kB). Checked in a browser at 1440, 390 and 360 px (no sideways scroll, save sends only changed fields).
+- [x] Web layout and theme fixes, 2026-11-06 (commit a086c86 plus later uncommitted work):
+  - Header nav has its own row that scrolls sideways at every width. Phones now get a nav. The current page is marked and kept in view.
+  - tailwind.config.js maps the shopper-* colors to the --shopper-* tokens with color-mix. Classes like bg-shopper-primary/10 and hover:bg-shopper-* now emit CSS. Before this they did nothing on every page.
+  - Header theme dots use each theme's own primary. Theme names are translated (settings.themeNames).
+  - Tokens added for the six themes that had none. Cyberpunk primary darkened to #d000d0 so white text passes 4.5:1.
+  - Footer translated (footer.rights), dead "Security / Privacy / Infrastructure" items removed. Logo is a real link. EN/BN buttons have aria-pressed.
+  - .animate-in (used on 12 pages) is defined in styles.scss. No Tailwind plugin provides it. Off under reduced motion.
+- [ ] Web: look over all pages once. The Tailwind color fix turned on tints and hover colors that never showed before.
+- [ ] Web: hide nav links for modules switched off in settings. Show the Admin link only to admins (check how roles reach the web first).
+- [ ] Web: warn before leaving /settings with unsaved changes (canDeactivate).
+- [ ] Web: no theme switch on screens under 1024 px except the /settings page.
+- [ ] Web: browser test for /settings at 360 px in Bangla (no sideways scroll).
+- [ ] Repo: add .gitattributes. Every commit warns about LF/CRLF.
 - [ ] The QR link expiry is an app setting. It could move into platform.tenant_settings if each tenant needs its own value.
-- [ ] DB-backed integration tests (apps/api/tests/integration) skip without integration configuration.
+- [x] DB-backed RLS integration tests run against the scratch DB (2026-11-06): 11 passed, 1 skipped. The test cleanup deleted tenants directly, which failed: the cascade hits audited tables, and their audit trigger writes a row for a tenant that is already gone (audit_log_tenant_id_fkey). Cleanup now deletes the audited rows and audit_log rows first. The app itself never deletes tenants.
+- [ ] test_pos_e2e.py still skips. It runs only when TESTING is unset, and it needs a seeded `demo` tenant with an admin/password staff login. Product, invoice and return flows have no DB-backed test yet (see "Run database-backed integration tests" above).
 - [ ] Out of scope from the per-branch stock plan: per-branch FIFO costing, branch on invoices and POS sales, a branches screen on the web, per-branch stock in mobile, storefront orders taking stock.
 
 ### Handoff notes
-- API tests: `python -m pytest -q` in apps/api. Last run on 2026-11-06: 310 passed, 19 skipped. Web: 50 passed.
+- API tests: `python -m pytest -q` in apps/api. Last run on 2026-11-06: 318 passed, 19 skipped. Web (2026-11-06): 60 passed.
+- Integration tests, from apps/api, on a scratch DB only: set `INTEGRATION_TEST=1`, `MIGRATE_DATABASE_URL` (a superuser or migrate role, used to seed and clean up), `DATABASE_URL` (a login role with shopper_app's rights and no BYPASSRLS) and a `JWT_SECRET_KEY` of 32+ chars, then `python -m pytest tests/integration -q`. Locally the shopper_app password is unknown, so a test role was made: `CREATE ROLE shopper_verify_app LOGIN PASSWORD '...' NOSUPERUSER NOBYPASSRLS IN ROLE shopper_app` (drop it with `DROP ROLE shopper_verify_app`).
 - Web tests: `npx ng test --watch=false --browsers=ChromeHeadless` and `npx ng build` in apps/shopper-web.
 - Migrations are numbered SQL files in database/migrations, applied in order by database/init/02_apply_migrations.sh or database/run_migrations.py. Each must be safe to rerun. The next number is 032.
 - Check migrations on a throwaway scratch database, never on a shared or production one.

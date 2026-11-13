@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 
 import { ShopperTranslocoHttpLoader } from '../../core/i18n/transloco-loader';
 import { TenantSettingsDto, TenantSettingsService } from '../../core/tenant/tenant-settings.service';
+import { ThemeService } from '../../core/theme/theme.service';
 import { SettingsPageComponent } from './settings-page.component';
 
 function settings(over: Partial<TenantSettingsDto> = {}): TenantSettingsDto {
@@ -45,7 +46,10 @@ describe('SettingsPageComponent', () => {
     }).compileComponents();
   });
 
-  afterEach(() => document.documentElement.removeAttribute('data-theme'));
+  afterEach(() => {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.removeItem('shopper_web_theme');
+  });
 
   function create() {
     const fixture = TestBed.createComponent(SettingsPageComponent);
@@ -82,6 +86,8 @@ describe('SettingsPageComponent', () => {
     });
     expect(page.message()).toEqual({ key: 'settings.saved', error: false });
     expect(document.documentElement.getAttribute('data-theme')).toBe('ruby');
+    expect(TestBed.inject(ThemeService).currentTheme()).toBe('ruby');
+    expect(localStorage.getItem('shopper_web_theme')).toBe('ruby');
     expect(page.saving()).toBeFalse();
   });
 

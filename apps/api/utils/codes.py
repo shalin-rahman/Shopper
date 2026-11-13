@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from urllib.parse import quote
 
+from core.storefront_url import tenant_storefront_url
+
 _ALNUM = re.compile(r"[^A-Za-z0-9]+")
 
 
@@ -18,8 +20,6 @@ def barcode_for_sku(sku: str) -> str:
 
 
 def qr_payload_for_product(storefront_base: str, subdomain: str, sku: str) -> str:
-    base = (storefront_base or "").rstrip("/")
-    if not base:
-        base = "https://publicportal.example"
+    # The tenant goes in the host, the same as invoice QR links, because the API finds the tenant from the Host.
     safe_sku = quote(sku, safe="")
-    return f"{base}/{subdomain}/p/{safe_sku}"
+    return f"{tenant_storefront_url(storefront_base, subdomain)}/p/{safe_sku}"

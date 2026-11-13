@@ -23,6 +23,7 @@ from schemas import (
     SalesReturnCreate,
     SalesReturnLineCreate,
 )
+from core.storefront_url import tenant_storefront_url
 from core.tenant_context import TenantCtxDep
 from core.dependencies import BranchDep, SettingsDep, StaffDep
 from services.checkout_link import new_checkout_link
@@ -781,7 +782,7 @@ async def get_invoice_qr(ctx: TenantCtxDep, id: UUID, settings: SettingsDep, _au
 
     # The QR opens the signed checkout page. It must not carry gateway keys:
     # anyone holding the printed invoice can read it.
-    base_url = settings.storefront_public_base_url or f"https://{ctx.subdomain}.shopper.com"
+    base_url = tenant_storefront_url(settings.storefront_public_base_url, ctx.subdomain)
     # A printed invoice is kept for weeks, so its link lasts longer than a screen link.
     _, _, path = new_checkout_link(
         ctx.tenant_id, id, settings.jwt_secret_key, timedelta(days=settings.printed_checkout_link_days)

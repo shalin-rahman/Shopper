@@ -7,6 +7,7 @@ import asyncpg
 from fastapi import HTTPException, Request
 import httpx
 from core.config import Settings
+from core.storefront_url import tenant_storefront_url
 from schemas import PaymentCreate, PaymentGateway, PaymentOut, TenantSettingsInternalOut
 from core.tenant_context import tenant_transaction
 
@@ -45,7 +46,7 @@ class SSLCommerzGateway(PaymentGatewayInterface):
         is_sandbox = str(store_id).lower().startswith("test")
         base_url = "https://sandbox.sslcommerz.com" if is_sandbox else "https://securepay.sslcommerz.com"
         api_url = f"{base_url}/gwprocess/v4/api.php"
-        storefront_url = settings.storefront_public_base_url or f"https://{tenant_subdomain}.shopper.com"
+        storefront_url = tenant_storefront_url(settings.storefront_public_base_url, tenant_subdomain)
         api_base = settings.platform_root_domain or "https://api.shopper.com"
         ipn_url = f"{api_base}/v1/tenant/payments/ipn/sslcommerz?tenant={tenant_subdomain}"
         payload = {

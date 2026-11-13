@@ -11,3 +11,9 @@ node_modules/
 dist/
 .dart_tool/
 build/
+.claude/memory/
+.playwright-mcp/*.png
+.playwright-mcp/*.log
+!.playwright-mcp/payments.png
+!.playwright-mcp/products.png
+.angular/
