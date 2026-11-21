@@ -24,6 +24,7 @@ from schemas.procurement import (
     POLineBase, POLineCreate, POLineOut, POCreate, POOut,
     SupplierPaymentCreate, SupplierPaymentOut,
 )
+from schemas.admin_ops import AccountTransferCreate, ExpenseCreate, StaffCreate
 
 __all__ = [
     "parse_date", "FormattedDate",
@@ -43,4 +44,5 @@ __all__ = [
     "SupplierBase", "SupplierCreate", "SupplierOut",
     "POLineBase", "POLineCreate", "POLineOut", "POCreate", "POOut",
     "SupplierPaymentCreate", "SupplierPaymentOut",
+    "AccountTransferCreate", "ExpenseCreate", "StaffCreate",
 ]

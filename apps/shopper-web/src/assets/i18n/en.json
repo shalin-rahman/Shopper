@@ -178,6 +178,13 @@
     "badLink": "This pay link is wrong or has expired. Ask the shop for a new one.",
     "loadFailed": "Could not load the invoice. Try again later.",
     "noPaymentPage": "The gateway did not return a payment page. Try another method.",
-    "payFailed": "Could not start the payment. Try again."
+    "payFailed": "Could not start the payment. Try again.",
+    "result": {
+      "success": "Payment received. You can close this page.",
+      "fail": "The payment did not go through. Nothing was charged.",
+      "cancel": "You cancelled the payment.",
+      "unknown": "We could not read the payment result.",
+      "pending": "The shop will see the payment once the gateway confirms it."
+    }
   }
 }

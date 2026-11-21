@@ -1,8 +1,8 @@
 from __future__ import annotations
-from decimal import Decimal
 from fastapi import APIRouter, HTTPException
 from core.tenant_context import TenantCtxDep
-from core.dependencies import StaffDep
+from core.dependencies import AccountantDep, StaffDep
+from schemas import AccountTransferCreate
 
 router = APIRouter(prefix="/v1/tenant/accounts", tags=["accounting"])
 
@@ -20,16 +20,13 @@ async def list_accounts(ctx: TenantCtxDep, _auth: StaffDep):
     return {"items": [dict(r) for r in rows]}
 
 @router.post("/transfer", status_code=201)
-async def transfer_funds(ctx: TenantCtxDep, body: dict, auth: StaffDep):
+async def transfer_funds(ctx: TenantCtxDep, body: AccountTransferCreate, auth: AccountantDep):
     """
     Moves money between the business's own accounts (e.g. Cash to Bank).
     """
-    from_code = body.get("from_account_code")
-    to_code = body.get("to_account_code")
-    amount = Decimal(str(body.get("amount", 0)))
-    
-    if from_code == to_code or amount <= 0:
-        raise HTTPException(status_code=400, detail="Invalid transfer parameters")
+    from_code = body.from_account_code
+    to_code = body.to_account_code
+    amount = body.amount
 
     async with ctx.transaction() as conn:
         # Verify accounts exist
@@ -46,7 +43,7 @@ async def transfer_funds(ctx: TenantCtxDep, body: dict, auth: StaffDep):
             VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id
             """,
-            ctx.tenant_id, from_acc["id"], to_acc["id"], amount, body.get("description"), auth["uid"]
+            ctx.tenant_id, from_acc["id"], to_acc["id"], amount, body.description, auth["uid"]
         )
         
         # 2. Update Ledger (Double Entry)

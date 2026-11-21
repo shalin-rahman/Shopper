@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID, uuid4
 
 import asyncpg
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import RedirectResponse
 
 from core.config import Settings
 from core.dependencies import SettingsDep
@@ -15,6 +17,12 @@ from services.payment_settlement import reserve_invoice_payment
 from services.checkout_link import verify_checkout
 
 router = APIRouter(prefix="/v1/storefront", tags=["storefront"])
+
+
+@router.api_route("/checkout/return/{result}", methods=["GET", "POST"], include_in_schema=False)
+async def checkout_return(result: Literal["success", "fail", "cancel"]):
+    # Gateways POST here; the browser then loads the web page on the same host.
+    return RedirectResponse(url=f"/checkout/result?status={result}", status_code=303)
 
 
 @router.get("/products", response_model=StorefrontProductListResponse)

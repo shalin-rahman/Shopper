@@ -16,10 +16,13 @@ import { PaymentsPageComponent } from './features/payments/payments-page.compone
 import { SettingsPageComponent } from './features/settings/settings-page.component';
 import { LoginPageComponent } from './features/login/login-page.component';
 import { CheckoutPageComponent } from './features/checkout/checkout-page.component';
+import { CheckoutResultComponent } from './features/checkout/checkout-result.component';
 import { authGuard } from './core/auth/auth.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginPageComponent },
+  // Must stay above checkout/:id, or "result" is read as an invoice id.
+  { path: 'checkout/result', component: CheckoutResultComponent },
   // Customers open this from a signed pay link; they have no staff login.
   { path: 'checkout/:id', component: CheckoutPageComponent },
   // Platform admin uses its own API key, not a staff login.

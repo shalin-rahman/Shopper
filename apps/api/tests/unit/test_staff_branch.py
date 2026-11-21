@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from routers.staff import create_staff
+from schemas import StaffCreate
 
 SHOP = UUID(int=2)
 ADMIN = {"uid": str(UUID(int=0)), "role": "admin", "tid": "t"}
@@ -46,7 +47,7 @@ class Ctx:
 
 
 def _body(**extra):
-    return {"username": "rina", "password": "pw-123456", "role": "cashier", **extra}
+    return StaffCreate(username="rina", password="pw-123456", role="cashier", **extra)
 
 
 @pytest.mark.asyncio
@@ -65,10 +66,9 @@ async def test_staff_without_branch_stores_null():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("bad", ["not-a-uuid", str(UUID(int=3))])
-async def test_bad_or_inactive_branch_is_400(bad):
+async def test_inactive_branch_is_400():
     conn = Conn()
     with pytest.raises(HTTPException) as exc:
-        await create_staff(Ctx(conn), _body(branch_id=bad), ADMIN)
+        await create_staff(Ctx(conn), _body(branch_id=str(UUID(int=3))), ADMIN)
     assert exc.value.status_code == 400
     assert conn.inserted is None

@@ -3,7 +3,7 @@ from decimal import Decimal
 from uuid import UUID
 import asyncpg
 from fastapi import APIRouter, HTTPException, Query
-from core.dependencies import BranchDep, StaffDep
+from core.dependencies import AccountantDep, BranchDep, StaffDep
 from schemas import (
     POCreate, POOut, POLineOut, 
     SupplierPaymentCreate, SupplierPaymentOut,
@@ -73,7 +73,7 @@ async def receive_po(ctx: TenantCtxDep, po_id: UUID, _auth: StaffDep, branch: Br
     return {"status": "success", "message": "Inventory updated"}
 
 @router.post("/payments", response_model=SupplierPaymentOut, status_code=201)
-async def record_supplier_payment(ctx: TenantCtxDep, body: SupplierPaymentCreate, _auth: StaffDep):
+async def record_supplier_payment(ctx: TenantCtxDep, body: SupplierPaymentCreate, _auth: AccountantDep):
     async with ctx.transaction() as conn:
         row = await conn.fetchrow(
             """

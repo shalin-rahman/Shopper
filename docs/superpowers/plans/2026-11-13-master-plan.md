@@ -53,9 +53,9 @@ Status values: `todo`, `doing`, `done`, `blocked`. Fill `Result` with date and t
 | ID | Session | Needs | Status | Result |
 |---|---|---|---|---|
 | P0 | Commit pending work, LF line endings, sync docs and agent memory | none | done | 2026-11-13: API 318/19, ng build ok |
-| A1 | API: tenant settings readable by all staff | none | todo | |
-| A2 | API+web: gateway return and IPN URLs | none | todo | |
-| A3 | API: typed bodies and roles for money and staff endpoints | none | todo | |
+| A1 | API: tenant settings readable by all staff | none | done | 2026-11-22: API 320/19 |
+| A2 | API+web: gateway return and IPN URLs | none | done | 2026-11-22: API 330/19, web 64 passed, ng build ok |
+| A3 | API: typed bodies and roles for money and staff endpoints | none | done | 2026-11-22: API 354/19; no web form posts these routes, so no web change |
 | A4 | API: make test_pos_e2e run against the scratch DB | none | todo | |
 | B1 | Web: tenant settings store, theme and language after login | A1 | todo | |
 | B2 | Web: nav by role and module, module guard, module switches | B1 | todo | |

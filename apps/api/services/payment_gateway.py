@@ -47,13 +47,14 @@ class SSLCommerzGateway(PaymentGatewayInterface):
         base_url = "https://sandbox.sslcommerz.com" if is_sandbox else "https://securepay.sslcommerz.com"
         api_url = f"{base_url}/gwprocess/v4/api.php"
         storefront_url = tenant_storefront_url(settings.storefront_public_base_url, tenant_subdomain)
-        api_base = settings.platform_root_domain or "https://api.shopper.com"
-        ipn_url = f"{api_base}/v1/tenant/payments/ipn/sslcommerz?tenant={tenant_subdomain}"
+        api_url_base = f"{storefront_url}/api"  # openresty strips /api and forwards to the API
+        ipn_url = f"{api_url_base}/v1/tenant/payments/ipn/sslcommerz?tenant={tenant_subdomain}"
+        return_base = f"{api_url_base}/v1/storefront/checkout/return"
         payload = {
             "store_id": store_id, "store_passwd": store_pass, "total_amount": float(payment.amount),
             "currency": payment.currency, "tran_id": payment.order_id or str(UUID(int=0)),
-            "success_url": f"{storefront_url}/checkout/success", "fail_url": f"{storefront_url}/checkout/fail",
-            "cancel_url": f"{storefront_url}/checkout/cancel", "ipn_url": ipn_url,
+            "success_url": f"{return_base}/success", "fail_url": f"{return_base}/fail",
+            "cancel_url": f"{return_base}/cancel", "ipn_url": ipn_url,
             "cus_name": tenant_settings.legal_title_en or tenant_subdomain, "cus_email": "customer@example.com",
             "cus_add1": tenant_settings.legal_title_bn or "Bangladesh", "cus_phone": "01700000000",
             "shipping_method": "NO", "product_name": payment.description or "Shopper Order",

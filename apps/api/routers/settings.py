@@ -7,7 +7,7 @@ import asyncpg
 from fastapi import APIRouter, HTTPException
 from schemas import TenantSettingsOut, TenantSettingsUpdate
 from core.tenant_context import TenantCtxDep
-from core.dependencies import ManagerDep, SettingsDep
+from core.dependencies import ManagerDep, SettingsDep, StaffDep
 
 router = APIRouter(prefix="/v1/tenant/settings", tags=["settings"])
 
@@ -28,7 +28,7 @@ def _row_to_out(row: asyncpg.Record) -> TenantSettingsOut:
     return TenantSettingsOut(**d)
 
 @router.get("", response_model=TenantSettingsOut)
-async def get_tenant_settings(ctx: TenantCtxDep, _auth: ManagerDep, settings: SettingsDep):
+async def get_tenant_settings(ctx: TenantCtxDep, _auth: StaffDep, settings: SettingsDep):
     if not ctx.subdomain:
         raise HTTPException(status_code=400, detail="Tenant subdomain required")
     if ctx.dedicated_db is None and settings.testing:  # mocked
