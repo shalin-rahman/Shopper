@@ -18,7 +18,11 @@ describe('InvoicesPageComponent', () => {
     api = jasmine.createSpyObj<InvoiceService>('InvoiceService', ['list', 'issue', 'cancel', 'checkoutLink']);
     api.list.and.returnValue(of([draft]));
     TestBed.configureTestingModule({
-      imports: [InvoicesPageComponent, TranslocoTestingModule.forRoot({ langs: { en: {} } })],
+      imports: [InvoicesPageComponent, TranslocoTestingModule.forRoot({
+        langs: { en: { invoices: { requestFailed: 'Try again' } } },
+        preloadLangs: true,
+        translocoConfig: { availableLangs: ['en'], defaultLang: 'en' },
+      })],
       providers: [{ provide: InvoiceService, useValue: api }],
     });
     const page = TestBed.createComponent(InvoicesPageComponent).componentInstance;
@@ -42,6 +46,13 @@ describe('InvoicesPageComponent', () => {
     page.issue(draft);
     expect(page.rowMessage()['a1']).toEqual({ text: 'Not enough stock for SKU A', error: true });
     expect(page.invoices()[0].status).toBe('draft');
+  });
+
+  it('shows a translated fallback when the API sends no reason', () => {
+    const page = make();
+    api.issue.and.returnValue(throwError(() => new HttpErrorResponse({ status: 500 })));
+    page.issue(draft);
+    expect(page.rowMessage()['a1']).toEqual({ text: 'Try again', error: true });
   });
 
   it('does not cancel when the user says no', () => {

@@ -59,10 +59,11 @@ Status values: `todo`, `doing`, `done`, `blocked`. Fill `Result` with date and t
 | A4 | API: make test_pos_e2e run against the scratch DB | none | todo | |
 | B1 | Web: tenant settings store, theme and language after login | A1 | done | 2026-11-22: web 78 passed, ng build ok |
 | B2 | Web: nav by role and module, module guard, module switches | B1 | done | 2026-11-22: web 89 passed, ng build ok |
-| B3 | Web: warn before leaving /settings with unsaved changes | none | todo | |
-| B4 | Web: translate home, accounting, customers, expenses | none | todo | |
-| B5 | Web: translate inventory, invoices, procurement, staff, suppliers | B4 | todo | |
-| B6 | Web: Playwright checks (settings 360 px Bangla) and page look-over | B2, B3, B5 | todo | |
+| B3 | Web: warn before leaving /settings with unsaved changes | none | done | 2026-11-22: web 93 passed, ng build ok |
+| B4 | Web: translate home, accounting, customers, expenses | none | done | 2026-11-22: web 96 passed, ng build ok. Shared data grid now pipes `label` through transloco; page headers wrap at 360 px |
+| B5 | Web: translate inventory, invoices, procurement, staff, suppliers | B4 | done | 2026-11-22: web 97 passed, ng build ok. Also checkout gateway labels; added missing `suppliers.addTitle`; invoice cancel prompt and error fallback go through TranslocoService |
+| B6 | Web: Playwright checks (settings 360 px Bangla) and page look-over | B2, B3, B5 | done | 2026-11-22: e2e 37 passed, twice in a row (`npm run e2e`, all API calls stubbed, so no DB). Stable enough for G1 to add to CI. Web 97 passed, ng build ok. Fixed 360 px overflow on home, procurement tabs, suppliers with wrap/padding classes. Note: settings-page.component.scss is 2.9 kB, over the 2 kB soft limit (4 kB fails the build). Left as is by choice. If it grows, move the receipt preview into its own component and .savebar into styles.scss. |
+| B7 | Web: Bangla letter-spacing and pale tints | B6 | done | 2026-11-22: web 97 passed, build clean, e2e 37 passed (each Bangla page now also fails on letter-spacing). Letter-spacing is off under `[lang\|=bn]`, not `:lang(bn)`: the build's CSS optimizer drops `:lang`. All `text-slate-300/400/500` now `text-shopper-muted` (new Tailwind color from `--shopper-muted`). Found in B6 look-over. `tracking-widest` and `tracking-[0.2em]` split Bangla letters (data grid headers, stat labels on 9 pages); turn letter-spacing off under `:lang(bn)` in styles.scss. Grid empty text `text-slate-300` is too pale; move hard-coded `slate-*` text to a `--shopper-*` muted token. Check with `E2E_SHOTS=1 npm run e2e`. |
 | C1 | DB: migration 032, tenant-qualified foreign keys | none | todo | |
 | C2 | DB: apply 032 on scratch, cross-tenant FK integration tests | C1 | todo | |
 | D1 | Tests: DB-backed product, invoice, return and refund flows | A4, C2 | todo | |

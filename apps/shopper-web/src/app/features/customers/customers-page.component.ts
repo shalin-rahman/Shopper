@@ -11,12 +11,12 @@ import { ShopperButtonComponent } from '../../shared/components/shopper-button.c
   imports: [CommonModule, TranslocoModule, ShopperDataGridComponent, ShopperButtonComponent],
   template: `
     <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-3xl font-black tracking-tighter text-shopper-text uppercase">
             {{ 'nav.customers' | transloco }}
           </h2>
-          <p class="text-slate-400 font-medium">Manage customer relationships and credit collections.</p>
+          <p class="text-shopper-muted font-medium">{{ 'customers.subtitle' | transloco }}</p>
         </div>
         <div class="flex gap-3">
           <app-shopper-button variant="primary">
@@ -47,11 +47,11 @@ export class CustomersPageComponent implements OnInit {
   loading = signal(false);
 
   columns = [
-    { key: 'code', label: 'Code', bold: true },
-    { key: 'name_en', label: 'Name (EN)' },
-    { key: 'phone', label: 'Phone' },
-    { key: 'email', label: 'Email' },
-    { key: 'billing_address_en', label: 'Address' }
+    { key: 'code', label: 'customers.cols.code', bold: true },
+    { key: 'name_en', label: 'customers.cols.nameEn' },
+    { key: 'phone', label: 'customers.cols.phone' },
+    { key: 'email', label: 'customers.cols.email' },
+    { key: 'billing_address_en', label: 'customers.cols.address' }
   ];
 
   ngOnInit() {

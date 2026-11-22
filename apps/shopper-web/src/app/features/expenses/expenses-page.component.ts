@@ -11,16 +11,16 @@ import { ShopperButtonComponent } from '../../shared/components/shopper-button.c
   imports: [CommonModule, TranslocoModule, ShopperDataGridComponent, ShopperButtonComponent],
   template: `
     <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-3xl font-black tracking-tighter text-shopper-text uppercase">
              {{ 'nav.expenses' | transloco }}
           </h2>
-          <p class="text-slate-400 font-medium">Track operational costs and business expenditures.</p>
+          <p class="text-shopper-muted font-medium">{{ 'expenses.subtitle' | transloco }}</p>
         </div>
         <div class="flex gap-3">
           <app-shopper-button variant="primary">
-            Record Expense
+            {{ 'expenses.record' | transloco }}
           </app-shopper-button>
         </div>
       </div>
@@ -29,16 +29,16 @@ import { ShopperButtonComponent } from '../../shared/components/shopper-button.c
          <!-- Summary -->
          <div class="lg:col-span-1 space-y-6">
             <div class="p-6 rounded-3xl bg-shopper-surface border border-shopper-border shadow-sm">
-                <p class="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Monthly Burn</p>
+                <p class="text-xs font-black uppercase tracking-widest text-shopper-muted mb-1">{{ 'expenses.monthlyTotal' | transloco }}</p>
                 <h3 class="text-2xl font-black text-rose-500">৳ {{ totalExpenses() | number:'1.2-2' }}</h3>
             </div>
             
             <div class="p-6 rounded-3xl bg-shopper-bg border border-shopper-border shadow-sm">
-                <h4 class="text-sm font-bold mb-4 uppercase tracking-tighter">Categories</h4>
+                <h4 class="text-sm font-bold mb-4 uppercase tracking-tighter">{{ 'expenses.categories' | transloco }}</h4>
                 <div class="space-y-3">
                     @for (cat of categories(); track cat.id) {
                         <div class="flex justify-between items-center text-sm">
-                            <span class="font-medium text-slate-500">{{ cat.name_en }}</span>
+                            <span class="font-medium text-shopper-muted">{{ cat.name_en }}</span>
                             <span class="h-1.5 flex-grow mx-4 rounded-full bg-shopper-surface overflow-hidden">
                                 <span class="block h-full bg-shopper-primary" [style.width.%]="40"></span>
                             </span>
@@ -76,10 +76,10 @@ export class ExpensesPageComponent implements OnInit {
   totalExpenses = signal(0);
 
   columns = [
-    { key: 'expense_date', label: 'Date', type: 'date' },
-    { key: 'category_name', label: 'Category', pill: true },
-    { key: 'description', label: 'Description' },
-    { key: 'amount', label: 'Amount', type: 'currency', align: 'right' }
+    { key: 'expense_date', label: 'expenses.cols.date', type: 'date' },
+    { key: 'category_name', label: 'expenses.cols.category', pill: true },
+    { key: 'description', label: 'expenses.cols.description' },
+    { key: 'amount', label: 'expenses.cols.amount', type: 'currency', align: 'right' }
   ];
 
   ngOnInit() {

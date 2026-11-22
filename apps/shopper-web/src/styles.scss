@@ -218,6 +218,13 @@ body {
   color: var(--shopper-muted);
 }
 
+/* Letter-spacing pulls Bangla letters apart, so the tracking-* classes do nothing in Bangla.
+   [lang|=bn] instead of :lang(bn), which the build's CSS optimizer drops. */
+[lang|='bn'] [class*='tracking-'],
+[lang|='bn'][class*='tracking-'] {
+  letter-spacing: normal;
+}
+
 .section-title {
   font-size: 1.125rem;
   font-weight: 700;

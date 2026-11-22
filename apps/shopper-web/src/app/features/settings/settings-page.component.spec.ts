@@ -149,6 +149,20 @@ describe('SettingsPageComponent', () => {
     expect(page.form!.module_access['inventory']).toBeFalse();
   });
 
+  it('reports unsaved changes and blocks closing the tab only then', () => {
+    const page = create();
+    const clean = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent;
+    page.onBeforeUnload(clean);
+    expect(page.hasUnsavedChanges()).toBeFalse();
+    expect(clean.defaultPrevented).toBeFalse();
+
+    page.form!.bin = '999';
+    const dirty = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent;
+    page.onBeforeUnload(dirty);
+    expect(page.hasUnsavedChanges()).toBeTrue();
+    expect(dirty.defaultPrevented).toBeTrue();
+  });
+
   it('counts a cleared VAT field so save can report it', () => {
     const page = create();
     page.form!.default_vat_rate_pct = null;

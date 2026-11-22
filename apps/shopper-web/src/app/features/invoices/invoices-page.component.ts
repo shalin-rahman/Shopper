@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { TranslocoModule } from '@ngneat/transloco';
+import { TranslocoModule, TranslocoService } from '@ngneat/transloco';
 import { ShopperDataGridComponent } from '../../shared/components/shopper-data-grid.component';
 import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
 import { InvoiceRow, InvoiceService, invoiceActions } from './invoice.service';
@@ -13,19 +13,19 @@ import { InvoiceRow, InvoiceService, invoiceActions } from './invoice.service';
   imports: [CommonModule, TranslocoModule, ShopperDataGridComponent, ShopperButtonComponent],
   template: `
     <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-3xl font-black tracking-tighter text-shopper-text uppercase">
             {{ 'nav.invoices' | transloco }}
           </h2>
-          <p class="text-slate-400 font-medium">View sales history, print Mushak 6.3 Tax Invoices, and record payments.</p>
+          <p class="text-shopper-muted font-medium">{{ 'invoices.subtitle' | transloco }}</p>
         </div>
         <div class="flex gap-3">
           <app-shopper-button variant="outline" (click)="loadInvoices()">
             {{ 'products.refresh' | transloco }}
           </app-shopper-button>
           <app-shopper-button variant="primary">
-            Create Manual Invoice
+{{ 'invoices.createManual' | transloco }}
           </app-shopper-button>
         </div>
       </div>
@@ -72,6 +72,7 @@ import { InvoiceRow, InvoiceService, invoiceActions } from './invoice.service';
 })
 export class InvoicesPageComponent implements OnInit {
   private readonly api = inject(InvoiceService);
+  private readonly i18n = inject(TranslocoService);
 
   invoices = signal<InvoiceRow[]>([]);
   loading = signal(false);
@@ -79,13 +80,13 @@ export class InvoicesPageComponent implements OnInit {
   readonly rowMessage = signal<Record<string, { text: string; error: boolean }>>({});
 
   columns = [
-    { key: 'invoice_no', label: 'Invoice #', bold: true },
-    { key: 'customer_name', label: 'Customer' },
-    { key: 'total_amount', label: 'Total', type: 'currency', align: 'right' },
-    { key: 'amount_paid', label: 'Paid', align: 'right' },
-    { key: 'balance_due', label: 'Due', align: 'right' },
-    { key: 'status', label: 'Status', pill: true },
-    { key: 'created_at', label: 'Date', type: 'date' }
+    { key: 'invoice_no', label: 'invoices.cols.invoiceNo', bold: true },
+    { key: 'customer_name', label: 'invoices.cols.customer' },
+    { key: 'total_amount', label: 'invoices.cols.total', type: 'currency', align: 'right' },
+    { key: 'amount_paid', label: 'invoices.cols.paid', align: 'right' },
+    { key: 'balance_due', label: 'invoices.cols.due', align: 'right' },
+    { key: 'status', label: 'invoices.cols.status', pill: true },
+    { key: 'created_at', label: 'invoices.cols.date', type: 'date' }
   ];
 
   ngOnInit() {
@@ -112,7 +113,7 @@ export class InvoicesPageComponent implements OnInit {
   }
 
   cancel(row: InvoiceRow) {
-    if (!window.confirm(`Cancel invoice ${row.invoice_no}?`)) return;
+    if (!window.confirm(this.i18n.translate('invoices.confirmCancel', { no: row.invoice_no }))) return;
     this.runOnRow(row, this.api.cancel(row.id));
   }
 
@@ -128,7 +129,7 @@ export class InvoicesPageComponent implements OnInit {
       },
       error: (err: unknown) => {
         this.busyId.set(null);
-        this.setMessage(row.id, apiError(err), true);
+        this.setMessage(row.id, apiError(err) ?? this.i18n.translate('invoices.requestFailed'), true);
       },
     });
   }
@@ -143,7 +144,7 @@ export class InvoicesPageComponent implements OnInit {
       },
       error: (err: unknown) => {
         this.busyId.set(null);
-        this.setMessage(row.id, apiError(err), true);
+        this.setMessage(row.id, apiError(err) ?? this.i18n.translate('invoices.requestFailed'), true);
       },
     });
   }
@@ -158,8 +159,8 @@ export class InvoicesPageComponent implements OnInit {
   }
 }
 
-/** The API's own reason, e.g. "Not enough stock for SKU ...", or a plain fallback. */
-function apiError(err: unknown): string {
+/** The API's own reason, e.g. "Not enough stock for SKU ...", or null when it sent none. */
+function apiError(err: unknown): string | null {
   if (err instanceof HttpErrorResponse && typeof err.error?.detail === 'string') return err.error.detail;
-  return 'Request failed. Try again.';
+  return null;
 }

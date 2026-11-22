@@ -17,3 +17,5 @@ build/
 !.playwright-mcp/payments.png
 !.playwright-mcp/products.png
 .angular/
+apps/shopper-web/test-results/
+apps/shopper-web/playwright-report/

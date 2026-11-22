@@ -11,51 +11,51 @@ import { ShopperButtonComponent } from '../../shared/components/shopper-button.c
   imports: [CommonModule, TranslocoModule, ShopperDataGridComponent, ShopperButtonComponent],
   template: `
     <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-3xl font-black tracking-tighter text-shopper-text uppercase">
             {{ 'nav.procurement' | transloco }}
           </h2>
-          <p class="text-slate-400 font-medium">Manage Purchase Orders, Stock Receiving, and Vendor Returns.</p>
+          <p class="text-shopper-muted font-medium">{{ 'procurement.subtitle' | transloco }}</p>
         </div>
         <div class="flex gap-3">
           <app-shopper-button variant="outline" (click)="loadAll()">
             {{ 'products.refresh' | transloco }}
           </app-shopper-button>
           <app-shopper-button variant="primary">
-            New Purchase Order
+{{ 'procurement.newPo' | transloco }}
           </app-shopper-button>
         </div>
       </div>
 
       <!-- Procurement Tabs -->
-      <div class="flex gap-1 p-1 bg-shopper-surface rounded-2xl w-fit border border-shopper-border">
+      <div class="flex gap-1 p-1 bg-shopper-surface rounded-2xl w-fit max-w-full overflow-x-auto border border-shopper-border">
         <button 
           (click)="activeTab.set('pos')"
-          class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+          class="px-4 sm:px-6 py-2 whitespace-nowrap rounded-xl text-xs font-black uppercase tracking-widest transition-all"
           [class.bg-shopper-primary]="activeTab() === 'pos'"
           [class.text-white]="activeTab() === 'pos'"
-          [class.text-slate-400]="activeTab() !== 'pos'"
+          [class.text-shopper-muted]="activeTab() !== 'pos'"
         >
-          Purchase Orders
+{{ 'procurement.tabs.pos' | transloco }}
         </button>
         <button 
           (click)="activeTab.set('returns')"
-          class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+          class="px-4 sm:px-6 py-2 whitespace-nowrap rounded-xl text-xs font-black uppercase tracking-widest transition-all"
           [class.bg-shopper-primary]="activeTab() === 'returns'"
           [class.text-white]="activeTab() === 'returns'"
-          [class.text-slate-400]="activeTab() !== 'returns'"
+          [class.text-shopper-muted]="activeTab() !== 'returns'"
         >
-          Purchase Returns
+{{ 'procurement.tabs.returns' | transloco }}
         </button>
         <button 
           (click)="activeTab.set('payments')"
-          class="px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+          class="px-4 sm:px-6 py-2 whitespace-nowrap rounded-xl text-xs font-black uppercase tracking-widest transition-all"
           [class.bg-shopper-primary]="activeTab() === 'payments'"
           [class.text-white]="activeTab() === 'payments'"
-          [class.text-slate-400]="activeTab() !== 'payments'"
+          [class.text-shopper-muted]="activeTab() !== 'payments'"
         >
-          Vendor Payments
+{{ 'procurement.tabs.payments' | transloco }}
         </button>
       </div>
 
@@ -96,28 +96,28 @@ export class ProcurementPageComponent implements OnInit {
   loading = signal(false);
 
   poColumns = [
-    { key: 'po_no', label: 'PO Number', bold: true },
-    { key: 'supplier_name', label: 'Supplier' },
-    { key: 'status', label: 'Status', pill: true },
-    { key: 'total_amount', label: 'Amount', type: 'currency', align: 'right' },
-    { key: 'balance_due', label: 'Due', align: 'right' },
-    { key: 'created_at', label: 'Date', type: 'date' }
+    { key: 'po_no', label: 'procurement.cols.poNo', bold: true },
+    { key: 'supplier_name', label: 'procurement.cols.supplier' },
+    { key: 'status', label: 'procurement.cols.status', pill: true },
+    { key: 'total_amount', label: 'procurement.cols.amount', type: 'currency', align: 'right' },
+    { key: 'balance_due', label: 'procurement.cols.due', align: 'right' },
+    { key: 'created_at', label: 'procurement.cols.date', type: 'date' }
   ];
 
   returnColumns = [
-    { key: 'note_no', label: 'Debit Note #', bold: true },
-    { key: 'po_no', label: 'PO Ref' },
-    { key: 'reason', label: 'Reason' },
-    { key: 'total_adjustment', label: 'Adjustment', align: 'right' },
-    { key: 'created_at', label: 'Date', type: 'date' }
+    { key: 'note_no', label: 'procurement.cols.debitNoteNo', bold: true },
+    { key: 'po_no', label: 'procurement.cols.poRef' },
+    { key: 'reason', label: 'procurement.cols.reason' },
+    { key: 'total_adjustment', label: 'procurement.cols.adjustment', align: 'right' },
+    { key: 'created_at', label: 'procurement.cols.date', type: 'date' }
   ];
 
   paymentColumns = [
-    { key: 'payment_no', label: 'Payment #', bold: true },
-    { key: 'amount', label: 'Amount', type: 'currency', align: 'right' },
-    { key: 'payment_method', label: 'Method' },
-    { key: 'ref_no', label: 'Reference' },
-    { key: 'created_at', label: 'Date', type: 'date' }
+    { key: 'payment_no', label: 'procurement.cols.paymentNo', bold: true },
+    { key: 'amount', label: 'procurement.cols.amount', type: 'currency', align: 'right' },
+    { key: 'payment_method', label: 'procurement.cols.method' },
+    { key: 'ref_no', label: 'procurement.cols.reference' },
+    { key: 'created_at', label: 'procurement.cols.date', type: 'date' }
   ];
 
   ngOnInit() {

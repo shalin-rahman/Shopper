@@ -25,6 +25,7 @@
   "settings": {
     "title": "Shop settings",
     "hint": "These apply to the whole shop. Only a manager can change them.",
+    "leaveUnsaved": "You have unsaved changes. Leave this page?",
     "theme": "Theme",
     "themeNames": {
       "default": "Default", "midnight": "Midnight", "emerald": "Emerald", "ruby": "Ruby",
@@ -91,7 +92,52 @@
   },
   "home": {
     "sampleCurrency": "Sample currency",
-    "sampleGrouping": "Lakh/crore-style grouping (en-IN) when UI is English:"
+    "sampleGrouping": "Lakh/crore-style grouping (en-IN) when UI is English:",
+    "heroTitle": "Welcome to your business hub.",
+    "heroText": "Manage sales, stock, accounts and VAT in one place.",
+    "viewCatalog": "View catalog",
+    "adminPanel": "Admin panel",
+    "stats": {
+      "sales": "Sales this month",
+      "activeInvoices": "Active invoices",
+      "inventoryValue": "Inventory value",
+      "vatDue": "VAT to pay"
+    },
+    "trendStable": "Stable",
+    "bilingual": "Bangla and English, with Bangla digits.",
+    "standard": "Standard",
+    "currencyBdt": "Currency (BDT)"
+  },
+  "common": {
+    "actions": "Actions",
+    "noResults": "Nothing to show yet."
+  },
+  "accounting": {
+    "subtitle": "Manage your accounts and double-entry ledger.",
+    "newJournal": "New journal entry",
+    "totalAssets": "Total assets",
+    "totalLiabilities": "Total liabilities",
+    "netEquity": "Net equity",
+    "chartOfAccounts": "Chart of accounts",
+    "cols": {
+      "code": "Code",
+      "nameEn": "Name (EN)",
+      "nameBn": "Name (BN)",
+      "type": "Type",
+      "balance": "Balance (BDT)"
+    }
+  },
+  "expenses": {
+    "subtitle": "Track running costs and business spending.",
+    "record": "Record expense",
+    "monthlyTotal": "Spent this month",
+    "categories": "Categories",
+    "cols": {
+      "date": "Date",
+      "category": "Category",
+      "description": "Description",
+      "amount": "Amount"
+    }
   },
   "products": {
     "title": "Products",
@@ -126,7 +172,15 @@
     "phone": "Phone",
     "email": "Email",
     "address": "Address",
-    "save": "Save"
+    "save": "Save",
+    "subtitle": "Manage customers and credit collection.",
+    "cols": {
+      "code": "Code",
+      "nameEn": "Name (EN)",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address"
+    }
   },
   "payments": {
     "title": "Payments",
@@ -153,6 +207,14 @@
     "refundFailed": "Could not record the refund."
   },
   "staff": {
+    "subtitle": "Manage team members, roles and access.",
+    "edit": "Edit",
+    "cols": {
+      "username": "Username",
+      "fullName": "Full name",
+      "role": "Role",
+      "status": "Status"
+    },
     "title": "Staff Management",
     "addTitle": "Add team member",
     "role": "Role",
@@ -168,11 +230,29 @@
     "logout": "Sign out"
   },
   "invoices": {
+    "subtitle": "View sales, print Mushak 6.3 tax invoices and record payments.",
+    "createManual": "New invoice",
+    "confirmCancel": "Cancel invoice {{no}}?",
+    "requestFailed": "Request failed. Try again.",
+    "cols": {
+      "invoiceNo": "Invoice #",
+      "customer": "Customer",
+      "total": "Total",
+      "paid": "Paid",
+      "due": "Due",
+      "status": "Status",
+      "date": "Date"
+    },
     "issue": "Issue",
     "cancel": "Cancel",
     "payLink": "Copy pay link"
   },
   "checkout": {
+    "gateways": {
+      "bkash": "bKash",
+      "nagad": "Nagad",
+      "sslcommerz": "Card / SSLCommerz"
+    },
     "invoice": "Invoice",
     "due": "Amount due",
     "method": "Pay with",
@@ -188,6 +268,61 @@
       "cancel": "You cancelled the payment.",
       "unknown": "We could not read the payment result.",
       "pending": "The shop will see the payment once the gateway confirms it."
+    }
+  },
+  "inventory": {
+    "subtitle": "Stock that leaves or arrives without a sale: damaged, lost, expired and gifts.",
+    "recordAdjustment": "Record adjustment",
+    "stats": {
+      "damaged": "Damaged / lost",
+      "giftsOut": "Gifts given",
+      "expired": "Expired",
+      "giftsIn": "Bonus received"
+    },
+    "pcs": "{{n}} pcs",
+    "auditLog": "Stock movement log",
+    "cols": {
+      "sku": "SKU",
+      "product": "Product",
+      "type": "Type",
+      "qty": "Qty",
+      "reason": "Reason",
+      "date": "Date"
+    }
+  },
+  "procurement": {
+    "subtitle": "Purchase orders, receiving stock and returns to suppliers.",
+    "newPo": "New purchase order",
+    "tabs": {
+      "pos": "Purchase orders",
+      "returns": "Purchase returns",
+      "payments": "Supplier payments"
+    },
+    "cols": {
+      "poNo": "PO number",
+      "supplier": "Supplier",
+      "status": "Status",
+      "amount": "Amount",
+      "due": "Due",
+      "date": "Date",
+      "debitNoteNo": "Debit note #",
+      "poRef": "PO ref",
+      "reason": "Reason",
+      "adjustment": "Adjustment",
+      "paymentNo": "Payment #",
+      "method": "Method",
+      "reference": "Reference"
+    }
+  },
+  "suppliers": {
+    "subtitle": "Manage the suppliers you buy from.",
+    "addTitle": "Add supplier",
+    "cols": {
+      "code": "Supplier code",
+      "nameEn": "Business name (EN)",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address"
     }
   }
 }

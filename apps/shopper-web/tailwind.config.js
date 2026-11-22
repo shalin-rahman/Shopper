@@ -19,6 +19,7 @@ module.exports = {
           accent: token('accent'),
           surface: token('surface'),
           border: token('border'),
+          muted: token('muted'),
         },
       },
     },

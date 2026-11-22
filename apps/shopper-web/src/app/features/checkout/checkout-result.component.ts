@@ -23,7 +23,7 @@ const KNOWN: ResultStatus[] = ['success', 'fail', 'cancel'];
           {{ 'checkout.result.' + status() | transloco }}
         </p>
         @if (status() !== 'unknown') {
-          <p class="text-sm text-slate-400">{{ 'checkout.result.pending' | transloco }}</p>
+          <p class="text-sm text-shopper-muted">{{ 'checkout.result.pending' | transloco }}</p>
         }
       </div>
     </div>

@@ -11,19 +11,19 @@ import { ShopperButtonComponent } from '../../shared/components/shopper-button.c
   imports: [CommonModule, TranslocoModule, ShopperDataGridComponent, ShopperButtonComponent],
   template: `
     <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 class="text-3xl font-black tracking-tighter text-shopper-text uppercase">
             {{ 'nav.accounting' | transloco }}
           </h2>
-          <p class="text-slate-400 font-medium">Manage your system accounts and double-entry ledger.</p>
+          <p class="text-shopper-muted font-medium">{{ 'accounting.subtitle' | transloco }}</p>
         </div>
         <div class="flex gap-3">
           <app-shopper-button variant="outline" (click)="loadAccounts()">
             {{ 'products.refresh' | transloco }}
           </app-shopper-button>
           <app-shopper-button variant="primary">
-            New Journal Entry
+            {{ 'accounting.newJournal' | transloco }}
           </app-shopper-button>
         </div>
       </div>
@@ -31,15 +31,15 @@ import { ShopperButtonComponent } from '../../shared/components/shopper-button.c
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Dashboard Summary Cards -->
         <div class="p-6 rounded-3xl bg-shopper-surface border border-shopper-border shadow-sm">
-          <p class="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Total Assets</p>
+          <p class="text-xs font-black uppercase tracking-widest text-shopper-muted mb-1">{{ 'accounting.totalAssets' | transloco }}</p>
           <h3 class="text-2xl font-black text-shopper-primary">৳ {{ totalAssets() | number:'1.2-2' }}</h3>
         </div>
         <div class="p-6 rounded-3xl bg-shopper-surface border border-shopper-border shadow-sm">
-          <p class="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Total Liabilities</p>
+          <p class="text-xs font-black uppercase tracking-widest text-shopper-muted mb-1">{{ 'accounting.totalLiabilities' | transloco }}</p>
           <h3 class="text-2xl font-black text-red-500">৳ {{ totalLiabilities() | number:'1.2-2' }}</h3>
         </div>
         <div class="p-6 rounded-3xl bg-shopper-surface border border-shopper-border shadow-sm">
-          <p class="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Net Equity</p>
+          <p class="text-xs font-black uppercase tracking-widest text-shopper-muted mb-1">{{ 'accounting.netEquity' | transloco }}</p>
           <h3 class="text-2xl font-black text-emerald-500">৳ {{ (totalAssets() - totalLiabilities()) | number:'1.2-2' }}</h3>
         </div>
       </div>
@@ -47,7 +47,7 @@ import { ShopperButtonComponent } from '../../shared/components/shopper-button.c
       <div class="bg-shopper-surface/50 rounded-[2rem] border border-shopper-border p-8 backdrop-blur-sm">
         <h3 class="text-lg font-bold mb-6 flex items-center gap-2">
           <span class="h-2 w-2 rounded-full bg-shopper-primary"></span>
-          Chart of Accounts
+          {{ 'accounting.chartOfAccounts' | transloco }}
         </h3>
         
         @if (loading()) {
@@ -74,11 +74,11 @@ export class AccountingPageComponent implements OnInit {
   totalLiabilities = signal(0);
 
   columns = [
-    { key: 'code', label: 'Code', bold: true },
-    { key: 'name_en', label: 'Name (EN)' },
-    { key: 'name_bn', label: 'Name (BN)' },
-    { key: 'account_type', label: 'Type', pill: true },
-    { key: 'current_balance', label: 'Balance (BDT)', type: 'currency', align: 'right' }
+    { key: 'code', label: 'accounting.cols.code', bold: true },
+    { key: 'name_en', label: 'accounting.cols.nameEn' },
+    { key: 'name_bn', label: 'accounting.cols.nameBn' },
+    { key: 'account_type', label: 'accounting.cols.type', pill: true },
+    { key: 'current_balance', label: 'accounting.cols.balance', type: 'currency', align: 'right' }
   ];
 
   ngOnInit() {

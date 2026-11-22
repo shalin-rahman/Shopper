@@ -1,10 +1,11 @@
 import { Component, Input, ContentChild, TemplateRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslocoPipe } from '@ngneat/transloco';
 
 @Component({
   selector: 'app-shopper-data-grid',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslocoPipe],
   template: `
     <div class="relative overflow-hidden rounded-3xl border border-shopper-border bg-shopper-bg/40 backdrop-blur-sm">
       <div class="overflow-x-auto">
@@ -14,13 +15,13 @@ import { CommonModule } from '@angular/common';
               <th 
                 *ngFor="let col of columns" 
                 [style.width]="col.width || 'auto'"
-                class="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400"
+                class="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-shopper-muted"
                 [attr.align]="col.align || 'left'"
               >
-                {{ col.label || col.header }}
+                {{ col.label ? (col.label | transloco) : col.header }}
               </th>
-              <th *ngIf="actionsTemplate" class="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 text-right">
-                Actions
+              <th *ngIf="actionsTemplate" class="px-6 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-shopper-muted text-right">
+                {{ 'common.actions' | transloco }}
               </th>
             </tr>
           </thead>
@@ -61,9 +62,9 @@ import { CommonModule } from '@angular/common';
         </table>
       </div>
       
-      <div *ngIf="data.length === 0" class="flex flex-col items-center justify-center p-20 text-slate-300">
+      <div *ngIf="data.length === 0" class="flex flex-col items-center justify-center p-20 text-shopper-muted">
         <span class="text-4xl mb-2">🔭</span>
-        <p class="text-sm font-medium italic">No matches found in this universe.</p>
+        <p class="text-sm font-medium italic">{{ 'common.noResults' | transloco }}</p>
       </div>
     </div>
   `,

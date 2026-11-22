@@ -19,6 +19,7 @@ import { CheckoutPageComponent } from './features/checkout/checkout-page.compone
 import { CheckoutResultComponent } from './features/checkout/checkout-result.component';
 import { authGuard } from './core/auth/auth.guard';
 import { moduleGuard, roleGuard } from './core/nav/module.guard';
+import { unsavedChangesGuard } from './core/nav/unsaved-changes.guard';
 
 export const routes: Routes = [
   { path: 'login', component: LoginPageComponent },
@@ -43,7 +44,12 @@ export const routes: Routes = [
       { path: 'accounting', component: AccountingPageComponent, canActivate: [moduleGuard('accounting')] },
       { path: 'customers', component: CustomersPageComponent, canActivate: [moduleGuard('customers')] },
       { path: 'staff', component: StaffPageComponent },
-      { path: 'settings', component: SettingsPageComponent, canActivate: [roleGuard(['manager', 'admin'])] },
+      {
+        path: 'settings',
+        component: SettingsPageComponent,
+        canActivate: [roleGuard(['manager', 'admin'])],
+        canDeactivate: [unsavedChangesGuard],
+      },
     ],
   },
 ];

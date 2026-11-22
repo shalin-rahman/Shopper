@@ -2,7 +2,7 @@
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div>
       <h2 class="text-3xl font-bold tracking-tight text-shopper-text">{{ 'payments.reviewTitle' | transloco }}</h2>
-      <p class="text-sm text-slate-500 mt-1">{{ 'payments.reviewHint' | transloco }}</p>
+      <p class="text-sm text-shopper-muted mt-1">{{ 'payments.reviewHint' | transloco }}</p>
     </div>
     <app-shopper-button variant="secondary" (btnClick)="reload()">
       <span class="mr-1">↺</span> {{ 'payments.refresh' | transloco }}
@@ -14,7 +14,7 @@
   }
 
   @if (loaded() && !reviews().length) {
-    <p class="text-sm text-slate-500">{{ 'payments.empty' | transloco }}</p>
+    <p class="text-sm text-shopper-muted">{{ 'payments.empty' | transloco }}</p>
   }
 
   @if (reviews().length) {

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TranslocoPipe } from '@ngneat/transloco';
 
@@ -13,6 +13,7 @@ import { TenantSettingsStore } from '../../core/tenant/tenant-settings.store';
 import { SHOPPER_THEMES, ShopperTheme, ThemeService } from '../../core/theme/theme.service';
 import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
 import { MODULE_KEYS, isModuleKey } from '../../core/nav/nav-items';
+import { HasUnsavedChanges } from '../../core/nav/unsaved-changes.guard';
 
 
 /** Fixed receipt wording, copied from apps/api/routers/receipts.py so the preview matches the print. */
@@ -66,7 +67,7 @@ function textOrNull(value: string): string | null {
   templateUrl: './settings-page.component.html',
   styleUrl: './settings-page.component.scss',
 })
-export class SettingsPageComponent implements OnInit {
+export class SettingsPageComponent implements OnInit, HasUnsavedChanges {
   private readonly api = inject(TenantSettingsService);
   private readonly theme = inject(ThemeService);
   private readonly store = inject(TenantSettingsStore);
@@ -116,6 +117,18 @@ export class SettingsPageComponent implements OnInit {
   dirtyCount(): number {
     const vatCleared = this.form?.default_vat_rate_pct === null ? 1 : 0;
     return Object.keys(this.changes()).length + vatCleared;
+  }
+
+  hasUnsavedChanges(): boolean {
+    return this.dirtyCount() > 0;
+  }
+
+  /** The browser shows its own wording; custom text is ignored there. */
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.hasUnsavedChanges()) {
+      event.preventDefault();
+    }
   }
 
   discard(): void {

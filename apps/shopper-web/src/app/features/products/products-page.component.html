@@ -4,7 +4,7 @@
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div>
       <h2 class="text-3xl font-bold tracking-tight text-shopper-text">{{ 'products.title' | transloco }}</h2>
-      <p class="text-sm text-slate-500 mt-1">Manage your catalog and inventory levels.</p>
+      <p class="text-sm text-shopper-muted mt-1">Manage your catalog and inventory levels.</p>
     </div>
     <app-shopper-button variant="secondary" (btnClick)="reload()">
       <span class="mr-1">↺</span> {{ 'products.refresh' | transloco }}
@@ -34,7 +34,7 @@
 
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
       <div class="space-y-1.5">
-        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.sku' | transloco }}</label>
+        <label class="text-xs font-semibold uppercase tracking-wider text-shopper-muted">{{ 'products.sku' | transloco }}</label>
         <input
           class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
           [(ngModel)]="sku"
@@ -43,7 +43,7 @@
       </div>
 
       <div class="space-y-1.5">
-        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.sellPrice' | transloco }}</label>
+        <label class="text-xs font-semibold uppercase tracking-wider text-shopper-muted">{{ 'products.sellPrice' | transloco }}</label>
         <input
           type="number"
           class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
@@ -53,19 +53,19 @@
       </div>
 
       <div class="space-y-1.5">
-        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.vatPct' | transloco }}</label>
+        <label class="text-xs font-semibold uppercase tracking-wider text-shopper-muted">{{ 'products.vatPct' | transloco }}</label>
         <div class="relative">
           <input
             type="number"
             class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
             [(ngModel)]="vatRate"
           />
-          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">%</span>
+          <span class="absolute right-4 top-1/2 -translate-y-1/2 text-shopper-muted font-bold">%</span>
         </div>
       </div>
 
       <div class="space-y-1.5 lg:col-span-3">
-        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.nameEn' | transloco }}</label>
+        <label class="text-xs font-semibold uppercase tracking-wider text-shopper-muted">{{ 'products.nameEn' | transloco }}</label>
         <input
           class="w-full rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
           [(ngModel)]="nameEn"
@@ -73,7 +73,7 @@
       </div>
 
       <div class="space-y-1.5 lg:col-span-3">
-        <label class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ 'products.nameBn' | transloco }} (Bilingual)</label>
+        <label class="text-xs font-semibold uppercase tracking-wider text-shopper-muted">{{ 'products.nameBn' | transloco }} (Bilingual)</label>
         <input
           class="w-full font-bengali rounded-xl border border-shopper-border bg-slate-50/50 px-4 py-3 outline-none transition-all focus:border-shopper-primary focus:bg-white focus:ring-4 focus:ring-shopper-primary/10"
           [(ngModel)]="nameBn"
@@ -103,7 +103,7 @@
   />
 
   @if (items().length && !visible().length) {
-    <p class="text-sm text-slate-500">{{ 'products.noMatch' | transloco }}</p>
+    <p class="text-sm text-shopper-muted">{{ 'products.noMatch' | transloco }}</p>
   }
 
   <!-- Premium Data Grid -->
@@ -149,7 +149,7 @@
         } @else if (col.key === 'name_en') {
           <div class="flex flex-col">
             <span class="font-medium text-shopper-text">{{ row.name_en }}</span>
-            <span class="text-[10px] text-slate-400 font-bengali">{{ row.name_bn }}</span>
+            <span class="text-[10px] text-shopper-muted font-bengali">{{ row.name_bn }}</span>
           </div>
         } @else {
           {{ row[col.key] }}

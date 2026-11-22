@@ -4,7 +4,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h2 class="text-3xl font-black tracking-tighter text-shopper-text uppercase">{{ 'admin.title' | transloco }}</h2>
-      <p class="text-sm text-slate-500 font-medium">{{ 'admin.keyHint' | transloco }}</p>
+      <p class="text-sm text-shopper-muted font-medium">{{ 'admin.keyHint' | transloco }}</p>
     </div>
     @if (keySaved()) {
       <app-shopper-button variant="secondary" (btnClick)="reload()">
@@ -17,7 +17,7 @@
   <section class="rounded-3xl border border-shopper-border bg-shopper-bg/80 backdrop-blur-md p-8 shadow-2xl shadow-indigo-500/5">
     <div class="flex flex-wrap items-end gap-6">
       <div class="flex-1 min-w-[300px] space-y-2">
-        <label class="text-xs font-bold uppercase tracking-widest text-slate-400">{{ 'admin.apiKey' | transloco }}</label>
+        <label class="text-xs font-bold uppercase tracking-widest text-shopper-muted">{{ 'admin.apiKey' | transloco }}</label>
         <div class="relative group">
           <input
             type="password"
@@ -83,7 +83,7 @@
           } @else if (col.key === 'subdomain') {
             <span class="font-black text-shopper-primary tracking-tighter">{{ row.subdomain }}.shopper.com</span>
           } @else if (col.key === 'dedicated_database_name') {
-            <span class="font-mono text-[10px] px-2 py-1 bg-slate-100 rounded-md border border-slate-200 text-slate-500">
+            <span class="font-mono text-[10px] px-2 py-1 bg-shopper-surface rounded-md border border-shopper-border text-shopper-muted">
               {{ row.dedicated_database_name || 'SHARED_CLUSTER' }}
             </span>
           } @else {
@@ -94,7 +94,7 @@
       
       @if (items().length === 0 && !loadError()) {
         <div class="p-12 text-center">
-          <p class="text-sm font-bold text-slate-400 uppercase tracking-widest">{{ 'admin.empty' | transloco }}</p>
+          <p class="text-sm font-bold text-shopper-muted uppercase tracking-widest">{{ 'admin.empty' | transloco }}</p>
         </div>
       }
     </div>

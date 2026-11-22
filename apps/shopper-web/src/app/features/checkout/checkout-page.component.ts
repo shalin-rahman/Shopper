@@ -37,7 +37,7 @@ function isHttps(url: string): boolean {
         } @else {
           @if (invoice(); as inv) {
           <div>
-            <p class="text-xs font-bold uppercase tracking-widest text-slate-400">{{ 'checkout.invoice' | transloco }}</p>
+            <p class="text-xs font-bold uppercase tracking-widest text-shopper-muted">{{ 'checkout.invoice' | transloco }}</p>
             <h1 class="text-2xl font-extrabold tracking-tight text-shopper-text">{{ inv.invoice_no }}</h1>
           </div>
           <ul class="divide-y divide-shopper-border text-sm">
@@ -54,7 +54,7 @@ function isHttps(url: string): boolean {
           </div>
           @if (payable()) {
             <fieldset class="space-y-2">
-              <legend class="mb-2 text-xs font-bold uppercase tracking-widest text-slate-400">{{ 'checkout.method' | transloco }}</legend>
+              <legend class="mb-2 text-xs font-bold uppercase tracking-widest text-shopper-muted">{{ 'checkout.method' | transloco }}</legend>
               @for (g of gateways; track g.id) {
                 <label
                   class="flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-bold transition-all"
@@ -62,7 +62,7 @@ function isHttps(url: string): boolean {
                   [class.border-shopper-border]="gateway() !== g.id"
                 >
                   <input type="radio" name="gateway" [value]="g.id" [checked]="gateway() === g.id" (change)="gateway.set(g.id)" />
-                  {{ g.label }}
+                  {{ g.label | transloco }}
                 </label>
               }
             </fieldset>
@@ -73,7 +73,7 @@ function isHttps(url: string): boolean {
               {{ 'checkout.pay' | transloco }}
             </app-shopper-button>
           } @else {
-            <p class="text-center font-semibold text-slate-400">{{ 'checkout.nothingDue' | transloco }}</p>
+            <p class="text-center font-semibold text-shopper-muted">{{ 'checkout.nothingDue' | transloco }}</p>
           }
           }
         }
@@ -86,9 +86,9 @@ export class CheckoutPageComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
 
   readonly gateways: { id: CheckoutGateway; label: string }[] = [
-    { id: 'bkash', label: 'bKash' },
-    { id: 'nagad', label: 'Nagad' },
-    { id: 'sslcommerz', label: 'Card / SSLCommerz' },
+    { id: 'bkash', label: 'checkout.gateways.bkash' },
+    { id: 'nagad', label: 'checkout.gateways.nagad' },
+    { id: 'sslcommerz', label: 'checkout.gateways.sslcommerz' },
   ];
 
   readonly state = signal<'loading' | 'ready' | 'badLink' | 'error'>('loading');

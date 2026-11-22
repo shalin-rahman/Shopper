@@ -25,7 +25,7 @@ function safeNext(next: string | null): string {
       >
         <h1 class="text-2xl font-extrabold tracking-tight text-shopper-text">{{ 'login.title' | transloco }}</h1>
         <div class="space-y-2">
-          <label for="login-username" class="text-xs font-bold uppercase tracking-widest text-slate-400">
+          <label for="login-username" class="text-xs font-bold uppercase tracking-widest text-shopper-muted">
             {{ 'login.username' | transloco }}
           </label>
           <input
@@ -38,7 +38,7 @@ function safeNext(next: string | null): string {
           />
         </div>
         <div class="space-y-2">
-          <label for="login-password" class="text-xs font-bold uppercase tracking-widest text-slate-400">
+          <label for="login-password" class="text-xs font-bold uppercase tracking-widest text-shopper-muted">
             {{ 'login.password' | transloco }}
           </label>
           <input
