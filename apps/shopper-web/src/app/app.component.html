@@ -60,19 +60,9 @@
 
     <!-- On narrow screens this row scrolls sideways instead of widening the page. -->
     <nav class="app-nav mx-auto max-w-7xl px-2 sm:px-4">
-      <a routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">{{ 'nav.home' | transloco }}</a>
-      <a routerLink="/products" routerLinkActive="is-active">{{ 'nav.products' | transloco }}</a>
-      <a routerLink="/invoices" routerLinkActive="is-active">{{ 'nav.invoices' | transloco }}</a>
-      <a routerLink="/inventory" routerLinkActive="is-active">{{ 'nav.inventory' | transloco }}</a>
-      <a routerLink="/procurement" routerLinkActive="is-active">{{ 'nav.procurement' | transloco }}</a>
-      <a routerLink="/suppliers" routerLinkActive="is-active">{{ 'nav.suppliers' | transloco }}</a>
-      <a routerLink="/expenses" routerLinkActive="is-active">{{ 'nav.expenses' | transloco }}</a>
-      <a routerLink="/payments" routerLinkActive="is-active">{{ 'nav.payments' | transloco }}</a>
-      <a routerLink="/accounting" routerLinkActive="is-active">{{ 'nav.accounting' | transloco }}</a>
-      <a routerLink="/customers" routerLinkActive="is-active">{{ 'nav.customers' | transloco }}</a>
-      <a routerLink="/staff" routerLinkActive="is-active">{{ 'nav.staff' | transloco }}</a>
-      <a routerLink="/settings" routerLinkActive="is-active">{{ 'nav.settings' | transloco }}</a>
-      <a routerLink="/admin/tenants" routerLinkActive="is-active">{{ 'nav.admin' | transloco }}</a>
+      @for (item of nav(); track item.path) {
+        <a [routerLink]="item.path" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: !!item.exact }">{{ item.label | transloco }}</a>
+      }
     </nav>
   </header>
 

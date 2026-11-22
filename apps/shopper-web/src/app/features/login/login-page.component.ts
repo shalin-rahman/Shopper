@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TranslocoPipe } from '@ngneat/transloco';
 
 import { AuthService } from '../../core/auth/auth.service';
+import { TenantSettingsStore } from '../../core/tenant/tenant-settings.store';
 import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
 
 /** Only same-app paths are allowed as the page to return to. */
@@ -64,6 +65,7 @@ export class LoginPageComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly store = inject(TenantSettingsStore);
 
   username = '';
   password = '';
@@ -76,8 +78,11 @@ export class LoginPageComponent {
     this.error.set(null);
     this.auth.login(this.username, this.password).subscribe({
       next: () => {
-        this.busy.set(false);
-        void this.router.navigateByUrl(safeNext(this.route.snapshot.queryParamMap.get('next')));
+        // Apply the shop's theme and language before the first page shows.
+        void this.store.load().then(() => {
+          this.busy.set(false);
+          void this.router.navigateByUrl(safeNext(this.route.snapshot.queryParamMap.get('next')));
+        });
       },
       error: (err: unknown) => {
         this.busy.set(false);

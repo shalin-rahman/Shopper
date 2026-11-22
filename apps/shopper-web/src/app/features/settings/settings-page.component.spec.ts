@@ -6,6 +6,7 @@ import { of, throwError } from 'rxjs';
 
 import { ShopperTranslocoHttpLoader } from '../../core/i18n/transloco-loader';
 import { TenantSettingsDto, TenantSettingsService } from '../../core/tenant/tenant-settings.service';
+import { TenantSettingsStore } from '../../core/tenant/tenant-settings.store';
 import { ThemeService } from '../../core/theme/theme.service';
 import { SettingsPageComponent } from './settings-page.component';
 
@@ -61,7 +62,28 @@ describe('SettingsPageComponent', () => {
     const page = create();
     expect(page.form?.default_vat_rate_pct).toBe(15);
     expect(page.form?.logo_url).toBe('');
-    expect(page.moduleKeys()).toEqual(['inventory', 'pos']);
+    expect(page.moduleKeys()).toEqual(['inventory', 'procurement', 'expenses', 'accounting', 'customers', 'pos']);
+    expect(page.form?.module_access['inventory']).toBeFalse();
+    expect(page.form?.module_access['accounting']).toBeTrue();
+  });
+
+  it('shows six switches, all on, when module_access is empty', () => {
+    api.load.and.returnValue(of(settings({ module_access: {} })));
+    const fixture = TestBed.createComponent(SettingsPageComponent);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    expect(page.moduleKeys().length).toBe(6);
+    expect(Object.values(page.form!.module_access).every((on) => on)).toBeTrue();
+    expect(fixture.nativeElement.querySelectorAll('input[role="switch"]').length).toBe(6);
+    page.save();
+    expect(api.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps extra module keys after the known ones', () => {
+    api.load.and.returnValue(of(settings({ module_access: { loyalty: false } })));
+    const page = create();
+    expect(page.moduleKeys()).toEqual(['inventory', 'procurement', 'expenses', 'accounting', 'customers', 'pos', 'loyalty']);
+    expect(page.form!.module_access['loyalty']).toBeFalse();
   });
 
   it('does not call the API when nothing changed', () => {
@@ -82,12 +104,15 @@ describe('SettingsPageComponent', () => {
     expect(api.update).toHaveBeenCalledWith({
       theme_id: 'ruby',
       bin: null,
-      module_access: { pos: true, inventory: true },
+      module_access: {
+        inventory: true, procurement: true, expenses: true, accounting: true, customers: true, pos: true,
+      },
     });
     expect(page.message()).toEqual({ key: 'settings.saved', error: false });
     expect(document.documentElement.getAttribute('data-theme')).toBe('ruby');
     expect(TestBed.inject(ThemeService).currentTheme()).toBe('ruby');
     expect(localStorage.getItem('shopper_web_theme')).toBe('ruby');
+    expect(TestBed.inject(TenantSettingsStore).settings()?.theme_id).toBe('ruby');
     expect(page.saving()).toBeFalse();
   });
 
@@ -120,7 +145,8 @@ describe('SettingsPageComponent', () => {
     page.discard();
     expect(page.dirtyCount()).toBe(0);
     expect(page.form!.bin).toBe('123');
-    expect(page.form!.module_access).toEqual({ pos: true, inventory: false });
+    expect(page.form!.module_access['pos']).toBeTrue();
+    expect(page.form!.module_access['inventory']).toBeFalse();
   });
 
   it('counts a cleared VAT field so save can report it', () => {
@@ -148,6 +174,7 @@ describe('SettingsPageComponent', () => {
   it('names known modules and leaves unknown ones as keys', () => {
     const page = create();
     expect(page.moduleLabel('pos')).toBe('settings.moduleNames.pos');
+    expect(page.moduleLabel('procurement')).toBe('settings.moduleNames.procurement');
     expect(page.moduleLabel('loyalty')).toBeNull();
   });
 

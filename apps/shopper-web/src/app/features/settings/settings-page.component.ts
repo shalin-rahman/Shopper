@@ -9,13 +9,11 @@ import {
   TenantSettingsService,
   TenantSettingsUpdate,
 } from '../../core/tenant/tenant-settings.service';
-import { ShopperTheme, ThemeService } from '../../core/theme/theme.service';
+import { TenantSettingsStore } from '../../core/tenant/tenant-settings.store';
+import { SHOPPER_THEMES, ShopperTheme, ThemeService } from '../../core/theme/theme.service';
 import { ShopperButtonComponent } from '../../shared/components/shopper-button.component';
+import { MODULE_KEYS, isModuleKey } from '../../core/nav/nav-items';
 
-export const SETTINGS_THEMES = [
-  'default', 'midnight', 'emerald', 'ruby', 'cyberpunk', 'amber',
-  'lavender', 'ocean', 'sunset', 'forest', 'slate', 'gold',
-] as const;
 
 /** Fixed receipt wording, copied from apps/api/routers/receipts.py so the preview matches the print. */
 export const RECEIPT_TEXT = {
@@ -23,8 +21,6 @@ export const RECEIPT_TEXT = {
   bn: { bin: 'বিআইএন:', mushak: 'মূসক ৬.৩ - কর চালান' },
 } as const;
 
-/** Modules with a translated name. Others show their key. */
-const NAMED_MODULES = new Set(['pos', 'inventory']);
 
 interface SettingsForm {
   theme_id: string;
@@ -37,10 +33,13 @@ interface SettingsForm {
   module_access: Record<string, boolean>;
 }
 
+/** Known modules first, then any extra keys. A missing key means on (D3). */
 function toForm(s: TenantSettingsDto): SettingsForm {
+  const saved = s.module_access ?? {};
+  const extra = Object.keys(saved).filter((k) => !isModuleKey(k)).sort();
   const modules: Record<string, boolean> = {};
-  for (const [key, value] of Object.entries(s.module_access ?? {})) {
-    modules[key] = value === true;
+  for (const key of [...MODULE_KEYS, ...extra]) {
+    modules[key] = saved[key] !== false;
   }
   return {
     theme_id: s.theme_id,
@@ -70,8 +69,9 @@ function textOrNull(value: string): string | null {
 export class SettingsPageComponent implements OnInit {
   private readonly api = inject(TenantSettingsService);
   private readonly theme = inject(ThemeService);
+  private readonly store = inject(TenantSettingsStore);
 
-  readonly themes = SETTINGS_THEMES;
+  readonly themes = SHOPPER_THEMES;
   readonly receiptText = RECEIPT_TEXT;
   readonly loaded = signal(false);
   /** The logo URL that last failed to load, so the preview can say so. */
@@ -91,12 +91,12 @@ export class SettingsPageComponent implements OnInit {
   }
 
   moduleKeys(): string[] {
-    return this.form ? Object.keys(this.form.module_access).sort() : [];
+    return this.form ? Object.keys(this.form.module_access) : [];
   }
 
   /** Translation key for a module's name, or null when only the raw key is known. */
   moduleLabel(key: string): string | null {
-    return NAMED_MODULES.has(key) ? `settings.moduleNames.${key}` : null;
+    return isModuleKey(key) ? `settings.moduleNames.${key}` : null;
   }
 
   /**
@@ -169,6 +169,7 @@ export class SettingsPageComponent implements OnInit {
         this.reset(s);
         // Through the service, so the header's theme picker and the saved choice follow.
         this.theme.setTheme(s.theme_id as ShopperTheme);
+        this.store.settings.set(s);
         this.message.set({ key: 'settings.saved', error: false });
         this.saving.set(false);
       },

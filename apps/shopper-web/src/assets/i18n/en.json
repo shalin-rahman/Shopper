@@ -8,7 +8,6 @@
   "nav": {
     "home": "Home",
     "products": "Products",
-    "admin": "Admin",
     "accounting": "Accounting",
     "expenses": "Expenses",
     "suppliers": "Suppliers",
@@ -63,8 +62,12 @@
       "noName": "No legal name yet. The shop's web address prints instead."
     },
     "moduleNames": {
-      "pos": "Point of sale",
-      "inventory": "Inventory"
+      "inventory": "Inventory",
+      "procurement": "Purchasing and suppliers",
+      "expenses": "Expenses",
+      "accounting": "Accounting",
+      "customers": "Customers",
+      "pos": "Mobile POS"
     }
   },
   "admin": {

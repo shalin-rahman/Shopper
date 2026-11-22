@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject } from '@angular/core';
+import { Component, DestroyRef, computed, inject } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -6,7 +6,9 @@ import { TranslocoPipe } from '@ngneat/transloco';
 
 import { AuthService } from './core/auth/auth.service';
 import { LocaleService, ShopperLang } from './core/i18n/locale.service';
-import { ThemeService, ShopperTheme } from './core/theme/theme.service';
+import { visibleNav } from './core/nav/nav-items';
+import { TenantSettingsStore } from './core/tenant/tenant-settings.store';
+import { SHOPPER_THEMES, ShopperTheme, ThemeService } from './core/theme/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -20,6 +22,7 @@ export class AppComponent {
   readonly theme = inject(ThemeService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly store = inject(TenantSettingsStore);
 
   /** Pages shown without the staff header and footer. */
   readonly bare = toSignal(
@@ -30,14 +33,13 @@ export class AppComponent {
     { initialValue: false },
   );
 
-  readonly themes: ShopperTheme[] = [
-    'default', 'midnight', 'emerald', 'ruby', 
-    'cyberpunk', 'amber', 'lavender', 'ocean', 
-    'sunset', 'forest', 'slate', 'gold'
-  ];
+  readonly themes = SHOPPER_THEMES;
+
+  readonly nav = computed(() => visibleNav(this.auth.role(), (k) => this.store.moduleOn(k)));
 
   logout(): void {
     this.auth.logout();
+    this.store.clear();
     void this.router.navigate(['/login']);
   }
 

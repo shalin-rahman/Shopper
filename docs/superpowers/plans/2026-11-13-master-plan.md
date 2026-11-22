@@ -57,8 +57,8 @@ Status values: `todo`, `doing`, `done`, `blocked`. Fill `Result` with date and t
 | A2 | API+web: gateway return and IPN URLs | none | done | 2026-11-22: API 330/19, web 64 passed, ng build ok |
 | A3 | API: typed bodies and roles for money and staff endpoints | none | done | 2026-11-22: API 354/19; no web form posts these routes, so no web change |
 | A4 | API: make test_pos_e2e run against the scratch DB | none | todo | |
-| B1 | Web: tenant settings store, theme and language after login | A1 | todo | |
-| B2 | Web: nav by role and module, module guard, module switches | B1 | todo | |
+| B1 | Web: tenant settings store, theme and language after login | A1 | done | 2026-11-22: web 78 passed, ng build ok |
+| B2 | Web: nav by role and module, module guard, module switches | B1 | done | 2026-11-22: web 89 passed, ng build ok |
 | B3 | Web: warn before leaving /settings with unsaved changes | none | todo | |
 | B4 | Web: translate home, accounting, customers, expenses | none | todo | |
 | B5 | Web: translate inventory, invoices, procurement, staff, suppliers | B4 | todo | |

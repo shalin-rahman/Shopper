@@ -8,7 +8,6 @@
   "nav": {
     "home": "হোম",
     "products": "পণ্য",
-    "admin": "অ্যাডমিন",
     "accounting": "অ্যাকাউন্টিং",
     "expenses": "খরচ",
     "suppliers": "সরবরাহকারী",
@@ -63,8 +62,12 @@
       "noName": "এখনো আইনি নাম নেই। এর বদলে দোকানের ওয়েব ঠিকানা ছাপা হবে।"
     },
     "moduleNames": {
-      "pos": "পয়েন্ট অব সেল",
-      "inventory": "ইনভেন্টরি"
+      "inventory": "ইনভেন্টরি",
+      "procurement": "ক্রয় ও সরবরাহকারী",
+      "expenses": "খরচ",
+      "accounting": "হিসাব",
+      "customers": "গ্রাহক",
+      "pos": "মোবাইল পিওএস"
     }
   },
   "admin": {
