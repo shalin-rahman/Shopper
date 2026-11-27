@@ -38,5 +38,7 @@ async def close_all_pools(app_state):
     
     if hasattr(app_state, "db_pool") and app_state.db_pool:
         await app_state.db_pool.close()
+        app_state.db_pool = None
     if hasattr(app_state, "migrate_pool") and app_state.migrate_pool:
         await app_state.migrate_pool.close()
+        app_state.migrate_pool = None

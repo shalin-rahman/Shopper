@@ -90,7 +90,7 @@ Plans, with per-task notes: [review remediation](../../../docs/superpowers/plans
 - [x] Printed QR links and gateway return URLs now put the tenant subdomain in front of STOREFRONT_PUBLIC_BASE_URL (core/storefront_url.py), or fill a `{subdomain}` placeholder in it (2026-11-06). Wildcard DNS and TLS must cover the host. Still check on the real deploy.
 - [x] Product QR payloads now use the subdomain rule (`https://{sub}.{base}/p/{sku}`) through core/storefront_url.py, like invoice QR links (2026-11-06). No backfill: products created before this keep the old path-prefix payload until they are edited or recreated.
 - [ ] Rocket gateway returns 501. bKash and Nagad fail closed until provider contracts arrive. → X1 (blocked).
-- [ ] Foreign key checks bypass RLS. A tenant who knows another tenant's row UUID could reference it. → C1, C2 (migration 032).
+- [x] Foreign key checks bypassed RLS. Migration 032 makes every tenant foreign key include `tenant_id` (35 links, plus `po_lines.tenant_id`). Applied on the scratch DB, and integration tests show one shop cannot point at another's rows (C1, C2, 2026-11-27).
 - [x] Web /settings page for tenant settings (manager only), 2026-11-06: route, nav link, PATCH in the service, page, spec and en/bn strings. Shared form parts (field, notice, segmented, switch) and the --shopper-muted/-tint/-focus-ring/-danger tokens moved to src/styles.scss so the page style fits the budget (2.73 kB; warns over 2 kB, fails over 4 kB). Checked in a browser at 1440, 390 and 360 px (no sideways scroll, save sends only changed fields).
 - [x] Web layout and theme fixes, 2026-11-06 (commit a086c86 plus later uncommitted work):
   - Header nav has its own row that scrolls sideways at every width. Phones now get a nav. The current page is marked and kept in view.
@@ -99,33 +99,35 @@ Plans, with per-task notes: [review remediation](../../../docs/superpowers/plans
   - Tokens added for the six themes that had none. Cyberpunk primary darkened to #d000d0 so white text passes 4.5:1.
   - Footer translated (footer.rights), dead "Security / Privacy / Infrastructure" items removed. Logo is a real link. EN/BN buttons have aria-pressed.
   - .animate-in (used on 12 pages) is defined in styles.scss. No Tailwind plugin provides it. Off under reduced motion.
-- [ ] Web: look over all pages once. The Tailwind color fix turned on tints and hover colors that never showed before. → B6.
-- [ ] Web: hide nav links for modules switched off in settings. Show the Admin link only to admins. Roles reach the web in the JWT `role` claim. → B1, B2 (decisions D1, D3).
-- [ ] Web: warn before leaving /settings with unsaved changes (canDeactivate). → B3.
+- [x] Web: looked over all pages (B6, 2026-11-22). Fixed sideways scroll at 360 px on home, procurement tabs and suppliers. Bangla letter-spacing and pale grey text fixed in B7.
+- [x] Web: nav links hide by role and by module. The Admin link left the staff nav (B1, B2, 2026-11-22; decisions D1, D3).
+- [x] Web: /settings asks before you leave with unsaved changes (B3, 2026-11-22).
 - [x] Web: no theme switch on screens under 1024 px except the /settings page. Verified 2026-11-13: the header theme dots are `hidden lg:flex`; /settings has its own picker.
-- [ ] Web: browser test for /settings at 360 px in Bangla (no sideways scroll). → B6.
+- [x] Web: Playwright tests check every page for sideways scroll, /settings at 360 px in Bangla included (B6, 2026-11-22; e2e 37 passed).
 - [x] Repo: .gitattributes stores text as LF (2026-11-13, commit 1fff976).
 - [x] The QR link expiry stays an app setting (decision D5, 2026-11-13). Reopen only if a tenant asks (X6).
 - [x] DB-backed RLS integration tests run against the scratch DB (2026-11-06): 11 passed, 1 skipped. The test cleanup deleted tenants directly, which failed: the cascade hits audited tables, and their audit trigger writes a row for a tenant that is already gone (audit_log_tenant_id_fkey). Cleanup now deletes the audited rows and audit_log rows first. The app itself never deletes tenants.
-- [ ] test_pos_e2e.py still skips: conftest always sets TESTING=1, so its skip rule always fires, and it needs a seeded tenant. → A4. Product, invoice and return flows → D1.
+- [x] test_pos_e2e.py runs against the scratch DB (A4, 2026-11-27). It found that every stock-in failed on a real DB since 013. Migration 033 fixes this, and adds cost layers for stock that had none. Product, invoice, return and refund flows (D1), marketplace search and tenant status (D2) have DB-backed tests too.
+- [x] Marketplace search lists trialing and past_due shops as well as active ones. Migration 035 (D3, 2026-11-27).
 - [ ] Out of scope from the per-branch stock plan: per-branch FIFO costing (X2, deferred), branch on invoices and POS sales (F2), a branches screen on the web (F1), per-branch stock in mobile (E1, E3), storefront orders taking stock (X5: no storefront ordering exists).
 
 ### Found in the 2026-11-13 review (all planned in the master plan)
-- [ ] Gateway IPN URL is built from PLATFORM_ROOT_DOMAIN (a bare domain): no scheme, tenant or /api. Return URLs point at /checkout/success, which the web reads as an invoice id, and gateways POST there. → A2.
-- [ ] GET /v1/tenant/settings needs a manager, so cashiers never get the tenant theme or language; the web bootstrap runs before login and bypasses ThemeService. → A1, B1.
-- [ ] Settings page shows no module switches when module_access is `{}` (what seeds and registration create). → B2.
-- [ ] Untyped bodies on accounts transfer, expenses and staff create give 500 on bad input; any cashier can transfer money and record supplier payments. → A3 (decision D2).
+- [x] Gateway IPN and return URLs are now built from STOREFRONT_PUBLIC_BASE_URL. Returns go to an API route that takes the POST and sends the browser on to /checkout/result (A2, 2026-11-22).
+- [x] Any staff role can read GET /v1/tenant/settings. The web loads settings after login through one store (A1, B1, 2026-11-22).
+- [x] The settings page shows module switches when module_access is `{}`. A missing key counts as on (B2, 2026-11-22).
+- [x] Accounts transfer, expenses and staff create take typed bodies. Transfers and supplier payments need accountant or above (A3, 2026-11-22; decision D2).
 - [ ] Mobile cannot talk to the API: fixed base URL with no tenant, login posts `{email}` to `/v1/auth/login`, calls `/auth/refresh`, `/auth/me`, `/v1/products`, `/v1/orders` that do not exist. → E1 to E4.
-- [ ] Hard-coded English on 9 web pages. → B4, B5.
+- [x] All web page strings are in en.json and bn.json, and a unit test checks both files have the same keys (B4, B5, 2026-11-22).
 - [ ] CI runs only on main/master (work happens on dev2), and has no web unit tests or Flutter job. → G1.
 - [ ] One-off scripts tracked in apps/api (fix_*.py, refactor.py) and scratch/. → G2.
 
 ### Handoff notes
-- 2026-11-13: API 318 passed, 19 skipped (rerun); ng build passes. Web unit tests not rerun that day (no Chrome on the machine). The 2026-11-06 work is committed (1fff976).
-- API tests: `python -m pytest -q` in apps/api. Last run on 2026-11-06: 318 passed, 19 skipped. Web (2026-11-06): 60 passed.
+- 2026-11-27 (sessions A1 to D3, not yet committed): API unit 369 passed, 35 skipped; integration 28 passed, 0 skipped on shopper_verify; migrations 032, 033 and 035 applied there. Web on 2026-11-22: 97 unit tests passed, e2e 37 passed, ng build passes. Mobile not rerun.
+- 2026-11-13: API 318 passed, 19 skipped (rerun); ng build passes. The 2026-11-06 work is committed (1fff976).
+- API tests: `python -m pytest -q` in apps/api.
 - Integration tests, from apps/api, on a scratch DB only: set `INTEGRATION_TEST=1`, `MIGRATE_DATABASE_URL` (a superuser or migrate role, used to seed and clean up), `DATABASE_URL` (a login role with shopper_app's rights and no BYPASSRLS) and a `JWT_SECRET_KEY` of 32+ chars, then `python -m pytest tests/integration -q`. Locally the shopper_app password is unknown, so a test role was made: `CREATE ROLE shopper_verify_app LOGIN PASSWORD '...' NOSUPERUSER NOBYPASSRLS IN ROLE shopper_app` (drop it with `DROP ROLE shopper_verify_app`).
 - Web tests: `npx ng test --watch=false --browsers=ChromeHeadless` and `npx ng build` in apps/shopper-web.
-- Migrations are numbered SQL files in database/migrations, applied in order by database/init/02_apply_migrations.sh or database/run_migrations.py. Each must be safe to rerun. The next number is 032.
+- Migrations are numbered SQL files in database/migrations, applied in order by database/init/02_apply_migrations.sh or database/run_migrations.py. Each must be safe to rerun. 034 is kept for master plan F2. After that, the next free number is 036.
 - Check migrations on a throwaway scratch database, never on a shared or production one.
 - The asyncpg pool has no JSONB codec. JSONB columns come back as text, so parse them, and write them as json.dumps(...) with a ::jsonb cast.
 - Lock order for stock: lock product rows (services.stock.lock_products) before lock_levels. A tenant-row lock taken before an audit insert must use FOR NO KEY UPDATE, or it deadlocks with the audit trigger's advisory lock.

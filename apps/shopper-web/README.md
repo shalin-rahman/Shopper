@@ -34,7 +34,12 @@ Strings live in `src/assets/i18n/en.json` and `bn.json`. Add every key to both f
 ## Login, roles and tenant settings
 - Staff log in at `/login`. The token is kept in sessionStorage (`shopper.token`); its `role` claim (`cashier`, `accountant`, `manager`, `admin`) is read by `AuthService.role`.
 - `/checkout/:id` (customer pay link) and `/admin/tenants` (platform admin, uses its own API key) need no staff login.
-- Known gaps (2026-11-13), planned in the [master plan](../../docs/superpowers/plans/2026-11-13-master-plan.md):
-  - Tenant settings load at app start, before login, and the API lets only managers read them, so most staff never get the shop's theme or language (A1, B1).
-  - Every nav link shows to every role, and modules switched off in settings still show (B2). With `module_access = {}` the settings page shows no module switches (B2).
-  - Several pages still have English-only text (B4, B5).
+- Tenant settings: `core/tenant/tenant-settings.store.ts` is the one place that holds them. They load after login, and any staff role can read them. The user's own saved theme wins over the shop theme.
+- Nav: `core/nav/nav-items.ts` lists the links. A link shows only if the user's role is allowed and its module is on. A missing `module_access` key counts as on. `moduleGuard` and `roleGuard` in `core/nav/module.guard.ts` guard the routes. This only hides things in the web app; the API does not check modules. The Admin link is not in the staff nav.
+- `unsavedChangesGuard` in `core/nav/unsaved-changes.guard.ts` asks before leaving a form with unsaved changes. /settings uses it.
+- Payment results: the gateway returns to the API, which sends the browser to `/checkout/result?status=success|fail|cancel`.
+
+## Tests
+- Unit: `npx ng test --watch=false --browsers=ChromeHeadless`. `core/i18n/i18n-keys.spec.ts` fails if `en.json` and `bn.json` have different keys.
+- Browser: `npm run e2e` (Playwright). It starts `ng serve` on port 4300 and stubs every API call, so it needs no database. Each page is checked for sideways scroll at 360, 390 and 1440 px, and Bangla text must have no letter-spacing. Set `E2E_SHOTS=1` to save screenshots to `test-results/shots/`.
+- Last run 2026-11-22: unit 97 passed, e2e 37 passed, `ng build` passed.

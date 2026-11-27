@@ -11,14 +11,14 @@ Multi-tenant ERP and POS for Bangladeshi shops. FastAPI + asyncpg + PostgreSQL R
 - `tasks.md` holds history and evidence. Older plans in `docs/superpowers/plans/2026-10-23-*` are finished. `docs/TODO.md`, `docs/AI_*`, `docs/Shopper-Refactor-Plan.md` are historical.
 
 ## Commands
-- API: `cd apps/api && python -m pytest -q` (baseline 2026-11-13: 318 passed, 19 skipped).
-- API integration (scratch DB `shopper_verify` only): `INTEGRATION_TEST=1`, `MIGRATE_DATABASE_URL`, `DATABASE_URL` (member of shopper_app, NOBYPASSRLS), `JWT_SECRET_KEY` (32+ chars), then `python -m pytest tests/integration -q`.
+- API: `cd apps/api && python -m pytest -q` (baseline 2026-11-27: 369 passed, 35 skipped).
+- API integration (scratch DB `shopper_verify` only): `INTEGRATION_TEST=1`, `MIGRATE_DATABASE_URL`, `DATABASE_URL` (member of shopper_app, NOBYPASSRLS), `JWT_SECRET_KEY` (32+ chars), then `python -m pytest tests/integration -q` (2026-11-27: 28 passed, 0 skipped).
 - Web: `cd apps/shopper-web && npx ng test --watch=false --browsers=ChromeHeadless && npx ng build`.
 - Mobile: `cd shopper-mobile && flutter test && flutter analyze`.
 
 ## Rules that broke things before
 - Never use the `shopper`, `ShoppersDB` or any Neon database. Only the scratch DB `shopper_verify`.
-- Migrations: next number 032 (see the plan). One `BEGIN; ... COMMIT;`, safe to rerun, plus a static test `tests/unit/test_migration_0NN.py`.
+- Migrations: 034 is kept for plan session F2; otherwise the next number is 036. One `BEGIN; ... COMMIT;`, safe to rerun, plus a static test `tests/unit/test_migration_0NN.py`.
 - Lock product rows (`services.stock.lock_products`) before `lock_levels`. A tenant-row lock before an audit insert must be `FOR NO KEY UPDATE` (the audit trigger takes an advisory lock).
 - asyncpg has no JSONB codec: parse JSONB text with `json.loads`, write with `json.dumps(...)` and `::jsonb`.
 - The API refuses to start without a real `JWT_SECRET_KEY` (32+ chars) unless `TESTING`. bcrypt stays `<5` (passlib 1.7.4).

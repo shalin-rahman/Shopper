@@ -32,7 +32,16 @@ This repo is best understood as an in-progress implementation with a documented 
 
 On 2026-10-24 the API suite ran with 305 passed and 19 skipped (`python -m pytest -q` in apps/api). Migrations 01 to 031 were applied on a local PostgreSQL 18.2 scratch database, and a refund and RLS smoke test passed as the shopper_app role. On 2026-11-06 the API suite ran with 318 passed and 19 skipped, and the DB-backed tests in apps/api/tests/integration ran against the scratch database as an app-role login: 11 passed, 1 skipped (the POS end-to-end test needs seeded demo data). docs/DEPLOY.md lists the settings they need; without them they skip. The full Flutter test suite passes, and `flutter analyze` reports no issues.
 
-On 2026-11-13 the API suite was rerun (318 passed, 19 skipped) and `ng build` passed. All earlier work is committed on dev2. Remaining work, in order, with tests and acceptance criteria: [master plan](docs/superpowers/plans/2026-11-13-master-plan.md). Agents start with [AGENTS.md](AGENTS.md).
+On 2026-11-13 the API suite was rerun (318 passed, 19 skipped) and `ng build` passed. All work up to then is committed on dev2.
+
+On 2026-11-27, after master plan sessions A1 to A4, B1 to B7, C1, C2 and D1 to D3 (not yet committed):
+- API unit: 369 passed, 35 skipped.
+- API integration on the scratch DB: 28 passed, 0 skipped. These include the POS end-to-end test, which now runs.
+- Migrations 032, 033 and 035 are applied on the scratch DB.
+- Web (2026-11-22, no web change since): 97 unit tests passed, `ng build` passed, Playwright e2e 37 passed.
+- Mobile was not rerun. Sessions E1 to E4 still have to make it work with the API.
+
+Remaining work, in order, with tests and acceptance criteria: [master plan](docs/superpowers/plans/2026-11-13-master-plan.md). Agents start with [AGENTS.md](AGENTS.md).
 
 ## Recommended interpretation
 

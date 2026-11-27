@@ -44,6 +44,8 @@ Acceptance criteria:
 - Tenant A data is not returned in queries for Tenant B.
 - Missing or invalid tenant context fails closed.
 
+Tested on PostgreSQL as the app role (2026-11-27): `tests/integration/test_rls_isolation.py`, `test_isolation.py`, and `test_tenant_fks.py`, which shows a row cannot point at another tenant's rows (migration 032).
+
 ### REQ-BR-003: Product catalog management
 - The system shall allow a tenant to create, read, update, deactivate, and search products.
 - Product metadata shall support bilingual names and stock state.
@@ -52,6 +54,8 @@ Acceptance criteria:
 - A product is created with valid tenant-scoped identity, stock quantity, and SKU.
 - Search results are scoped to the correct tenant.
 - The initialized/migrated product schema contains stock quantity, enforces non-negative stock, and tenant-qualifies category references.
+
+Tested on PostgreSQL (2026-11-27): `test_commerce_flows.py::test_product_create_records_opening_stock`, `test_rls_isolation.py` (product fetch and category checks).
 
 ### REQ-BR-004: Sales and invoice lifecycle
 - Invoice creation, line items, VAT, and balance tracking shall be supported.
@@ -63,6 +67,8 @@ Acceptance criteria:
 - Unpaid finalized offline sales retain the full balance due and are not represented as drafts.
 - Offline POS settlement equals the collected amount; omitted `amount_paid` means unpaid and overpayment is rejected.
 
+Tested on PostgreSQL (2026-11-27): `test_commerce_flows.py` (issue and cancel with VAT, partial return with credit note, refund that raises the balance and is capped at the amount paid) and `test_pos_e2e.py`.
+
 ### REQ-BR-005: Inventory control and stock movement
 - Stock-in and stock-out events shall update inventory and preserve audit evidence.
 
@@ -70,6 +76,8 @@ Acceptance criteria:
 - Stock-out reduces product quantity and reconciles with invoice or sale data.
 - Failed steps cause transaction rollback rather than partial state.
 - POS sync rejects aggregate demand greater than locked, available stock.
+
+Tested on PostgreSQL (2026-11-27): `test_commerce_flows.py` (an issue above stock is refused and changes nothing; stock without cost layers sells at the backfilled cost, migration 033) and `test_pos_e2e.py`.
 
 ### REQ-BR-006: Offline POS sync and offline punch
 - The system shall support offline mobile sales capture and later synchronization.
@@ -106,6 +114,8 @@ Acceptance criteria:
 - Market listings do not mix different tenant product sets.
 - Product listings require explicit product-level public opt-in and use a constrained RLS-safe public query path.
 
+Tested on PostgreSQL (2026-11-27): `test_public_and_lifecycle.py` (marketplace search returns only opted-in products, and a storefront lists only its own) and `test_rls_isolation.py`. Active, trialing and past_due shops are listed (migration 035).
+
 ### REQ-BR-010: Admin and platform controls
 - Super admin functions shall provide tenant lifecycle management and platform controls.
 
@@ -113,6 +123,8 @@ Acceptance criteria:
 - Money-moving tenant endpoints (account transfers, supplier payments) require accountant, manager or admin; staff creation requires admin.
 - Only authorized global users can manage platform state.
 - Suspended or inactive tenants cannot process new transactions.
+
+Tested (2026-11-27): on PostgreSQL, `test_public_and_lifecycle.py` shows suspended, canceled, pending and deleted shops cannot log in or appear in listings, while trialing and past_due shops can. The role checks on transfers, supplier payments and staff create have unit tests only. Platform admin access has no DB-backed test yet.
 
 ## Risks and assumptions
 - The repo contains both completed and incomplete areas; the spec must not claim production readiness without verification.

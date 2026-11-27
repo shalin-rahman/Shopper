@@ -1,6 +1,6 @@
 # Shopper Platform — Architecture Map
 
-> **Last Updated:** 2026-04-20 (sections 1 to 9); change list below updated 2026-11-13
+> **Last Updated:** 2026-04-20 (sections 1 to 9); change list below updated 2026-11-27
 > **Rule:** Always update this map as the last step of any structural change.
 
 ## Changes since 2026-04-20 (not yet merged into the sections below)
@@ -11,12 +11,20 @@ The sections below describe the April 2026 structure. Master plan session G3 mer
   - `core/storefront_url.py`: tenant storefront base URL (subdomain in front of `STOREFRONT_PUBLIC_BASE_URL`, or `{subdomain}` placeholder). Used by invoice QR, product QR and gateway return URLs.
   - `core/dependencies.py`: role deps `StaffDep`, `AccountantDep`, `ManagerDep`, `AdminDep`; `BranchDep` (`X-Shopper-Branch`, cashiers and accountants limited to `staff.branch_id`).
   - `services/stock.py` (per-branch stock: `lock_products` then `lock_levels`), `services/payment_settlement.py` (reservations, 30-minute pending hold), `services/checkout_link.py` (signed pay links).
-  - Routers added: `branches.py`, `settings.py` (GET and manager-only PATCH), `procurement.py`, `marketplace.py`, `registration.py`. Payments has review, resolve-review and refunds. Invoices has issue, cancel, checkout-link and QR.
-- **Database:** migrations 027 (hardening, forced RLS, unique payment order ids), 028 (credit-note VAT, Mushak 6.7), 029 (payment review), 030 (`branches`, `stock_levels`, products.stock_quantity as the sum), 031 (debit-note links, `staff.branch_id`, `payment_refunds`, quieter product audit). `database/init/02_apply_migrations.sh` applies them on a fresh volume.
+  - Routers added: `branches.py`, `settings.py` (GET for any staff role, manager-only PATCH), `procurement.py`, `marketplace.py`, `registration.py`. Payments has review, resolve-review and refunds. Invoices has issue, cancel, checkout-link and QR.
+  - `routers/storefront.py`: `/v1/storefront/checkout/return/{success|fail|cancel}` takes the gateway's POST and sends the browser to the web page `/checkout/result`. Gateway IPN and return URLs are built from `STOREFRONT_PUBLIC_BASE_URL` (2026-11-22).
+  - Accounts transfer, supplier payments, expenses and staff create take typed bodies. Transfers and supplier payments need `AccountantDep` (2026-11-22).
+  - `core/db.py` sets its pools to None on shutdown, so a later start opens new ones.
+  - `tests/integration/`: `seed.py` (`seed_demo` makes a random tenant, `drop_tenant` removes it), POS end-to-end, commerce flows, cross-tenant foreign keys, marketplace and tenant status tests. They run against the scratch DB only.
+- **Database:** migrations 027 (hardening, forced RLS, unique payment order ids), 028 (credit-note VAT, Mushak 6.7), 029 (payment review), 030 (`branches`, `stock_levels`, products.stock_quantity as the sum), 031 (debit-note links, `staff.branch_id`, `payment_refunds`, quieter product audit), 032 (every tenant foreign key includes `tenant_id`; `po_lines.tenant_id`; precheck in `database/checks/032_precheck.sql`), 033 (cost layer and average cost added after the stock-in row is saved; layers added for stock that had none), 035 (marketplace search lists active, trialing and past_due shops). 034 is kept for master plan F2. `database/init/02_apply_migrations.sh` applies them on a fresh volume.
 - **Web (`apps/shopper-web`)**
   - `core/auth` (AuthService with the token in sessionStorage, Bearer interceptor, `authGuard`), `/login` and the public `/checkout/:id` page.
   - Pages added: `/payments` (review and refunds), `/settings` (tenant settings, manager only), invoice issue, cancel and pay-link actions.
-  - Header: separate scrolling nav row; Tailwind `shopper-*` colours map to the `--shopper-*` tokens; 12 themes in `src/styles.scss`.
+  - Header: separate scrolling nav row; Tailwind `shopper-*` colours map to the `--shopper-*` tokens; 12 themes in `src/styles.scss`. Bangla text has no letter-spacing (`[lang|=bn]`).
+  - `core/tenant/tenant-settings.store.ts`: the one store for shop settings, loaded after login. `SHOPPER_THEMES` in the theme service lists the themes.
+  - `core/nav/nav-items.ts` (`NAV_ITEMS`, `visibleNav` by role and module), `core/nav/module.guard.ts` (`moduleGuard`, `roleGuard`), `core/nav/unsaved-changes.guard.ts`.
+  - `/checkout/result` page for gateway returns. All page strings are in `en.json` and `bn.json`; `core/i18n/i18n-keys.spec.ts` checks the two files have the same keys.
+  - `e2e/` Playwright tests (`npm run e2e`) with every API call stubbed.
 - **Mobile (`shopper-mobile`):** sends money as 2-decimal strings in POS sync. Its `ApiClient` does not yet match the API (base URL, login body, several paths): master plan E1 to E4.
 - **Shared docs:** `AGENTS.md` (brief for every agent) and the [master plan](superpowers/plans/2026-11-13-master-plan.md).
 

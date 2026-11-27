@@ -18,7 +18,7 @@ A session is sized for one sitting: at most about 6 files changed and one test f
 ## Global rules
 
 - **Never break what works.** Before the first edit, run the baseline command for the area you touch. The counts must not drop afterwards, except for tests the session deletes on purpose (it says so).
-- **Baselines (2026-11-13):** API `318 passed, 19 skipped`. Web `ng build` passes (one budget warning on settings-page.component.scss, 2.92 kB, limit to fail is 4 kB). Web unit tests: 60 passed on 2026-11-06 (not rerun on 2026-11-13: no Chrome on that machine). Mobile: `flutter test` all pass and `flutter analyze` clean on 2026-10-24.
+- **Baselines (updated 2026-11-27):** API unit `369 passed, 35 skipped`. API integration on shopper_verify `28 passed, 0 skipped`. Web on 2026-11-22: 97 unit tests passed, Playwright e2e 37 passed, `ng build` passes. Mobile: `flutter test` all pass and `flutter analyze` clean on 2026-10-24.
 - **Commands**
   - API unit: `cd apps/api && python -m pytest -q`
   - API integration (scratch DB only): from `apps/api`, set `INTEGRATION_TEST=1`, `MIGRATE_DATABASE_URL` (superuser or migrate role), `DATABASE_URL` (login role that is a member of shopper_app, NOBYPASSRLS), `JWT_SECRET_KEY` (32+ chars), then `python -m pytest tests/integration -q`.
@@ -26,7 +26,7 @@ A session is sized for one sitting: at most about 6 files changed and one test f
   - Mobile: `cd shopper-mobile && flutter test && flutter analyze`
   - Migrations on scratch DB: `python database/run_migrations.py` with `MIGRATE_DATABASE_URL` pointing at the scratch DB.
 - **Databases:** use only the scratch DB `shopper_verify`. Never `shopper`, `ShoppersDB`, or any Neon URL.
-- **Migrations:** numbered SQL in `database/migrations`, one `BEGIN; … COMMIT;`, safe to rerun, first line a `--` comment. Next number: **032**. Each new migration gets a static test `apps/api/tests/unit/test_migration_0NN.py` in the style of `test_migration_031.py`.
+- **Migrations:** numbered SQL in `database/migrations`, one `BEGIN; … COMMIT;`, safe to rerun, first line a `--` comment. 032, 033 and 035 are done. **034** is kept for F2; any other new migration takes **036**. Each new migration gets a static test `apps/api/tests/unit/test_migration_0NN.py` in the style of `test_migration_031.py`.
 - **Locks:** lock product rows (`services.stock.lock_products`) before `lock_levels`. A tenant-row lock taken before an audit insert uses `FOR NO KEY UPDATE`.
 - **asyncpg:** no JSONB codec. Read JSONB as text and `json.loads` it. Write with `json.dumps(...)` and a `::jsonb` cast.
 - **Web:** standalone components with signals, Transloco strings in both `en.json` and `bn.json` (same keys), `--shopper-*` tokens and the shared classes in `src/styles.scss`. Component styles stay under 2 kB where possible (4 kB fails the build). Check new pages at 360 px in Bangla.
@@ -56,7 +56,7 @@ Status values: `todo`, `doing`, `done`, `blocked`. Fill `Result` with date and t
 | A1 | API: tenant settings readable by all staff | none | done | 2026-11-22: API 320/19 |
 | A2 | API+web: gateway return and IPN URLs | none | done | 2026-11-22: API 330/19, web 64 passed, ng build ok |
 | A3 | API: typed bodies and roles for money and staff endpoints | none | done | 2026-11-22: API 354/19; no web form posts these routes, so no web change |
-| A4 | API: make test_pos_e2e run against the scratch DB | none | todo | |
+| A4 | API: make test_pos_e2e run against the scratch DB | none | done | 2026-11-27: integration 18 passed, 0 skipped; unit 364/25. The test found that every stock-in movement failed on a real DB since 013: the BEFORE INSERT trigger added a cost_layers row before its stock_transactions row existed (FK violation, old one-column FK too). Fixed by new migration 033_cost_layer_after_insert.sql (cost layer and WAC now AFTER INSERT; 'out' stays BEFORE) with test_migration_033.py; applied twice on shopper_verify. F2 moves to migration 034 |
 | B1 | Web: tenant settings store, theme and language after login | A1 | done | 2026-11-22: web 78 passed, ng build ok |
 | B2 | Web: nav by role and module, module guard, module switches | B1 | done | 2026-11-22: web 89 passed, ng build ok |
 | B3 | Web: warn before leaving /settings with unsaved changes | none | done | 2026-11-22: web 93 passed, ng build ok |
@@ -64,21 +64,22 @@ Status values: `todo`, `doing`, `done`, `blocked`. Fill `Result` with date and t
 | B5 | Web: translate inventory, invoices, procurement, staff, suppliers | B4 | done | 2026-11-22: web 97 passed, ng build ok. Also checkout gateway labels; added missing `suppliers.addTitle`; invoice cancel prompt and error fallback go through TranslocoService |
 | B6 | Web: Playwright checks (settings 360 px Bangla) and page look-over | B2, B3, B5 | done | 2026-11-22: e2e 37 passed, twice in a row (`npm run e2e`, all API calls stubbed, so no DB). Stable enough for G1 to add to CI. Web 97 passed, ng build ok. Fixed 360 px overflow on home, procurement tabs, suppliers with wrap/padding classes. Note: settings-page.component.scss is 2.9 kB, over the 2 kB soft limit (4 kB fails the build). Left as is by choice. If it grows, move the receipt preview into its own component and .savebar into styles.scss. |
 | B7 | Web: Bangla letter-spacing and pale tints | B6 | done | 2026-11-22: web 97 passed, build clean, e2e 37 passed (each Bangla page now also fails on letter-spacing). Letter-spacing is off under `[lang\|=bn]`, not `:lang(bn)`: the build's CSS optimizer drops `:lang`. All `text-slate-300/400/500` now `text-shopper-muted` (new Tailwind color from `--shopper-muted`). Found in B6 look-over. `tracking-widest` and `tracking-[0.2em]` split Bangla letters (data grid headers, stat labels on 9 pages); turn letter-spacing off under `:lang(bn)` in styles.scss. Grid empty text `text-slate-300` is too pale; move hard-coded `slate-*` text to a `--shopper-*` muted token. Check with `E2E_SHOTS=1 npm run e2e`. |
-| C1 | DB: migration 032, tenant-qualified foreign keys | none | todo | |
-| C2 | DB: apply 032 on scratch, cross-tenant FK integration tests | C1 | todo | |
-| D1 | Tests: DB-backed product, invoice, return and refund flows | A4, C2 | todo | |
-| D2 | Tests: marketplace search and suspended tenant on a real DB | A4 | todo | |
+| C1 | DB: migration 032, tenant-qualified foreign keys | none | done | 2026-11-27: API 360/19. The 35 links match every one-column FK in shopper_verify. Precheck takes po_lines' tenant from its purchase order, since po_lines has no tenant_id before 032 |
+| C2 | DB: apply 032 on scratch, cross-tenant FK integration tests | C1 | done | 2026-11-27: precheck all 0; 032 applied and rerun on shopper_verify (35 `_tfk` FKs). Integration 17 passed, 1 skipped (test_pos_e2e, A4); unit 360/25 (new file skips without DB). Applied with asyncpg as postgres: psql is not on PATH, and shopper_verify has no platform.schema_migrations table |
+| D1 | Tests: DB-backed product, invoice, return and refund flows | A4, C2 | done | 2026-11-27: integration 24 passed, 0 skipped; unit 365/31 (the new tests skip without the integration env). Review of 033 found that stock with no cost layers sold at cost 0; user chose to fix it in 033: `cost_layers.transaction_id` is now nullable and each product with stock and no layers gets one layer at its WAC or buy price (sixth test covers it). Not fixed: damage, expired, gift_out, return_out and transfer movements never touch cost layers (same as 013). Also `core/db.py` now sets the pools to None on shutdown, so a later test in the same run does not pick up a closed pool. |
+| D2 | Tests: marketplace search and suspended tenant on a real DB | A4 | done | 2026-11-27: integration 28 passed, 0 skipped; unit 365/35 (the 4 new tests skip without the integration env). Suspended, canceled and pending shops also drop out of marketplace search. Found: `search_public_marketplace_products` (026) lists only `active` shops, so trialing and past_due shops can sell but are not in the marketplace. User chose to list them: session D3 |
+| D3 | DB: marketplace search lists trialing and past_due shops (migration 035) | D2 | done | 2026-11-27: 035 applied twice on shopper_verify; integration 28 passed, 0 skipped (the trialing/past_due test now also checks marketplace search; the blocked-status test now also covers `deleted`); unit 369 passed / 35 skipped (+4 in test_migration_035.py) |
 | E1 | Mobile: API URL, shop code and request headers | none | todo | |
 | E2 | Mobile: login matches the API | E1 | todo | |
 | E3 | Mobile: products from /pos/sync, remove dead calls | E1 | todo | |
 | E4 | Contract check: openapi.json and a mobile path test | E2, E3 | todo | |
 | F1 | Web: branches screen | B2 | todo | |
-| F2 | DB+API: branch on invoices and POS sales (migration 033) | C2, D1 | todo | |
+| F2 | DB+API: branch on invoices and POS sales (migration 034) | C2, D1 | todo | |
 | G1 | CI: run on dev2, add web unit tests and Flutter | none | todo | |
 | G2 | Repo: remove one-off scripts, mark old docs historical | none | todo | |
 | G3 | Docs close-out (README, DEPLOY, ARCHITECTURE_MAP, spec, tasks) | all above except blocked | todo | |
 
-Order when one person works alone: A1, A2, A3, B1, B2, B3, B4, B5, C1, C2, A4, D1, D2, E1, E2, E3, E4, B6, F1, F2, G1, G2, G3.
+Order when one person works alone: A1, A2, A3, B1, B2, B3, B4, B5, C1, C2, A4, D1, D2, D3, E1, E2, E3, E4, B6, F1, F2, G1, G2, G3.
 
 Blocked on outside input (not in the tracker; see "Blocked and deferred"): X1 gateway contracts, X4 live deploy checks.
 
@@ -523,6 +524,22 @@ Closes the REQ-BR-009 "non-empty marketplace results" check and REQ-BR-010 "susp
 
 ---
 
+## D3. DB: marketplace search lists trialing and past_due shops
+
+**Bug fixed:** `platform.search_public_marketplace_products` (migration 026) filters `t.status = 'active'`. Login allows `active`, `trialing` and `past_due` (`TRANSACTING_TENANT_STATUSES` in core/tenant_context.py), so a trialing or past-due shop can sell but its opted-in products are hidden from the marketplace. Found in D2; the user chose to list them (2026-11-27).
+
+**Files:** new `database/migrations/035_marketplace_status.sql`, new `apps/api/tests/unit/test_migration_035.py`, `apps/api/tests/integration/test_public_and_lifecycle.py`.
+
+**Steps**
+1. 035: one `BEGIN; ... COMMIT;`. `CREATE OR REPLACE FUNCTION` with the same signature, body and `SECURITY DEFINER` / `search_path` as 026, but `t.status IN ('active', 'trialing', 'past_due')`. Repeat the `OWNER TO shopper_migrate`, `REVOKE ... FROM PUBLIC` and `GRANT EXECUTE ... TO shopper_app` lines. Safe to rerun.
+2. Static test: the file has one BEGIN/COMMIT, the three statuses, `SECURITY DEFINER`, and the grant.
+3. Integration: in `test_blocked_tenant_statuses_cannot_log_in_or_list`'s sibling for trialing and past_due, also assert shop A's listed product is in marketplace search.
+4. Apply 035 twice on shopper_verify (asyncpg as postgres).
+
+**Verify:** unit suite (+1 file), integration suite.
+
+---
+
 ## E1. Mobile: API URL, shop code and request headers
 
 **Bugs fixed:** `ApiClient.baseUrl` is the constant `https://api.shopper.com/v1`. The API finds the tenant from the host (`<tenant>.<root>/api/...`) or, in dev, `X-Shopper-Tenant`. The app sends neither, so every call is refused with 403.
@@ -608,14 +625,14 @@ API exists: `GET /v1/tenant/branches` (staff), `POST` and `PATCH /{id}` (admin).
 
 ---
 
-## F2. DB+API: branch on invoices and POS sales (migration 033)
+## F2. DB+API: branch on invoices and POS sales (migration 034)
 
-**Files:** new `database/migrations/033_invoice_branch.sql`, `test_migration_033.py`, `routers/invoices.py`, `routers/pos.py`, `schemas/invoice.py` (`InvoiceOut.branch_id`), integration test additions in `test_commerce_flows.py`.
+**Files:** new `database/migrations/034_invoice_branch.sql`, `test_migration_034.py`, `routers/invoices.py`, `routers/pos.py`, `schemas/invoice.py` (`InvoiceOut.branch_id`), integration test additions in `test_commerce_flows.py`.
 
 **Steps**
-1. 033: `ALTER TABLE tenant_data.invoices ADD COLUMN IF NOT EXISTS branch_id UUID;` backfill each tenant's invoices to its main branch; composite FK `(tenant_id, branch_id) → branches (tenant_id, id)` NOT VALID + VALIDATE (same pattern as 032); index `(tenant_id, branch_id, created_at)`. Leave it nullable for rows of tenants with no branch.
+1. 034: `ALTER TABLE tenant_data.invoices ADD COLUMN IF NOT EXISTS branch_id UUID;` backfill each tenant's invoices to its main branch; composite FK `(tenant_id, branch_id) → branches (tenant_id, id)` NOT VALID + VALIDATE (same pattern as 032); index `(tenant_id, branch_id, created_at)`. Leave it nullable for rows of tenants with no branch.
 2. `POST /invoices` takes `BranchDep`, resolves it and stores `branch_id`. `issue` and `cancel` take stock from and return it to `invoice.branch_id` (fallback main branch when NULL), not the request's branch. Today `cancel_invoice` has no `BranchDep`; find which branch `_restock_at_sale_cost` and the issue path use (`git grep -n "_restock_at_sale_cost\|def issue_invoice" apps/api/routers/invoices.py`) and pass `invoice.branch_id` to both. Offline-punch already resolves a branch; store it on the invoice it creates.
-3. Tests: static 033 test; integration: an invoice created with header branch B issues stock from B even when issued with header A.
+3. Tests: static 034 test; integration: an invoice created with header branch B issues stock from B even when issued with header A.
 
 **Verify:** API unit and integration suites.
 
@@ -645,9 +662,11 @@ API exists: `GET /v1/tenant/branches` (staff), `POST` and `PATCH /{id}` (admin).
 
 Run once, after the last non-blocked session. On 2026-11-13 a status pass already added known-issue notes to DEPLOY.md, ARCHITECTURE_AND_SECURITY_REVIEW.md, the web and mobile READMEs, and a "Changes since 2026-04-20" list at the top of ARCHITECTURE_MAP.md. G3 removes the known-issue notes that the sessions fixed and merges that list into the map's sections.
 
+On 2026-11-27 the user asked for an early docs pass covering A1 to A4, B1 to B7, C1, C2 and D1 to D3. README, DEPLOY (migrations, URLs, isolation suite), the security review, the web README, the ARCHITECTURE_MAP change list, tasks.md and the spec's "Tested" lines are current up to D3. G3 now only adds what the later sessions change, and it still has to merge the map's change list into its sections.
+
 1. Rerun all suites; write the counts and date in README "Verification status".
-2. DEPLOY.md: `STOREFRONT_PUBLIC_BASE_URL` must be host style (A2); gateway URLs it produces; mobile `SHOPPER_API_URL` (E1); migrations up to 033; precheck before 032 on real data.
-3. ARCHITECTURE_MAP.md: refresh "Last Updated", list new files (storefront_url, checkout return route, tenant settings store, nav items, guards, branches page, migrations 032/033, openapi export).
+2. DEPLOY.md: `STOREFRONT_PUBLIC_BASE_URL` must be host style (A2); gateway URLs it produces; mobile `SHOPPER_API_URL` (E1); migrations up to 034; precheck before 032 on real data.
+3. ARCHITECTURE_MAP.md: refresh "Last Updated", list new files (storefront_url, checkout return route, tenant settings store, nav items, guards, branches page, migrations 032-034, openapi export).
 4. spec.md: tick the acceptance criteria now covered by integration tests (REQ-BR-002/003/004/005/009/010).
 5. tasks.md: replace "Still open" with what is left (blocked items only) and the new baselines.
 6. AGENTS.md and `.claude/memory`: update "Current state" and the baselines.
